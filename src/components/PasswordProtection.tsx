@@ -13,7 +13,7 @@ const PasswordProtection: React.FC<PasswordProtectionProps> = ({ onSuccess, onCa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Replace with your actual password check
-    if (password === 'your-secure-password') { // ⚠️ In production, use environment variables and proper auth
+    if (password === 'glaze4464') { // ⚠️ In production, use environment variables and proper auth
       onSuccess();
     } else {
       setError('Invalid password');
