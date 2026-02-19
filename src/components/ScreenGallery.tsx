@@ -1,5 +1,5 @@
 // src/components/ScreenGallery.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { AdvancedImage } from '@cloudinary/react';
 import { Cloudinary } from '@cloudinary/url-gen';
@@ -20,16 +20,48 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
   const [selectedScreen, setSelectedScreen] = useState<ScreenCapture | null>(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [cloudinaryReady, setCloudinaryReady] = useState(true);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
-  const cld = new Cloudinary({
-    cloud: {
-      cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'your-cloud-name'
+  // Get Cloudinary cloud name from environment
+  const cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
+
+  // Initialize Cloudinary only if cloud name exists
+  const cld = React.useMemo(() => {
+    if (!cloudName) {
+      console.warn('Cloudinary cloud name not configured');
+      return null;
     }
-  });
+    try {
+      return new Cloudinary({
+        cloud: {
+          cloudName: cloudName
+        }
+      });
+    } catch (error) {
+      console.error('Failed to initialize Cloudinary:', error);
+      return null;
+    }
+  }, [cloudName]);
+
+  // Check Cloudinary configuration on mount
+  useEffect(() => {
+    if (!cloudName) {
+      setCloudinaryReady(false);
+      console.error(
+        'Cloudinary is not configured. Please add REACT_APP_CLOUDINARY_CLOUD_NAME to your .env file'
+      );
+    }
+  }, [cloudName]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!isEditMode && onAddScreen) {
       onAddScreen();
+      return;
+    }
+
+    if (!cloudName) {
+      alert('Cloudinary is not configured. Please check your environment variables.');
       return;
     }
 
@@ -79,14 +111,14 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
       alert('Upload failed. Please try again.');
     }
     setUploading(false);
-  }, [isEditMode, onAddScreen]);
+  }, [isEditMode, onAddScreen, cloudName]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
     },
-    disabled: !isEditMode
+    disabled: !isEditMode || !cloudinaryReady
   });
 
   const handleAddClick = () => {
@@ -94,7 +126,88 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
       onAddScreen();
       return;
     }
+    
+    if (!cloudinaryReady) {
+      alert('Cloudinary is not configured. Please check your environment variables.');
+      return;
+    }
+    
     setShowUploadForm(true);
+  };
+
+  const handleImageError = (screenId: string) => {
+    setImageErrors(prev => new Set(prev).add(screenId));
+  };
+
+  // Helper function to get image element with error handling
+  const getImageElement = (screen: ScreenCapture) => {
+    // Check if image previously failed or Cloudinary not ready
+    if (imageErrors.has(screen.id) || !cld || !screen.cloudinaryId) {
+      return (
+        <div style={styles.placeholderImage}>
+          <span style={styles.placeholderIcon}>📸</span>
+          <span style={styles.placeholderText}>
+            {!cld ? 'Cloudinary not configured' : 'Image not available'}
+          </span>
+        </div>
+      );
+    }
+
+    try {
+      const myImage = cld.image(screen.cloudinaryId);
+      myImage.resize(fill().width(400).height(300));
+
+      return (
+        <AdvancedImage 
+          cldImg={myImage} 
+          style={styles.image}
+          onError={() => handleImageError(screen.id)}
+        />
+      );
+    } catch (error) {
+      console.error('Error creating Cloudinary image:', error);
+      handleImageError(screen.id);
+      return (
+        <div style={styles.placeholderImage}>
+          <span style={styles.placeholderIcon}>⚠️</span>
+          <span style={styles.placeholderText}>Failed to load image</span>
+        </div>
+      );
+    }
+  };
+
+  const getModalImage = (screen: ScreenCapture) => {
+    if (imageErrors.has(screen.id) || !cld || !screen.cloudinaryId) {
+      return (
+        <div style={styles.modalPlaceholder}>
+          <span style={styles.modalPlaceholderIcon}>
+            {!cld ? '☁️' : '📸'}
+          </span>
+          <span>
+            {!cld ? 'Cloudinary not configured' : 'Image not available'}
+          </span>
+        </div>
+      );
+    }
+
+    try {
+      const modalImage = cld.image(screen.cloudinaryId).resize(fill().width(800).height(600));
+      return (
+        <AdvancedImage 
+          cldImg={modalImage} 
+          style={styles.modalImage}
+          onError={() => handleImageError(screen.id)}
+        />
+      );
+    } catch (error) {
+      console.error('Error creating modal image:', error);
+      return (
+        <div style={styles.modalPlaceholder}>
+          <span style={styles.modalPlaceholderIcon}>⚠️</span>
+          <span>Failed to load image</span>
+        </div>
+      );
+    }
   };
 
   return (
@@ -110,23 +223,39 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
           onClick={handleAddClick}
           style={{
             ...styles.uploadButton,
-            backgroundColor: isEditMode ? '#FF8C42' : '#6c757d',
-            cursor: isEditMode ? 'pointer' : 'not-allowed'
+            backgroundColor: isEditMode && cloudinaryReady ? '#FF8C42' : '#6c757d',
+            cursor: isEditMode && cloudinaryReady ? 'pointer' : 'not-allowed',
+            opacity: isEditMode && cloudinaryReady ? 1 : 0.7
           }}
+          disabled={!isEditMode || !cloudinaryReady}
         >
-          {isEditMode ? '+ Add Screens' : '🔒 Edit Mode Required'}
+          {!cloudinaryReady ? '⚠️ Cloudinary Not Configured' : 
+           isEditMode ? '+ Add Screens' : '🔒 Edit Mode Required'}
         </button>
       </div>
 
+      {/* Cloudinary Configuration Warning */}
+      {!cloudinaryReady && (
+        <div style={styles.warningMessage}>
+          <strong>⚠️ Cloudinary Configuration Required</strong>
+          <p style={styles.warningText}>
+            Please add REACT_APP_CLOUDINARY_CLOUD_NAME to your .env file to enable image uploads and viewing.
+          </p>
+          <pre style={styles.envExample}>
+            REACT_APP_CLOUDINARY_CLOUD_NAME=your-cloud-name-here
+          </pre>
+        </div>
+      )}
+
       {/* Edit Mode Indicator */}
-      {isEditMode && !showUploadForm && (
+      {isEditMode && !showUploadForm && cloudinaryReady && (
         <div style={styles.editModeIndicator}>
           ✏️ Edit Mode Active - You can upload new screenshots
         </div>
       )}
 
       {/* Upload Area - Only visible when in edit mode and form is shown */}
-      {isEditMode && showUploadForm && (
+      {isEditMode && showUploadForm && cloudinaryReady && (
         <div style={styles.uploadSection}>
           <div style={styles.uploadHeader}>
             <h3 style={styles.uploadTitle}>Upload Screenshots</h3>
@@ -141,7 +270,7 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
           <div {...getRootProps()} style={{
             ...styles.dropzone,
             ...(isDragActive ? styles.dropzoneActive : {}),
-            ...(!isEditMode ? styles.dropzoneDisabled : {})
+            ...(!isEditMode || !cloudinaryReady ? styles.dropzoneDisabled : {})
           }}>
             <input {...getInputProps()} />
             {uploading ? (
@@ -180,69 +309,69 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
         </div>
       )}
 
-      {/* Screen Grid with Cloudinary images */}
+      {/* Screen Grid */}
       <div style={styles.gallery}>
-        {screens.map((screen) => {
-          try {
-            const myImage = cld.image(screen.cloudinaryId);
-            myImage.resize(fill().width(400).height(300));
-
-            return (
-              <div 
-                key={screen.id} 
-                style={styles.card}
-                onClick={() => setSelectedScreen(screen)}
-                onMouseEnter={(e) => {
-                  const overlay = e.currentTarget.querySelector('.image-overlay') as HTMLElement;
-                  if (overlay) overlay.style.opacity = '1';
-                }}
-                onMouseLeave={(e) => {
-                  const overlay = e.currentTarget.querySelector('.image-overlay') as HTMLElement;
-                  if (overlay) overlay.style.opacity = '0';
-                }}
-              >
-                <div style={styles.imageContainer}>
-                  <AdvancedImage cldImg={myImage} style={styles.image} />
-                  <div className="image-overlay" style={styles.imageOverlay}>
-                    <span style={styles.viewDetails}>Click to view details</span>
-                  </div>
-                </div>
-                <div style={styles.cardContent}>
-                  <div style={styles.cardHeader}>
-                    <h3 style={styles.screenName}>{screen.screenName}</h3>
-                    <span style={styles.version}>{screen.buildVersion}</span>
-                  </div>
-                  <p style={styles.screenDesc}>{screen.description}</p>
-                  <div style={styles.meta}>
-                    <span style={styles.componentName}>{screen.componentName}</span>
-                    <span style={styles.date}>
-                      {new Date(screen.date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div style={styles.tags}>
-                    {screen.tags?.map(tag => (
-                      <span key={tag} style={styles.tag}>{tag}</span>
-                    ))}
-                  </div>
-                </div>
+        {screens.map((screen) => (
+          <div 
+            key={screen.id} 
+            style={styles.card}
+            onClick={() => setSelectedScreen(screen)}
+            onMouseEnter={(e) => {
+              const overlay = e.currentTarget.querySelector('.image-overlay') as HTMLElement;
+              if (overlay) overlay.style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              const overlay = e.currentTarget.querySelector('.image-overlay') as HTMLElement;
+              if (overlay) overlay.style.opacity = '0';
+            }}
+          >
+            <div style={styles.imageContainer}>
+              {getImageElement(screen)}
+              <div className="image-overlay" style={styles.imageOverlay}>
+                <span style={styles.viewDetails}>Click to view details</span>
               </div>
-            );
-          } catch (error) {
-            console.error('Error rendering image:', error);
-            return null;
-          }
-        })}
+            </div>
+            <div style={styles.cardContent}>
+              <div style={styles.cardHeader}>
+                <h3 style={styles.screenName}>{screen.screenName}</h3>
+                <span style={styles.version}>{screen.buildVersion}</span>
+              </div>
+              <p style={styles.screenDesc}>{screen.description}</p>
+              <div style={styles.meta}>
+                <span style={styles.componentName}>{screen.componentName}</span>
+                <span style={styles.date}>
+                  {new Date(screen.date).toLocaleDateString()}
+                </span>
+              </div>
+              <div style={styles.tags}>
+                {screen.tags?.map(tag => (
+                  <span key={tag} style={styles.tag}>{tag}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
+
+      {/* Empty State */}
+      {screens.length === 0 && (
+        <div style={styles.emptyState}>
+          <span style={styles.emptyStateIcon}>📱</span>
+          <h3 style={styles.emptyStateTitle}>No Screens Yet</h3>
+          <p style={styles.emptyStateText}>
+            {isEditMode 
+              ? 'Click the "Add Screens" button to upload your first screen capture.'
+              : 'No screens have been added yet. Enable edit mode to add screens.'}
+          </p>
+        </div>
+      )}
 
       {/* Screen Detail Modal */}
       {selectedScreen && (
         <div style={styles.modal} onClick={() => setSelectedScreen(null)}>
           <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
             <button style={styles.modalClose} onClick={() => setSelectedScreen(null)}>×</button>
-            <AdvancedImage 
-              cldImg={cld.image(selectedScreen.cloudinaryId).resize(fill().width(800).height(600))} 
-              style={styles.modalImage}
-            />
+            {getModalImage(selectedScreen)}
             <div style={styles.modalInfo}>
               <h2 style={styles.modalTitle}>{selectedScreen.screenName}</h2>
               <p style={styles.modalDescription}>{selectedScreen.description}</p>
@@ -266,8 +395,8 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
                 {`// File: ${selectedScreen.filePath}
 // Built: ${new Date(selectedScreen.date).toLocaleString()}
 // Version: ${selectedScreen.buildVersion}
-// Cloudinary ID: ${selectedScreen.cloudinaryId}
-// Tags: ${selectedScreen.tags?.join(', ')}`}
+// Cloudinary ID: ${selectedScreen.cloudinaryId || 'Not available'}
+// Tags: ${selectedScreen.tags?.join(', ') || 'None'}`}
               </pre>
             </div>
           </div>
@@ -282,7 +411,9 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '25px'
+    marginBottom: '25px',
+    flexWrap: 'wrap' as const,
+    gap: '15px'
   },
   sectionTitle: {
     fontSize: '22px',
@@ -301,7 +432,29 @@ const styles = {
     borderRadius: '8px',
     fontSize: '14px',
     fontWeight: '500',
-    transition: 'background-color 0.2s'
+    transition: 'background-color 0.2s',
+    whiteSpace: 'nowrap' as const
+  },
+  warningMessage: {
+    backgroundColor: '#fff3cd',
+    color: '#856404',
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '1px solid #ffeeba'
+  },
+  warningText: {
+    margin: '8px 0',
+    fontSize: '14px'
+  },
+  envExample: {
+    backgroundColor: '#fff9e6',
+    padding: '10px',
+    borderRadius: '4px',
+    fontSize: '13px',
+    fontFamily: 'monospace',
+    border: '1px solid #ffeeba',
+    margin: '8px 0 0 0'
   },
   editModeIndicator: {
     backgroundColor: '#fff3cd',
@@ -441,12 +594,33 @@ const styles = {
   imageContainer: {
     position: 'relative' as const,
     height: '200px',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    backgroundColor: '#f8f9fa'
   },
   image: {
     width: '100%',
     height: '100%',
     objectFit: 'cover' as const
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f8f9fa',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    color: '#6c757d'
+  },
+  placeholderIcon: {
+    fontSize: '32px'
+  },
+  placeholderText: {
+    fontSize: '12px',
+    color: '#999',
+    textAlign: 'center' as const,
+    padding: '0 10px'
   },
   imageOverlay: {
     position: 'absolute' as const,
@@ -523,6 +697,29 @@ const styles = {
     color: '#495057',
     border: '1px solid #dee2e6'
   },
+  emptyState: {
+    textAlign: 'center' as const,
+    padding: '60px 20px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '12px',
+    border: '2px dashed #dee2e6'
+  },
+  emptyStateIcon: {
+    fontSize: '48px',
+    display: 'block',
+    marginBottom: '16px'
+  },
+  emptyStateTitle: {
+    fontSize: '20px',
+    color: '#333',
+    marginBottom: '8px'
+  },
+  emptyStateText: {
+    fontSize: '14px',
+    color: '#6c757d',
+    maxWidth: '400px',
+    margin: '0 auto'
+  },
   modal: {
     position: 'fixed' as const,
     top: 0,
@@ -533,7 +730,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 1000,
+    padding: '20px'
   },
   modalContent: {
     backgroundColor: 'white',
@@ -563,7 +761,23 @@ const styles = {
   modalImage: {
     width: '100%',
     maxHeight: '500px',
-    objectFit: 'contain' as const
+    objectFit: 'contain' as const,
+    backgroundColor: '#f8f9fa'
+  },
+  modalPlaceholder: {
+    width: '100%',
+    height: '300px',
+    backgroundColor: '#f8f9fa',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '16px',
+    color: '#6c757d',
+    fontSize: '16px'
+  },
+  modalPlaceholderIcon: {
+    fontSize: '48px'
   },
   modalInfo: {
     padding: '20px'
