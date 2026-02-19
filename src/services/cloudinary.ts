@@ -1,7 +1,7 @@
 // src/services/cloudinary.ts
 export const cloudinaryConfig = {
-  cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'your-cloud-name',
-  uploadPreset: process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'your-upload-preset',
+  cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'dtrfeoonx',
+  uploadPreset: process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET || 'glazeme',
   apiKey: process.env.REACT_APP_CLOUDINARY_API_KEY,
   folder: 'glazeme-development'
 };
