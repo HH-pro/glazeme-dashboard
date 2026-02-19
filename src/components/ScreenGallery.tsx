@@ -11,56 +11,93 @@ import { ScreenCapture } from '../types';
 
 interface Props {
   screens: ScreenCapture[];
+  isEditMode?: boolean;
+  onAddScreen?: () => void;
 }
 
-const ScreenGallery: React.FC<Props> = ({ screens }) => {
+const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScreen }) => {
   const [uploading, setUploading] = useState(false);
   const [selectedScreen, setSelectedScreen] = useState<ScreenCapture | null>(null);
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
 
   const cld = new Cloudinary({
     cloud: {
-      cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME
+      cloudName: process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'your-cloud-name'
     }
   });
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!isEditMode && onAddScreen) {
+      onAddScreen();
+      return;
+    }
+
     setUploading(true);
     try {
       for (const file of acceptedFiles) {
-        // Upload to Cloudinary
-        const result = await uploadToCloudinary(file, 'glazeme-screens');
+        setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+        
+        // Upload to Cloudinary with progress tracking
+        const result = await uploadToCloudinary(file, 'glazeme-screens', (progress) => {
+          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+        });
+        
+        // Get screen details via prompts
+        const screenName = prompt(`Enter name for ${file.name}:`, file.name.replace(/\.[^/.]+$/, ""));
+        if (!screenName) continue; // Skip if user cancels
+        
+        const description = prompt('Enter description for this screen:', '');
         
         // Save to Firestore with Cloudinary data
         await addDoc(collection(db, 'screenshots'), {
           date: new Date(),
-          screenName: prompt(`Enter name for ${file.name}:`),
+          screenName: screenName,
           imageUrl: result.secure_url,
           cloudinaryId: result.public_id,
-          description: prompt('Enter description:'),
+          description: description || 'No description provided',
           buildVersion: 'v1.0.0',
-          componentName: file.name.replace('.png', '').replace('.jpg', ''),
+          componentName: file.name.replace(/\.[^/.]+$/, ''),
           filePath: `src/components/${file.name}`,
-          tags: ['ios', 'swiftui', 'imessage'],
+          tags: ['ios', 'swiftui', 'imessage', 'screen'],
           dimensions: {
-            width: result.width,
-            height: result.height
+            width: result.width || 0,
+            height: result.height || 0
           },
-          format: result.format,
-          size: result.bytes
+          format: result.format || 'png',
+          size: result.bytes || 0
+        });
+
+        // Clear progress for this file
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[file.name];
+          return newProgress;
         });
       }
+      setShowUploadForm(false);
     } catch (error) {
       console.error('Upload failed:', error);
+      alert('Upload failed. Please try again.');
     }
     setUploading(false);
-  }, []);
+  }, [isEditMode, onAddScreen]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif']
-    }
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+    },
+    disabled: !isEditMode
   });
+
+  const handleAddClick = () => {
+    if (!isEditMode && onAddScreen) {
+      onAddScreen();
+      return;
+    }
+    setShowUploadForm(true);
+  };
 
   return (
     <div>
@@ -71,56 +108,131 @@ const ScreenGallery: React.FC<Props> = ({ screens }) => {
             {screens.length} screens built • Last update: {screens[0]?.date ? new Date(screens[0].date).toLocaleString() : 'Never'}
           </p>
         </div>
-        <div {...getRootProps()} style={styles.uploadArea}>
-          <input {...getInputProps()} />
-          {uploading ? (
-            <div style={styles.uploading}>⏫ Uploading to Cloudinary...</div>
-          ) : isDragActive ? (
-            <div style={styles.dragActive}>📸 Drop screenshots here</div>
-          ) : (
-            <div style={styles.uploadButton}>+ Add Screens</div>
-          )}
-        </div>
+        <button 
+          onClick={handleAddClick}
+          style={{
+            ...styles.uploadButton,
+            backgroundColor: isEditMode ? '#FF8C42' : '#6c757d',
+            cursor: isEditMode ? 'pointer' : 'not-allowed'
+          }}
+        >
+          {isEditMode ? '+ Add Screens' : '🔒 Edit Mode Required'}
+        </button>
       </div>
+
+      {/* Edit Mode Indicator */}
+      {isEditMode && !showUploadForm && (
+        <div style={styles.editModeIndicator}>
+          ✏️ Edit Mode Active - You can upload new screenshots
+        </div>
+      )}
+
+      {/* Upload Area - Only visible when in edit mode and form is shown */}
+      {isEditMode && showUploadForm && (
+        <div style={styles.uploadSection}>
+          <div style={styles.uploadHeader}>
+            <h3 style={styles.uploadTitle}>Upload Screenshots</h3>
+            <button 
+              onClick={() => setShowUploadForm(false)}
+              style={styles.closeButton}
+            >
+              ×
+            </button>
+          </div>
+          
+          <div {...getRootProps()} style={{
+            ...styles.dropzone,
+            ...(isDragActive ? styles.dropzoneActive : {}),
+            ...(!isEditMode ? styles.dropzoneDisabled : {})
+          }}>
+            <input {...getInputProps()} />
+            {uploading ? (
+              <div style={styles.uploadingContainer}>
+                <div style={styles.uploadingSpinner}>⏫</div>
+                <div>Uploading to Cloudinary...</div>
+                {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                  <div key={fileName} style={styles.progressItem}>
+                    <span style={styles.progressFileName}>{fileName}</span>
+                    <div style={styles.progressBarContainer}>
+                      <div style={{...styles.progressBarFill, width: `${progress}%`}} />
+                      <span style={styles.progressText}>{Math.round(progress)}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : isDragActive ? (
+              <div style={styles.dropzoneContent}>
+                <span style={styles.dropzoneIcon}>📸</span>
+                <span>Drop screenshots here</span>
+              </div>
+            ) : (
+              <div style={styles.dropzoneContent}>
+                <span style={styles.dropzoneIcon}>📱</span>
+                <span>Drag & drop screenshots, or click to select</span>
+                <span style={styles.dropzoneHint}>Supports: PNG, JPG, GIF, WebP</span>
+              </div>
+            )}
+          </div>
+          
+          <div style={styles.uploadFooter}>
+            <p style={styles.uploadNote}>
+              ⚡ Images will be uploaded to Cloudinary and automatically optimized
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Screen Grid with Cloudinary images */}
       <div style={styles.gallery}>
         {screens.map((screen) => {
-          const myImage = cld.image(screen.cloudinaryId);
-          myImage.resize(fill().width(400).height(300));
+          try {
+            const myImage = cld.image(screen.cloudinaryId);
+            myImage.resize(fill().width(400).height(300));
 
-          return (
-            <div 
-              key={screen.id} 
-              style={styles.card}
-              onClick={() => setSelectedScreen(screen)}
-            >
-              <div style={styles.imageContainer}>
-                <AdvancedImage cldImg={myImage} style={styles.image} />
-                <div style={styles.imageOverlay}>
-                  <span style={styles.viewDetails}>Click to view details</span>
+            return (
+              <div 
+                key={screen.id} 
+                style={styles.card}
+                onClick={() => setSelectedScreen(screen)}
+                onMouseEnter={(e) => {
+                  const overlay = e.currentTarget.querySelector('.image-overlay') as HTMLElement;
+                  if (overlay) overlay.style.opacity = '1';
+                }}
+                onMouseLeave={(e) => {
+                  const overlay = e.currentTarget.querySelector('.image-overlay') as HTMLElement;
+                  if (overlay) overlay.style.opacity = '0';
+                }}
+              >
+                <div style={styles.imageContainer}>
+                  <AdvancedImage cldImg={myImage} style={styles.image} />
+                  <div className="image-overlay" style={styles.imageOverlay}>
+                    <span style={styles.viewDetails}>Click to view details</span>
+                  </div>
+                </div>
+                <div style={styles.cardContent}>
+                  <div style={styles.cardHeader}>
+                    <h3 style={styles.screenName}>{screen.screenName}</h3>
+                    <span style={styles.version}>{screen.buildVersion}</span>
+                  </div>
+                  <p style={styles.screenDesc}>{screen.description}</p>
+                  <div style={styles.meta}>
+                    <span style={styles.componentName}>{screen.componentName}</span>
+                    <span style={styles.date}>
+                      {new Date(screen.date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div style={styles.tags}>
+                    {screen.tags?.map(tag => (
+                      <span key={tag} style={styles.tag}>{tag}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div style={styles.cardContent}>
-                <div style={styles.cardHeader}>
-                  <h3 style={styles.screenName}>{screen.screenName}</h3>
-                  <span style={styles.version}>{screen.buildVersion}</span>
-                </div>
-                <p style={styles.screenDesc}>{screen.description}</p>
-                <div style={styles.meta}>
-                  <span style={styles.componentName}>{screen.componentName}</span>
-                  <span style={styles.date}>
-                    {new Date(screen.date).toLocaleDateString()}
-                  </span>
-                </div>
-                <div style={styles.tags}>
-                  {screen.tags?.map(tag => (
-                    <span key={tag} style={styles.tag}>{tag}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
+            );
+          } catch (error) {
+            console.error('Error rendering image:', error);
+            return null;
+          }
         })}
       </div>
 
@@ -134,13 +246,42 @@ const ScreenGallery: React.FC<Props> = ({ screens }) => {
               style={styles.modalImage}
             />
             <div style={styles.modalInfo}>
-              <h2>{selectedScreen.screenName}</h2>
-              <p>{selectedScreen.description}</p>
+              <h2 style={styles.modalTitle}>{selectedScreen.screenName}</h2>
+              <p style={styles.modalDescription}>{selectedScreen.description}</p>
+              
+              <div style={styles.modalDetails}>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Component:</span>
+                  <span style={styles.detailValue}>{selectedScreen.componentName}</span>
+                </div>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Version:</span>
+                  <span style={styles.detailValue}>{selectedScreen.buildVersion}</span>
+                </div>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Dimensions:</span>
+                  <span style={styles.detailValue}>
+                    {selectedScreen.dimensions?.width} x {selectedScreen.dimensions?.height}
+                  </span>
+                </div>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Format:</span>
+                  <span style={styles.detailValue}>{selectedScreen.format?.toUpperCase()}</span>
+                </div>
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Size:</span>
+                  <span style={styles.detailValue}>
+                    {selectedScreen.size ? (selectedScreen.size / 1024).toFixed(2) : 0} KB
+                  </span>
+                </div>
+              </div>
+              
               <pre style={styles.codeBlock}>
                 {`// File: ${selectedScreen.filePath}
 // Built: ${new Date(selectedScreen.date).toLocaleString()}
 // Version: ${selectedScreen.buildVersion}
-// Cloudinary ID: ${selectedScreen.cloudinaryId}`}
+// Cloudinary ID: ${selectedScreen.cloudinaryId}
+// Tags: ${selectedScreen.tags?.join(', ')}`}
               </pre>
             </div>
           </div>
@@ -167,32 +308,135 @@ const styles = {
     color: '#6c757d',
     margin: 0
   },
-  uploadArea: {
-    cursor: 'pointer'
-  },
   uploadButton: {
     padding: '10px 20px',
-    backgroundColor: '#FF8C42',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '14px',
+    fontWeight: '500',
+    transition: 'background-color 0.2s'
+  },
+  editModeIndicator: {
+    backgroundColor: '#fff3cd',
+    color: '#856404',
+    padding: '8px 12px',
+    borderRadius: '6px',
+    marginBottom: '20px',
+    fontSize: '14px',
     fontWeight: '500'
   },
-  uploadButtonHover: {
-    backgroundColor: '#e67e22'
+  uploadSection: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: '12px',
+    padding: '20px',
+    marginBottom: '30px',
+    border: '2px solid #FF8C42'
   },
-  uploading: {
-    padding: '10px 20px',
+  uploadHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '15px'
+  },
+  uploadTitle: {
+    fontSize: '18px',
+    margin: 0,
+    color: '#333'
+  },
+  closeButton: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    border: 'none',
     backgroundColor: '#6c757d',
     color: 'white',
-    borderRadius: '8px'
+    fontSize: '20px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  dragActive: {
-    padding: '10px 20px',
+  dropzone: {
+    border: '2px dashed #dee2e6',
+    borderRadius: '8px',
+    padding: '40px',
+    textAlign: 'center' as const,
+    cursor: 'pointer',
+    backgroundColor: 'white',
+    transition: 'all 0.2s'
+  },
+  dropzoneActive: {
+    borderColor: '#28a745',
+    backgroundColor: '#f0fff4'
+  },
+  dropzoneDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed'
+  },
+  dropzoneContent: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '10px'
+  },
+  dropzoneIcon: {
+    fontSize: '48px'
+  },
+  dropzoneHint: {
+    fontSize: '12px',
+    color: '#999'
+  },
+  uploadingContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '15px'
+  },
+  uploadingSpinner: {
+    fontSize: '32px',
+    animation: 'spin 2s linear infinite'
+  },
+  progressItem: {
+    width: '100%',
+    maxWidth: '300px'
+  },
+  progressFileName: {
+    fontSize: '12px',
+    color: '#666',
+    marginBottom: '4px',
+    display: 'block'
+  },
+  progressBarContainer: {
+    width: '100%',
+    height: '20px',
+    backgroundColor: '#e9ecef',
+    borderRadius: '10px',
+    overflow: 'hidden',
+    position: 'relative' as const
+  },
+  progressBarFill: {
+    height: '100%',
     backgroundColor: '#28a745',
-    color: 'white',
-    borderRadius: '8px'
+    transition: 'width 0.3s ease'
+  },
+  progressText: {
+    position: 'absolute' as const,
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    fontSize: '11px',
+    color: '#fff',
+    fontWeight: 'bold'
+  },
+  uploadFooter: {
+    marginTop: '15px'
+  },
+  uploadNote: {
+    fontSize: '12px',
+    color: '#666',
+    margin: 0,
+    textAlign: 'center' as const
   },
   gallery: {
     display: 'grid',
@@ -283,7 +527,7 @@ const styles = {
   tags: {
     display: 'flex',
     gap: '6px',
-    flexWrap: 'wrap' as 'wrap'
+    flexWrap: 'wrap' as const
   },
   tag: {
     padding: '2px 8px',
@@ -325,7 +569,10 @@ const styles = {
     color: 'white',
     fontSize: '20px',
     cursor: 'pointer',
-    zIndex: 1
+    zIndex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   modalImage: {
     width: '100%',
@@ -335,6 +582,40 @@ const styles = {
   modalInfo: {
     padding: '20px'
   },
+  modalTitle: {
+    fontSize: '24px',
+    margin: '0 0 10px 0',
+    color: '#333'
+  },
+  modalDescription: {
+    fontSize: '14px',
+    color: '#666',
+    marginBottom: '20px'
+  },
+  modalDetails: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: '10px',
+    marginBottom: '20px',
+    padding: '15px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px'
+  },
+  detailItem: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px'
+  },
+  detailLabel: {
+    fontSize: '11px',
+    color: '#999',
+    textTransform: 'uppercase' as const
+  },
+  detailValue: {
+    fontSize: '14px',
+    color: '#333',
+    fontWeight: '500'
+  },
   codeBlock: {
     backgroundColor: '#1e1e1e',
     color: '#d4d4d4',
@@ -343,7 +624,8 @@ const styles = {
     fontFamily: 'monospace',
     fontSize: '13px',
     lineHeight: '1.5',
-    overflowX: 'auto' as const
+    overflowX: 'auto' as const,
+    margin: 0
   }
 };
 
