@@ -1,33 +1,43 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, where, getDocs } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
 import TechnicalLog from './TechnicalLog';
 import DeploymentTracker from './DeploymentTracker';
 import PasswordModal from './PasswordModal';
-import { BuildUpdate, ScreenCapture, GlazeMeSpecs } from '../types';
+import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
 
 const Dashboard: React.FC = () => {
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [screens, setScreens] = useState<ScreenCapture[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'screens' | 'updates' | 'progress'>('overview');
+  const [commits, setCommits] = useState<CodeCommit[]>([]);
+  const [aiMetrics, setAiMetrics] = useState<AIPromptMetric[]>([]);
+  const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech' | 'code' | 'ai' | 'deploy'>('updates');
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ type: string; data?: any } | null>(null);
+  const [buildStats, setBuildStats] = useState({
+    totalCommits: 0,
+    totalAdditions: 0,
+    totalDeletions: 0,
+    aiCalls: 0,
+    avgResponseTime: 0,
+    screensCompleted: 0
+  });
 
   const glazemeSpecs: GlazeMeSpecs = {
     name: "GlazeMe",
     concept: "Meme-based AI compliment generator for iMessage",
-    coreFeature: "AI-generated compliments with yellow-to-orange gradient",
+    coreFeature: "AI-generated over-the-top compliments with yellow-to-orange gradient theme",
     colorTheme: {
       primary: "#FFE55C",
       secondary: "#FF8C42",
       gradient: "linear-gradient(135deg, #FFE55C 0%, #FF8C42 100%)"
     },
-    platform: "iMessage App",
+    platform: "iOS iMessage Extension",
     targetFeatures: [
       "AI compliment generation",
       "Meme-style formatting",
@@ -36,16 +46,16 @@ const Dashboard: React.FC = () => {
       "Share to messages"
     ],
     technicalStack: {
-      frontend: ["SwiftUI"],
+      frontend: ["SwiftUI", "iMessage Extension", "UIKit"],
       backend: ["Firebase"],
-      ai: ["OpenAI GPT-4"],
-      database: ["Firestore"],
+      ai: ["OpenAI GPT-4", "Prompt Engineering", "Response Caching"],
+      database: ["Firebase Firestore", "Redis Cache"],
       hosting: ["Apple Store"]
     }
   };
 
   useEffect(() => {
-    // Real-time updates listener
+    // Real-time updates listener (read-only for all users)
     const updatesQuery = query(collection(db, 'buildUpdates'), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(updatesQuery, (snapshot) => {
       const updatesData = snapshot.docs.map(doc => ({
@@ -56,7 +66,7 @@ const Dashboard: React.FC = () => {
       setUpdates(updatesData);
     });
 
-    // Screenshots listener
+    // Screenshots listener (read-only for all users)
     const screensQuery = query(collection(db, 'screenshots'), orderBy('date', 'desc'));
     const unsubscribeScreens = onSnapshot(screensQuery, (snapshot) => {
       const screensData = snapshot.docs.map(doc => ({
@@ -65,17 +75,128 @@ const Dashboard: React.FC = () => {
         date: doc.data().date.toDate()
       })) as ScreenCapture[];
       setScreens(screensData);
+      setBuildStats(prev => ({ ...prev, screensCompleted: screensData.length }));
+    });
+
+    // Commits listener (read-only for all users)
+    const commitsQuery = query(collection(db, 'commits'), orderBy('timestamp', 'desc'));
+    const unsubscribeCommits = onSnapshot(commitsQuery, (snapshot) => {
+      const commitsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp.toDate()
+      })) as CodeCommit[];
+      setCommits(commitsData);
+      
+      const totalAdds = commitsData.reduce((acc, c) => acc + c.additions, 0);
+      const totalDels = commitsData.reduce((acc, c) => acc + c.deletions, 0);
+      setBuildStats(prev => ({ 
+        ...prev, 
+        totalCommits: commitsData.length,
+        totalAdditions: totalAdds,
+        totalDeletions: totalDels
+      }));
+    });
+
+    // AI Metrics listener (read-only for all users)
+    const aiQuery = query(collection(db, 'aiMetrics'), orderBy('timestamp', 'desc'));
+    const unsubscribeAI = onSnapshot(aiQuery, (snapshot) => {
+      const aiData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp.toDate()
+      })) as AIPromptMetric[];
+      setAiMetrics(aiData);
+      
+      const avgTime = aiData.reduce((acc, m) => acc + m.responseTime, 0) / aiData.length || 0;
+      setBuildStats(prev => ({ 
+        ...prev, 
+        aiCalls: aiData.length,
+        avgResponseTime: Math.round(avgTime * 100) / 100
+      }));
     });
 
     return () => {
       unsubscribe();
       unsubscribeScreens();
+      unsubscribeCommits();
+      unsubscribeAI();
     };
   }, []);
+
+  const handleEditAction = (actionType: string, actionData?: any) => {
+    setPendingAction({ type: actionType, data: actionData });
+    setShowPasswordModal(true);
+  };
 
   const handlePasswordSuccess = () => {
     setIsEditMode(true);
     setShowPasswordModal(false);
+    
+    // Execute pending action if any
+    if (pendingAction) {
+      switch (pendingAction.type) {
+        case 'addUpdate':
+          addBuildUpdate(pendingAction.data);
+          break;
+        case 'addScreen':
+          addScreenCapture(pendingAction.data);
+          break;
+        case 'addCommit':
+          addCodeCommit(pendingAction.data);
+          break;
+        case 'addAIMetric':
+          addAIMetric(pendingAction.data);
+          break;
+        default:
+          break;
+      }
+      setPendingAction(null);
+    }
+  };
+
+  const addBuildUpdate = async (update: Omit<BuildUpdate, 'id'>) => {
+    if (!isEditMode) {
+      handleEditAction('addUpdate', update);
+      return;
+    }
+    await addDoc(collection(db, 'buildUpdates'), {
+      ...update,
+      date: new Date()
+    });
+  };
+
+  const addScreenCapture = async (screen: Omit<ScreenCapture, 'id'>) => {
+    if (!isEditMode) {
+      handleEditAction('addScreen', screen);
+      return;
+    }
+    await addDoc(collection(db, 'screenshots'), {
+      ...screen,
+      date: new Date()
+    });
+  };
+
+  const addCodeCommit = async (commit: Omit<CodeCommit, 'id'>) => {
+    if (!isEditMode) {
+      handleEditAction('addCommit', commit);
+      return;
+    }
+    await addDoc(collection(db, 'commits'), {
+      ...commit,
+      timestamp: new Date()
+    });
+  };
+
+  const addAIMetric = async (metric: Omit<AIPromptMetric, 'id'>) => {
+    if (!isEditMode) {
+      handleEditAction('addAIMetric', metric);
+      return;
+    }
+    await addDoc(collection(db, 'aiMetrics'), {
+      ...metric,
+      timestamp: new Date()
+    });
   };
 
   const toggleEditMode = () => {
@@ -86,586 +207,333 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Calculate stats
-  const totalScreens = screens.length;
-  const recentUpdates = updates.slice(0, 5);
-  const lastUpdate = updates[0]?.date ? new Date(updates[0].date).toLocaleDateString() : 'No updates';
-  const progressPercentage = Math.min(Math.round((totalScreens / 15) * 100), 100); // Assuming 15 screens target
-
   return (
     <div style={styles.container}>
       {/* Password Modal */}
       <PasswordModal
         isOpen={showPasswordModal}
-        onClose={() => setShowPasswordModal(false)}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPendingAction(null);
+        }}
         onSuccess={handlePasswordSuccess}
       />
 
-      {/* Simple Header with App Name */}
+      {/* Header with build stats */}
       <div style={styles.header}>
         <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
-        
-        <div style={styles.headerTop}>
-          <div style={styles.appInfo}>
-            <h1 style={styles.appName}>✨ GlazeMe</h1>
-            <span style={styles.appBadge}>iMessage App • In Development</span>
+        <div style={styles.headerContent}>
+          <div>
+            <h1 style={styles.title}>🚀 GlazeMe Development Dashboard</h1>
+            <p style={styles.subtitle}>
+              {glazemeSpecs.concept} • {glazemeSpecs.platform}
+            </p>
           </div>
-          
-          {/* Mobile Menu Button */}
-          <button 
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            style={styles.mobileMenuButton}
-          >
-            {showMobileMenu ? '✕' : '☰'}
-          </button>
-
-          {/* Desktop Edit Button */}
-          <button
-            onClick={toggleEditMode}
-            style={{
-              ...styles.editButton,
-              backgroundColor: isEditMode ? '#dc3545' : '#FF8C42',
-              display: 'none'
-            }}
-            className="desktop-edit-button"
-          >
-            {isEditMode ? 'Exit Edit Mode' : 'Enable Edit Mode'}
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
-        {showMobileMenu && (
-          <div style={styles.mobileMenu}>
+          <div style={styles.buildBadge}>
+            <span style={styles.buildVersion}>Build v1.0.0-alpha</span>
+            <span style={styles.buildStatus}>🟢 Active Development</span>
             <button
-              onClick={() => {
-                toggleEditMode();
-                setShowMobileMenu(false);
-              }}
+              onClick={toggleEditMode}
               style={{
-                ...styles.mobileEditButton,
-                backgroundColor: isEditMode ? '#dc3545' : '#FF8C42'
+                ...styles.editButton,
+                backgroundColor: isEditMode ? '#dc3545' : '#28a745'
               }}
             >
-              {isEditMode ? '🔒 Exit Edit Mode' : '✏️ Enable Edit Mode'}
+              {isEditMode ? '🔒 Exit Edit Mode' : '✏️ Enable Edit'}
             </button>
           </div>
-        )}
+        </div>
 
         {/* Edit Mode Indicator */}
         {isEditMode && (
           <div style={styles.editModeBanner}>
-            <span>✏️ Edit Mode Active - You can now make changes</span>
+            <span>✏️ Edit Mode Active - Changes will be saved</span>
           </div>
         )}
 
-        {/* Simple Stats Cards */}
-        <div style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <span style={styles.statIcon}>📱</span>
-            <div style={styles.statInfo}>
-              <span style={styles.statValue}>{totalScreens}</span>
-              <span style={styles.statLabel}>Screens Built</span>
-            </div>
-          </div>
-          
-          <div style={styles.statCard}>
-            <span style={styles.statIcon}>🔄</span>
-            <div style={styles.statInfo}>
-              <span style={styles.statValue}>{updates.length}</span>
-              <span style={styles.statLabel}>Updates</span>
-            </div>
-          </div>
-          
-          <div style={styles.statCard}>
-            <span style={styles.statIcon}>📊</span>
-            <div style={styles.statInfo}>
-              <span style={styles.statValue}>{progressPercentage}%</span>
-              <span style={styles.statLabel}>Progress</span>
-            </div>
-          </div>
-          
-          <div style={styles.statCard}>
-            <span style={styles.statIcon}>⚡</span>
-            <div style={styles.statInfo}>
-              <span style={styles.statValue}>{lastUpdate}</span>
-              <span style={styles.statLabel}>Last Update</span>
-            </div>
-          </div>
+       
+
+        {/* Tech Stack Tags */}
+        <div style={styles.specs}>
+          <span style={styles.specItem}>🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}</span>
+          <span style={styles.specItem}>🤖 {glazemeSpecs.technicalStack.ai[0]}</span>
+          <span style={styles.specItem}>📱 {glazemeSpecs.technicalStack.frontend[0]}</span>
+          <span style={styles.specItem}>⚙️ {glazemeSpecs.technicalStack.backend[0]}</span>
+          <span style={styles.specItem}>💾 {glazemeSpecs.technicalStack.database[0]}</span>
         </div>
       </div>
 
-      {/* Simple Navigation */}
-      <div style={styles.navigation}>
-        <button
-          onClick={() => setActiveTab('overview')}
-          style={{
-            ...styles.navButton,
-            ...(activeTab === 'overview' ? styles.navButtonActive : {})
-          }}
-        >
-          📋 Overview
-        </button>
-        <button
-          onClick={() => setActiveTab('screens')}
-          style={{
-            ...styles.navButton,
-            ...(activeTab === 'screens' ? styles.navButtonActive : {})
-          }}
-        >
-          📱 Screens
-        </button>
-        <button
-          onClick={() => setActiveTab('updates')}
-          style={{
-            ...styles.navButton,
-            ...(activeTab === 'updates' ? styles.navButtonActive : {})
-          }}
-        >
-          📝 Updates
-        </button>
-        <button
-          onClick={() => setActiveTab('progress')}
-          style={{
-            ...styles.navButton,
-            ...(activeTab === 'progress' ? styles.navButtonActive : {})
-          }}
-        >
-          📊 Progress
-        </button>
+      {/* Navigation Tabs */}
+      <div style={styles.tabs}>
+        {[
+          { id: 'updates', label: '📋 Build Updates', icon: '📋' },
+          { id: 'screens', label: '📱 Screen Gallery', icon: '📱' },
+          { id: 'progress', label: '📊 Progress Tracker', icon: '📊' },
+          { id: 'tech', label: '⚙️ Technical Log', icon: '⚙️' },
+          { id: 'deploy', label: '🚀 Deployment', icon: '🚀' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            style={{
+              ...styles.tab,
+              ...(activeTab === tab.id ? styles.activeTab : {})
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Content Area */}
       <div style={styles.content}>
-        {activeTab === 'overview' && (
-          <div>
-            {/* Project Overview Section */}
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>🎯 Project Overview</h2>
-              <p style={styles.projectDescription}>{glazemeSpecs.concept}</p>
-              
-              <div style={styles.featuresList}>
-                <h3 style={styles.featuresTitle}>Key Features:</h3>
-                {glazemeSpecs.targetFeatures.map((feature, index) => (
-                  <div key={index} style={styles.featureItem}>
-                    <span style={styles.featureBullet}>•</span>
-                    <span style={styles.featureText}>{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Updates Preview */}
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <h2 style={styles.sectionTitle}>📝 Recent Updates</h2>
-                <button 
-                  onClick={() => setActiveTab('updates')}
-                  style={styles.viewAllButton}
-                >
-                  View All →
-                </button>
-              </div>
-              
-              {recentUpdates.length > 0 ? (
-                recentUpdates.map(update => (
-                  <div key={update.id} style={styles.updateItem}>
-                    <span style={styles.updateDate}>
-                      {new Date(update.date).toLocaleDateString()}
-                    </span>
-                    <div style={styles.updateContent}>
-                      <strong style={styles.updateTitle}>{update.title}</strong>
-                      <p style={styles.updateDescription}>{update.description}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p style={styles.emptyText}>No updates yet</p>
-              )}
-            </div>
-
-            {/* Quick Stats */}
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>⚡ Quick Stats</h2>
-              <div style={styles.quickStats}>
-                <div style={styles.quickStat}>
-                  <span style={styles.quickStatValue}>{screens.filter(s => s.tags?.includes('completed')).length}</span>
-                  <span style={styles.quickStatLabel}>Completed Screens</span>
-                </div>
-                <div style={styles.quickStat}>
-                  <span style={styles.quickStatValue}>{screens.length}</span>
-                  <span style={styles.quickStatLabel}>Total Screens</span>
-                </div>
-                <div style={styles.quickStat}>
-                  <span style={styles.quickStatValue}>{updates.length}</span>
-                  <span style={styles.quickStatLabel}>Total Updates</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'updates' && (
+          <BuildUpdates 
+            updates={updates} 
+            onAddUpdate={addBuildUpdate}
+            isEditMode={isEditMode}
+            onEditAction={() => handleEditAction('addUpdate')}
+          />
         )}
-
         {activeTab === 'screens' && (
           <ScreenGallery 
             screens={screens} 
             isEditMode={isEditMode}
+            onAddScreen={() => handleEditAction('addScreen')}
           />
         )}
-
-        {activeTab === 'updates' && (
-          <BuildUpdates 
-            updates={updates} 
-            onAddUpdate={async (update) => {
-              if (isEditMode) {
-                await addDoc(collection(db, 'buildUpdates'), {
-                  ...update,
-                  date: new Date()
-                });
-              }
-            }}
-            isEditMode={isEditMode}
-          />
-        )}
-
         {activeTab === 'progress' && (
           <WeeklyProgress 
             isEditMode={isEditMode}
+            onEditAction={() => handleEditAction('editProgress')}
+          />
+        )}
+        {activeTab === 'tech' && (
+          <TechnicalLog 
+            isEditMode={isEditMode}
+            onEditAction={() => handleEditAction('editTech')}
+          />
+        )}
+       
+        {activeTab === 'deploy' && (
+          <DeploymentTracker 
+            isEditMode={isEditMode}
+            onEditAction={() => handleEditAction('editDeploy')}
           />
         )}
       </div>
 
-      {/* Simple Footer */}
+      {/* Live Development Feed */}
       <div style={styles.footer}>
-        <span style={styles.footerText}>✨ GlazeMe Development Dashboard</span>
-        <span style={styles.footerStatus}>● Live Updates</span>
+        <div style={styles.feedHeader}>
+          <span>📡 Live Development Feed</span>
+          <span style={styles.feedStatus}>● Connected</span>
+        </div>
+        <div style={styles.feedContent}>
+          {updates.slice(0, 3).map(update => (
+            <div key={update.id} style={styles.feedItem}>
+              <span style={styles.feedTime}>
+                {new Date(update.date).toLocaleTimeString()}
+              </span>
+              <span style={styles.feedText}>
+                <strong>{update.title}</strong> - {update.description}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
-
-      {/* Add media query for desktop edit button */}
-      <style>{`
-        @media (min-width: 768px) {
-          .desktop-edit-button {
-            display: block !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
 
 const styles = {
   container: {
-    maxWidth: '1200px',
+    maxWidth: '1400px',
     margin: '0 auto',
-    padding: '16px',
+    padding: '20px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#f8f9fa',
-    minHeight: '100vh',
-    boxSizing: 'border-box' as const
+    backgroundColor: '#f5f7fa'
   },
   header: {
+    marginBottom: '30px',
+    padding: '25px',
     backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '20px',
-    marginBottom: '20px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
   },
-  gradientBar: {
-    height: '4px',
-    width: '100%',
-    borderRadius: '2px',
-    marginBottom: '16px'
-  },
-  headerTop: {
+  headerContent: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '16px'
+    marginBottom: '20px'
   },
-  appInfo: {
-    flex: 1
+  gradientBar: {
+    height: '6px',
+    width: '100%',
+    borderRadius: '3px',
+    marginBottom: '20px'
   },
-  appName: {
-    fontSize: '24px',
-    margin: '0 0 4px 0',
+  title: {
+    fontSize: '28px',
+    margin: '0 0 5px 0',
     color: '#1a1a1a',
     fontWeight: '600'
   },
-  appBadge: {
-    fontSize: '13px',
+  subtitle: {
+    fontSize: '14px',
     color: '#666',
-    backgroundColor: '#f0f0f0',
-    padding: '4px 10px',
-    borderRadius: '20px',
-    display: 'inline-block'
+    margin: 0
   },
-  mobileMenuButton: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '8px',
-    border: '1px solid #e0e0e0',
-    backgroundColor: 'white',
-    fontSize: '20px',
+  buildBadge: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    '@media (min-width: 768px)': {
-      display: 'none'
-    }
+    gap: '10px',
+    alignItems: 'center'
   },
-  mobileMenu: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: '12px',
-    padding: '16px',
-    marginBottom: '16px',
-    border: '1px solid #e0e0e0'
+  buildVersion: {
+    padding: '6px 12px',
+    backgroundColor: '#e9ecef',
+    borderRadius: '20px',
+    fontSize: '13px',
+    color: '#495057'
   },
-  mobileEditButton: {
-    width: '100%',
-    padding: '14px',
-    border: 'none',
-    borderRadius: '10px',
-    color: 'white',
-    fontSize: '16px',
-    fontWeight: '500',
-    cursor: 'pointer'
+  buildStatus: {
+    padding: '6px 12px',
+    backgroundColor: '#d4edda',
+    borderRadius: '20px',
+    fontSize: '13px',
+    color: '#155724'
   },
   editButton: {
-    padding: '10px 20px',
+    padding: '6px 12px',
     border: 'none',
-    borderRadius: '30px',
+    borderRadius: '20px',
+    fontSize: '13px',
     color: 'white',
-    fontSize: '14px',
-    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap' as const
+    transition: 'all 0.2s'
   },
   editModeBanner: {
     backgroundColor: '#fff3cd',
     color: '#856404',
-    padding: '12px',
-    borderRadius: '10px',
-    marginBottom: '16px',
+    padding: '10px',
+    borderRadius: '8px',
+    marginBottom: '20px',
     textAlign: 'center' as const,
-    fontSize: '14px',
-    fontWeight: '500'
+    fontWeight: '500',
+    fontSize: '14px'
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '12px',
-    '@media (min-width: 768px)': {
-      gridTemplateColumns: 'repeat(4, 1fr)'
-    }
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: '15px',
+    marginBottom: '20px'
   },
   statCard: {
+    padding: '15px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '12px',
-    padding: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    border: '1px solid #e0e0e0'
-  },
-  statIcon: {
-    fontSize: '24px',
-    width: '40px',
-    height: '40px',
-    backgroundColor: 'white',
-    borderRadius: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  statInfo: {
-    display: 'flex',
-    flexDirection: 'column' as const
+    borderRadius: '8px',
+    textAlign: 'center' as const,
+    border: '1px solid #e9ecef'
   },
   statValue: {
-    fontSize: '20px',
-    fontWeight: '600',
+    display: 'block',
+    fontSize: '24px',
+    fontWeight: 'bold',
     color: '#FF8C42',
-    lineHeight: 1.2
+    marginBottom: '5px'
   },
   statLabel: {
     fontSize: '12px',
-    color: '#666'
+    color: '#6c757d',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px'
   },
-  navigation: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '8px',
+  specs: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap' as 'wrap',
+    marginTop: '15px'
+  },
+  specItem: {
+    padding: '4px 10px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '15px',
+    fontSize: '12px',
+    color: '#495057',
+    border: '1px solid #dee2e6'
+  },
+  tabs: {
+    display: 'flex',
+    gap: '5px',
     marginBottom: '20px',
+    flexWrap: 'wrap' as 'wrap',
     backgroundColor: 'white',
-    padding: '8px',
-    borderRadius: '14px',
+    padding: '10px',
+    borderRadius: '10px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
   },
-  navButton: {
-    padding: '12px 4px',
+  tab: {
+    padding: '10px 16px',
     border: 'none',
     backgroundColor: 'transparent',
-    borderRadius: '10px',
-    fontSize: '13px',
-    fontWeight: '500',
-    color: '#666',
     cursor: 'pointer',
+    fontSize: '14px',
+    color: '#6c757d',
+    borderRadius: '6px',
     transition: 'all 0.2s',
-    whiteSpace: 'nowrap' as const,
-    '@media (min-width: 768px)': {
-      fontSize: '14px',
-      padding: '12px'
-    }
-  },
-  navButtonActive: {
-    backgroundColor: '#FF8C42',
-    color: 'white'
-  },
-  content: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '20px',
-    marginBottom: '20px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    minHeight: '400px'
-  },
-  section: {
-    marginBottom: '32px',
-    '&:last-child': {
-      marginBottom: 0
-    }
-  },
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '16px'
-  },
-  sectionTitle: {
-    fontSize: '18px',
-    margin: '0 0 16px 0',
-    color: '#333',
-    fontWeight: '600'
-  },
-  viewAllButton: {
-    padding: '6px 12px',
-    border: '1px solid #FF8C42',
-    backgroundColor: 'transparent',
-    color: '#FF8C42',
-    borderRadius: '20px',
-    fontSize: '12px',
-    cursor: 'pointer'
-  },
-  projectDescription: {
-    fontSize: '15px',
-    color: '#666',
-    lineHeight: 1.5,
-    marginBottom: '20px'
-  },
-  featuresList: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: '12px',
-    padding: '16px'
-  },
-  featuresTitle: {
-    fontSize: '15px',
-    margin: '0 0 12px 0',
-    color: '#333',
     fontWeight: '500'
   },
-  featureItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginBottom: '8px',
-    '&:last-child': {
-      marginBottom: 0
-    }
-  },
-  featureBullet: {
+  activeTab: {
     color: '#FF8C42',
-    fontSize: '16px'
+    backgroundColor: '#fff4e5',
+    fontWeight: '600'
   },
-  featureText: {
-    fontSize: '14px',
-    color: '#555'
-  },
-  updateItem: {
-    display: 'flex',
-    gap: '12px',
-    padding: '12px 0',
-    borderBottom: '1px solid #eee',
-    '&:last-child': {
-      borderBottom: 'none'
-    }
-  },
-  updateDate: {
-    minWidth: '70px',
-    fontSize: '12px',
-    color: '#999'
-  },
-  updateContent: {
-    flex: 1
-  },
-  updateTitle: {
-    fontSize: '14px',
-    color: '#333',
-    display: 'block',
-    marginBottom: '2px'
-  },
-  updateDescription: {
-    fontSize: '13px',
-    color: '#666',
-    margin: '4px 0 0 0',
-    lineHeight: 1.4
-  },
-  emptyText: {
-    textAlign: 'center' as const,
-    color: '#999',
-    fontSize: '14px',
-    padding: '20px'
-  },
-  quickStats: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '12px'
-  },
-  quickStat: {
-    textAlign: 'center' as const,
-    padding: '16px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '12px'
-  },
-  quickStatValue: {
-    display: 'block',
-    fontSize: '24px',
-    fontWeight: '600',
-    color: '#FF8C42',
-    marginBottom: '4px'
-  },
-  quickStatLabel: {
-    fontSize: '12px',
-    color: '#666'
+  content: {
+    minHeight: '600px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '25px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+    marginBottom: '20px'
   },
   footer: {
     backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '16px',
+    borderRadius: '10px',
+    padding: '15px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+  },
+  feedHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+    marginBottom: '10px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#333'
   },
-  footerText: {
-    fontSize: '13px',
-    color: '#666'
-  },
-  footerStatus: {
-    fontSize: '12px',
+  feedStatus: {
     color: '#28a745',
+    fontSize: '12px'
+  },
+  feedContent: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
+    flexDirection: 'column' as const,
+    gap: '8px'
+  },
+  feedItem: {
+    display: 'flex',
+    gap: '15px',
+    fontSize: '13px',
+    padding: '8px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '6px'
+  },
+  feedTime: {
+    color: '#6c757d',
+    minWidth: '60px'
+  },
+  feedText: {
+    color: '#333'
   }
 };
 
