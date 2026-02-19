@@ -9,13 +9,9 @@ import TechnicalLog from './TechnicalLog';
 import CodeMetrics from './CodeMetrics';
 import AIDashboard from './AIDashboard';
 import DeploymentTracker from './DeploymentTracker';
-import PasswordProtection from './PasswordProtection';
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
 
 const Dashboard: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingUpdate, setEditingUpdate] = useState<BuildUpdate | null>(null);
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [screens, setScreens] = useState<ScreenCapture[]>([]);
   const [commits, setCommits] = useState<CodeCommit[]>([]);
@@ -57,8 +53,6 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-
     // Real-time updates listener
     const updatesQuery = query(collection(db, 'buildUpdates'), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(updatesQuery, (snapshot) => {
@@ -126,37 +120,14 @@ const Dashboard: React.FC = () => {
       unsubscribeCommits();
       unsubscribeAI();
     };
-  }, [isAuthenticated]);
+  }, []);
 
-  const handleAddUpdate = async (update: Omit<BuildUpdate, 'id'>) => {
-    if (!isAuthenticated) return;
+  const addBuildUpdate = async (update: Omit<BuildUpdate, 'id'>) => {
     await addDoc(collection(db, 'buildUpdates'), {
       ...update,
       date: new Date()
     });
   };
-
-  const handleEditUpdate = (update: BuildUpdate) => {
-    setEditingUpdate(update);
-    setIsEditMode(true);
-  };
-
-  const handleUpdateEdit = async (updatedUpdate: BuildUpdate) => {
-    if (!isAuthenticated) return;
-    // Implement your update logic here
-    // You'll need to add an update function to your Firebase service
-    setIsEditMode(false);
-    setEditingUpdate(null);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditMode(false);
-    setEditingUpdate(null);
-  };
-
-  if (!isAuthenticated) {
-    return <PasswordProtection onAuthenticated={() => setIsAuthenticated(true)} />;
-  }
 
   return (
     <div style={styles.container}>
@@ -237,49 +208,25 @@ const Dashboard: React.FC = () => {
       {/* Content Area */}
       <div style={styles.content}>
         {activeTab === 'updates' && (
-          <BuildUpdates 
-            updates={updates} 
-            onAddUpdate={handleAddUpdate}
-            onEditUpdate={handleEditUpdate}
-            isEditMode={isEditMode}
-            editingUpdate={editingUpdate}
-            onUpdateEdit={handleUpdateEdit}
-            onCancelEdit={handleCancelEdit}
-            isAuthenticated={isAuthenticated}
-          />
+          <BuildUpdates updates={updates} onAddUpdate={addBuildUpdate} />
         )}
         {activeTab === 'screens' && (
-          <ScreenGallery 
-            screens={screens} 
-            isAuthenticated={isAuthenticated}
-          />
+          <ScreenGallery screens={screens} />
         )}
         {activeTab === 'progress' && (
-          <WeeklyProgress 
-            isAuthenticated={isAuthenticated}
-          />
+          <WeeklyProgress />
         )}
         {activeTab === 'tech' && (
-          <TechnicalLog 
-            isAuthenticated={isAuthenticated}
-          />
+          <TechnicalLog />
         )}
         {activeTab === 'code' && (
-          <CodeMetrics 
-            commits={commits} 
-            isAuthenticated={isAuthenticated}
-          />
+          <CodeMetrics commits={commits} />
         )}
         {activeTab === 'ai' && (
-          <AIDashboard 
-            metrics={aiMetrics} 
-            isAuthenticated={isAuthenticated}
-          />
+          <AIDashboard metrics={aiMetrics} />
         )}
         {activeTab === 'deploy' && (
-          <DeploymentTracker 
-            isAuthenticated={isAuthenticated}
-          />
+          <DeploymentTracker />
         )}
       </div>
 
@@ -287,17 +234,7 @@ const Dashboard: React.FC = () => {
       <div style={styles.footer}>
         <div style={styles.feedHeader}>
           <span>📡 Live Development Feed</span>
-          <div style={styles.feedControls}>
-            <span style={styles.feedStatus}>● Connected</span>
-            {isAuthenticated && (
-              <button 
-                onClick={() => setIsAuthenticated(false)}
-                style={styles.logoutButton}
-              >
-                🔒 Logout
-              </button>
-            )}
-          </div>
+          <span style={styles.feedStatus}>● Connected</span>
         </div>
         <div style={styles.feedContent}>
           {updates.slice(0, 3).map(update => (
@@ -462,23 +399,9 @@ const styles = {
     fontWeight: '600',
     color: '#333'
   },
-  feedControls: {
-    display: 'flex',
-    gap: '10px',
-    alignItems: 'center'
-  },
   feedStatus: {
     color: '#28a745',
     fontSize: '12px'
-  },
-  logoutButton: {
-    padding: '4px 8px',
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #dee2e6',
-    borderRadius: '4px',
-    fontSize: '11px',
-    color: '#6c757d',
-    cursor: 'pointer'
   },
   feedContent: {
     display: 'flex',
