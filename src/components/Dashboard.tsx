@@ -9,7 +9,6 @@ import TechnicalLog from './TechnicalLog';
 import CodeMetrics from './CodeMetrics';
 import AIDashboard from './AIDashboard';
 import DeploymentTracker from './DeploymentTracker';
-import PasswordProtection from './PasswordProtection'; // You'll need to create this component
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
 
 const Dashboard: React.FC = () => {
@@ -18,9 +17,6 @@ const Dashboard: React.FC = () => {
   const [commits, setCommits] = useState<CodeCommit[]>([]);
   const [aiMetrics, setAiMetrics] = useState<AIPromptMetric[]>([]);
   const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech' | 'code' | 'ai' | 'deploy'>('updates');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ type: 'add' | 'edit', data?: any } | null>(null);
   const [buildStats, setBuildStats] = useState({
     totalCommits: 0,
     totalAdditions: 0,
@@ -49,10 +45,10 @@ const Dashboard: React.FC = () => {
     ],
     technicalStack: {
       frontend: ["SwiftUI", "iMessage Extension", "UIKit"],
-      backend: ["Node.js", "Express", "Firebase Functions"],
+      backend: ["Firebase"],
       ai: ["OpenAI GPT-4", "Prompt Engineering", "Response Caching"],
       database: ["Firebase Firestore", "Redis Cache"],
-      hosting: ["Firebase Hosting", "Vercel", "AWS Lambda"]
+      hosting: ["Apple Store"]
     }
   };
 
@@ -126,28 +122,6 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const handleAddUpdate = (update: Omit<BuildUpdate, 'id'>) => {
-    if (isAuthenticated) {
-      // If already authenticated, proceed with adding
-      addBuildUpdate(update);
-    } else {
-      // Show password prompt and store the action for later
-      setPendingAction({ type: 'add', data: update });
-      setShowPasswordPrompt(true);
-    }
-  };
-
-  const handleEditUpdate = (updateId: string, updatedData: Partial<BuildUpdate>) => {
-    if (isAuthenticated) {
-      // If already authenticated, proceed with editing
-      editBuildUpdate(updateId, updatedData);
-    } else {
-      // Show password prompt and store the action for later
-      setPendingAction({ type: 'edit', data: { id: updateId, ...updatedData } });
-      setShowPasswordPrompt(true);
-    }
-  };
-
   const addBuildUpdate = async (update: Omit<BuildUpdate, 'id'>) => {
     await addDoc(collection(db, 'buildUpdates'), {
       ...update,
@@ -155,53 +129,8 @@ const Dashboard: React.FC = () => {
     });
   };
 
-  const editBuildUpdate = async (updateId: string, updatedData: Partial<BuildUpdate>) => {
-    // Implementation for editing updates
-    // You'll need to add the updateDoc import from firebase/firestore
-    console.log('Editing update:', updateId, updatedData);
-  };
-
-  const handlePasswordSuccess = () => {
-    setIsAuthenticated(true);
-    setShowPasswordPrompt(false);
-    
-    // Execute pending action if exists
-    if (pendingAction) {
-      if (pendingAction.type === 'add' && pendingAction.data) {
-        addBuildUpdate(pendingAction.data);
-      } else if (pendingAction.type === 'edit' && pendingAction.data) {
-        editBuildUpdate(pendingAction.data.id, pendingAction.data);
-      }
-      setPendingAction(null);
-    }
-  };
-
   return (
     <div style={styles.container}>
-      {/* Password Protection Modal */}
-      {showPasswordPrompt && (
-        <PasswordProtection
-          onSuccess={handlePasswordSuccess}
-          onCancel={() => {
-            setShowPasswordPrompt(false);
-            setPendingAction(null);
-          }}
-        />
-      )}
-
-      {/* Admin Status Indicator */}
-      {isAuthenticated && (
-        <div style={styles.adminBadge}>
-          <span>👑 Admin Mode Active</span>
-          <button 
-            onClick={() => setIsAuthenticated(false)}
-            style={styles.logoutButton}
-          >
-            Logout
-          </button>
-        </div>
-      )}
-
       {/* Header with build stats */}
       <div style={styles.header}>
         <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
@@ -279,12 +208,7 @@ const Dashboard: React.FC = () => {
       {/* Content Area */}
       <div style={styles.content}>
         {activeTab === 'updates' && (
-          <BuildUpdates 
-            updates={updates} 
-            onAddUpdate={handleAddUpdate}
-            onEditUpdate={handleEditUpdate}
-            isAuthenticated={isAuthenticated}
-          />
+          <BuildUpdates updates={updates} onAddUpdate={addBuildUpdate} />
         )}
         {activeTab === 'screens' && (
           <ScreenGallery screens={screens} />
@@ -335,33 +259,7 @@ const styles = {
     margin: '0 auto',
     padding: '20px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#f5f7fa',
-    position: 'relative' as const
-  },
-  adminBadge: {
-    position: 'fixed' as const,
-    top: '20px',
-    right: '20px',
-    zIndex: 1000,
-    backgroundColor: '#FF8C42',
-    color: 'white',
-    padding: '8px 16px',
-    borderRadius: '30px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    boxShadow: '0 2px 10px rgba(255,140,66,0.3)'
-  },
-  logoutButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    border: 'none',
-    color: 'white',
-    padding: '4px 12px',
-    borderRadius: '20px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: '500',
-    transition: 'all 0.2s'
+    backgroundColor: '#f5f7fa'
   },
   header: {
     marginBottom: '30px',
@@ -441,7 +339,7 @@ const styles = {
   specs: {
     display: 'flex',
     gap: '10px',
-    flexWrap: 'wrap' as const,
+    flexWrap: 'wrap' as 'wrap',
     marginTop: '15px'
   },
   specItem: {
@@ -456,7 +354,7 @@ const styles = {
     display: 'flex',
     gap: '5px',
     marginBottom: '20px',
-    flexWrap: 'wrap' as const,
+    flexWrap: 'wrap' as 'wrap',
     backgroundColor: 'white',
     padding: '10px',
     borderRadius: '10px',
