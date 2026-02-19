@@ -282,7 +282,6 @@ const Dashboard: React.FC = () => {
           <BuildUpdates 
             updates={updates} 
             onAddUpdate={handleAddUpdate}
-            onEditUpdate={handleEditUpdate}
             isAuthenticated={isAuthenticated}
           />
         )}
