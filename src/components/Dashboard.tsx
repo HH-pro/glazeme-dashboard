@@ -1,17 +1,30 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, where, getDocs } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
 import TechnicalLog from './TechnicalLog';
-import { BuildUpdate, ScreenCapture, GlazeMeSpecs } from '../types';
+import CodeMetrics from './CodeMetrics';
+import AIDashboard from './AIDashboard';
+import DeploymentTracker from './DeploymentTracker';
+import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
 
 const Dashboard: React.FC = () => {
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [screens, setScreens] = useState<ScreenCapture[]>([]);
-  const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech'>('updates');
+  const [commits, setCommits] = useState<CodeCommit[]>([]);
+  const [aiMetrics, setAiMetrics] = useState<AIPromptMetric[]>([]);
+  const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech' | 'code' | 'ai' | 'deploy'>('updates');
+  const [buildStats, setBuildStats] = useState({
+    totalCommits: 0,
+    totalAdditions: 0,
+    totalDeletions: 0,
+    aiCalls: 0,
+    avgResponseTime: 0,
+    screensCompleted: 0
+  });
 
   const glazemeSpecs: GlazeMeSpecs = {
     name: "GlazeMe",
@@ -29,7 +42,14 @@ const Dashboard: React.FC = () => {
       "Quick keyboard access",
       "Compliment history",
       "Share to messages"
-    ]
+    ],
+    technicalStack: {
+      frontend: ["SwiftUI", "iMessage Extension", "UIKit"],
+      backend: ["Node.js", "Express", "Firebase Functions"],
+      ai: ["OpenAI GPT-4", "Prompt Engineering", "Response Caching"],
+      database: ["Firebase Firestore", "Redis Cache"],
+      hosting: ["Firebase Hosting", "Vercel", "AWS Lambda"]
+    }
   };
 
   useEffect(() => {
@@ -53,11 +73,52 @@ const Dashboard: React.FC = () => {
         date: doc.data().date.toDate()
       })) as ScreenCapture[];
       setScreens(screensData);
+      setBuildStats(prev => ({ ...prev, screensCompleted: screensData.length }));
+    });
+
+    // Commits listener
+    const commitsQuery = query(collection(db, 'commits'), orderBy('timestamp', 'desc'));
+    const unsubscribeCommits = onSnapshot(commitsQuery, (snapshot) => {
+      const commitsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp.toDate()
+      })) as CodeCommit[];
+      setCommits(commitsData);
+      
+      const totalAdds = commitsData.reduce((acc, c) => acc + c.additions, 0);
+      const totalDels = commitsData.reduce((acc, c) => acc + c.deletions, 0);
+      setBuildStats(prev => ({ 
+        ...prev, 
+        totalCommits: commitsData.length,
+        totalAdditions: totalAdds,
+        totalDeletions: totalDels
+      }));
+    });
+
+    // AI Metrics listener
+    const aiQuery = query(collection(db, 'aiMetrics'), orderBy('timestamp', 'desc'));
+    const unsubscribeAI = onSnapshot(aiQuery, (snapshot) => {
+      const aiData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp.toDate()
+      })) as AIPromptMetric[];
+      setAiMetrics(aiData);
+      
+      const avgTime = aiData.reduce((acc, m) => acc + m.responseTime, 0) / aiData.length || 0;
+      setBuildStats(prev => ({ 
+        ...prev, 
+        aiCalls: aiData.length,
+        avgResponseTime: Math.round(avgTime * 100) / 100
+      }));
     });
 
     return () => {
       unsubscribe();
       unsubscribeScreens();
+      unsubscribeCommits();
+      unsubscribeAI();
     };
   }, []);
 
@@ -70,32 +131,76 @@ const Dashboard: React.FC = () => {
 
   return (
     <div style={styles.container}>
-      {/* Header with GlazeMe branding */}
+      {/* Header with build stats */}
       <div style={styles.header}>
         <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
-        <h1 style={styles.title}>GlazeMe Build Dashboard</h1>
-        <p style={styles.subtitle}>
-          {glazemeSpecs.concept} • {glazemeSpecs.platform}
-        </p>
+        <div style={styles.headerContent}>
+          <div>
+            <h1 style={styles.title}>🚀 GlazeMe Development Dashboard</h1>
+            <p style={styles.subtitle}>
+              {glazemeSpecs.concept} • {glazemeSpecs.platform}
+            </p>
+          </div>
+          <div style={styles.buildBadge}>
+            <span style={styles.buildVersion}>Build v1.0.0-alpha</span>
+            <span style={styles.buildStatus}>🟢 Active Development</span>
+          </div>
+        </div>
+
+        {/* Build Stats Cards */}
+        <div style={styles.statsGrid}>
+          <div style={styles.statCard}>
+            <span style={styles.statValue}>{buildStats.totalCommits}</span>
+            <span style={styles.statLabel}>Total Commits</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={styles.statValue}>+{buildStats.totalAdditions}</span>
+            <span style={styles.statLabel}>Lines Added</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={styles.statValue}>{buildStats.aiCalls}</span>
+            <span style={styles.statLabel}>AI Calls</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={styles.statValue}>{buildStats.avgResponseTime}ms</span>
+            <span style={styles.statLabel}>Avg AI Response</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={styles.statValue}>{buildStats.screensCompleted}</span>
+            <span style={styles.statLabel}>Screens Built</span>
+          </div>
+        </div>
+
+        {/* Tech Stack Tags */}
         <div style={styles.specs}>
           <span style={styles.specItem}>🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}</span>
-          <span style={styles.specItem}>🤖 AI-Powered Compliments</span>
-          <span style={styles.specItem}>💬 iMessage Extension</span>
+          <span style={styles.specItem}>🤖 {glazemeSpecs.technicalStack.ai[0]}</span>
+          <span style={styles.specItem}>📱 {glazemeSpecs.technicalStack.frontend[0]}</span>
+          <span style={styles.specItem}>⚙️ {glazemeSpecs.technicalStack.backend[0]}</span>
+          <span style={styles.specItem}>💾 {glazemeSpecs.technicalStack.database[0]}</span>
         </div>
       </div>
 
       {/* Navigation Tabs */}
       <div style={styles.tabs}>
-        {['updates', 'screens', 'progress', 'tech'].map(tab => (
+        {[
+          { id: 'updates', label: '📋 Build Updates', icon: '📋' },
+          { id: 'screens', label: '📱 Screen Gallery', icon: '📱' },
+          { id: 'progress', label: '📊 Progress Tracker', icon: '📊' },
+          { id: 'tech', label: '⚙️ Technical Log', icon: '⚙️' },
+          { id: 'code', label: '💻 Code Metrics', icon: '💻' },
+          { id: 'ai', label: '🤖 AI Dashboard', icon: '🤖' },
+          { id: 'deploy', label: '🚀 Deployment', icon: '🚀' }
+        ].map(tab => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab as any)}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
             style={{
               ...styles.tab,
-              ...(activeTab === tab ? styles.activeTab : {})
+              ...(activeTab === tab.id ? styles.activeTab : {})
             }}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -114,77 +219,209 @@ const Dashboard: React.FC = () => {
         {activeTab === 'tech' && (
           <TechnicalLog />
         )}
+        {activeTab === 'code' && (
+          <CodeMetrics commits={commits} />
+        )}
+        {activeTab === 'ai' && (
+          <AIDashboard metrics={aiMetrics} />
+        )}
+        {activeTab === 'deploy' && (
+          <DeploymentTracker />
+        )}
+      </div>
+
+      {/* Live Development Feed */}
+      <div style={styles.footer}>
+        <div style={styles.feedHeader}>
+          <span>📡 Live Development Feed</span>
+          <span style={styles.feedStatus}>● Connected</span>
+        </div>
+        <div style={styles.feedContent}>
+          {updates.slice(0, 3).map(update => (
+            <div key={update.id} style={styles.feedItem}>
+              <span style={styles.feedTime}>
+                {new Date(update.date).toLocaleTimeString()}
+              </span>
+              <span style={styles.feedText}>
+                <strong>{update.title}</strong> - {update.description}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-// Fixed styles with proper TypeScript typing
 const styles = {
   container: {
-    maxWidth: '1200px',
+    maxWidth: '1400px',
     margin: '0 auto',
     padding: '20px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    backgroundColor: '#f5f7fa'
   },
   header: {
     marginBottom: '30px',
-    padding: '20px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    padding: '25px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+  },
+  headerContent: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px'
   },
   gradientBar: {
-    height: '8px',
+    height: '6px',
     width: '100%',
-    borderRadius: '4px',
+    borderRadius: '3px',
     marginBottom: '20px'
   },
   title: {
-    fontSize: '32px',
-    margin: '0 0 10px 0',
-    color: '#333'
+    fontSize: '28px',
+    margin: '0 0 5px 0',
+    color: '#1a1a1a',
+    fontWeight: '600'
   },
   subtitle: {
-    fontSize: '16px',
+    fontSize: '14px',
     color: '#666',
-    marginBottom: '15px'
+    margin: 0
+  },
+  buildBadge: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center'
+  },
+  buildVersion: {
+    padding: '6px 12px',
+    backgroundColor: '#e9ecef',
+    borderRadius: '20px',
+    fontSize: '13px',
+    color: '#495057'
+  },
+  buildStatus: {
+    padding: '6px 12px',
+    backgroundColor: '#d4edda',
+    borderRadius: '20px',
+    fontSize: '13px',
+    color: '#155724'
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: '15px',
+    marginBottom: '20px'
+  },
+  statCard: {
+    padding: '15px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px',
+    textAlign: 'center' as const,
+    border: '1px solid #e9ecef'
+  },
+  statValue: {
+    display: 'block',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#FF8C42',
+    marginBottom: '5px'
+  },
+  statLabel: {
+    fontSize: '12px',
+    color: '#6c757d',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px'
   },
   specs: {
     display: 'flex',
-    gap: '20px',
-    flexWrap: 'wrap' as 'wrap', // Fixed: explicitly type as 'wrap'
+    gap: '10px',
+    flexWrap: 'wrap' as 'wrap',
+    marginTop: '15px'
   },
   specItem: {
-    padding: '5px 10px',
-    backgroundColor: '#e9ecef',
-    borderRadius: '4px',
-    fontSize: '14px',
-    color: '#495057'
+    padding: '4px 10px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '15px',
+    fontSize: '12px',
+    color: '#495057',
+    border: '1px solid #dee2e6'
   },
   tabs: {
     display: 'flex',
-    gap: '10px',
+    gap: '5px',
     marginBottom: '20px',
-    borderBottom: '2px solid #dee2e6',
-    paddingBottom: '10px'
+    flexWrap: 'wrap' as 'wrap',
+    backgroundColor: 'white',
+    padding: '10px',
+    borderRadius: '10px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
   },
   tab: {
-    padding: '8px 16px',
+    padding: '10px 16px',
     border: 'none',
     backgroundColor: 'transparent',
     cursor: 'pointer',
-    fontSize: '16px',
+    fontSize: '14px',
     color: '#6c757d',
-    transition: 'all 0.3s'
+    borderRadius: '6px',
+    transition: 'all 0.2s',
+    fontWeight: '500'
   },
   activeTab: {
     color: '#FF8C42',
-    borderBottom: '2px solid #FF8C42',
-    fontWeight: 'bold' as 'bold', // Fixed: explicitly type as 'bold'
+    backgroundColor: '#fff4e5',
+    fontWeight: '600'
   },
   content: {
-    minHeight: '500px'
+    minHeight: '600px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '25px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+    marginBottom: '20px'
+  },
+  footer: {
+    backgroundColor: 'white',
+    borderRadius: '10px',
+    padding: '15px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+  },
+  feedHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#333'
+  },
+  feedStatus: {
+    color: '#28a745',
+    fontSize: '12px'
+  },
+  feedContent: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px'
+  },
+  feedItem: {
+    display: 'flex',
+    gap: '15px',
+    fontSize: '13px',
+    padding: '8px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '6px'
+  },
+  feedTime: {
+    color: '#6c757d',
+    minWidth: '60px'
+  },
+  feedText: {
+    color: '#333'
   }
 };
 
