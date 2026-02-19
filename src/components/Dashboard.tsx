@@ -441,7 +441,7 @@ const Dashboard: React.FC = () => {
               </span>
               <span style={styles.feedText}>
                 <strong>{update.title}</strong>
-                <span style={styles.feedDescription}> - {update.description}</span>
+               <span className="feedDescription"> - {update.description}</span>
               </span>
             </div>
           ))}
