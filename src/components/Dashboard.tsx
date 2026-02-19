@@ -119,6 +119,7 @@ const Dashboard: React.FC = () => {
   );
 };
 
+// Fixed styles with proper TypeScript typing
 const styles = {
   container: {
     maxWidth: '1200px',
@@ -152,7 +153,7 @@ const styles = {
   specs: {
     display: 'flex',
     gap: '20px',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap' as 'wrap', // Fixed: explicitly type as 'wrap'
   },
   specItem: {
     padding: '5px 10px',
@@ -180,7 +181,7 @@ const styles = {
   activeTab: {
     color: '#FF8C42',
     borderBottom: '2px solid #FF8C42',
-    fontWeight: 'bold'
+    fontWeight: 'bold' as 'bold', // Fixed: explicitly type as 'bold'
   },
   content: {
     minHeight: '500px'
