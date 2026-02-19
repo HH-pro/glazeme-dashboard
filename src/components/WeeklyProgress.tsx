@@ -444,4 +444,100 @@ const styles = {
   },
   progressLabel: {
     fontSize: '12px',
-   
+    color: '#666'
+  },
+  progressValue: {
+    fontSize: '12px',
+    fontWeight: 'bold',
+    color: '#FF8C42'
+  },
+  progressBar: {
+    height: '8px',
+    backgroundColor: '#e9ecef',
+    borderRadius: '4px',
+    overflow: 'hidden',
+    marginBottom: '5px'
+  },
+  progressFill: {
+    height: '100%',
+    transition: 'width 0.3s ease'
+  },
+  progressSlider: {
+    width: '100%',
+    marginTop: '5px'
+  },
+  editForm: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '10px'
+  },
+  input: {
+    padding: '8px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    fontSize: '14px'
+  },
+  textarea: {
+    padding: '8px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    fontSize: '14px',
+    minHeight: '80px'
+  },
+  range: {
+    width: '100%'
+  },
+  progressControl: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '5px'
+  },
+  editButtons: {
+    display: 'flex',
+    gap: '10px',
+    justifyContent: 'flex-end'
+  },
+  cancelButton: {
+    padding: '6px 12px',
+    backgroundColor: '#6c757d',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  },
+  saveButton: {
+    padding: '6px 12px',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  },
+  formButtons: {
+    display: 'flex',
+    gap: '10px',
+    justifyContent: 'flex-end',
+    marginTop: '10px'
+  },
+  addWeekForm: {
+    backgroundColor: '#f8f9fa',
+    padding: '20px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '2px solid #FF8C42'
+  },
+  formTitle: {
+    margin: '0 0 15px 0',
+    fontSize: '18px',
+    color: '#333'
+  },
+  note: {
+    marginTop: '20px',
+    padding: '15px',
+    backgroundColor: '#fff3cd',
+    borderRadius: '8px',
+    border: '1px solid #ffeeba'
+  }
+};
+
+export default WeeklyProgress;
