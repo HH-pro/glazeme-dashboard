@@ -1,12 +1,18 @@
 // src/components/TechnicalLog.tsx
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { TechnicalMilestone } from '../types';
 
-const TechnicalLog: React.FC = () => {
+interface Props {
+  isEditMode?: boolean;
+  onEditAction?: () => void;
+}
+
+const TechnicalLog: React.FC<Props> = ({ isEditMode = false, onEditAction }) => {
   const [milestones, setMilestones] = useState<TechnicalMilestone[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<TechnicalMilestone | null>(null);
   const [newMilestone, setNewMilestone] = useState({
     week: 1,
     task: '',
@@ -41,26 +47,113 @@ const TechnicalLog: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  const handleAddClick = () => {
+    if (!isEditMode && onEditAction) {
+      onEditAction();
+      return;
+    }
+    setShowAddForm(true);
+    setEditingMilestone(null);
+  };
+
+  const handleEditClick = (milestone: TechnicalMilestone) => {
+    if (!isEditMode && onEditAction) {
+      onEditAction();
+      return;
+    }
+    setEditingMilestone(milestone);
+    setNewMilestone({
+      week: milestone.week,
+      task: milestone.task,
+      notes: milestone.notes,
+      completed: milestone.completed
+    });
+    setShowAddForm(true);
+  };
+
+  const handleDeleteClick = async (id: string) => {
+    if (!isEditMode && onEditAction) {
+      onEditAction();
+      return;
+    }
+    
+    if (window.confirm('Are you sure you want to delete this milestone?')) {
+      try {
+        await deleteDoc(doc(db, 'technicalMilestones', id));
+      } catch (error) {
+        console.error('Error deleting milestone:', error);
+        alert('Failed to delete milestone');
+      }
+    }
+  };
+
   const handleAddMilestone = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addDoc(collection(db, 'technicalMilestones'), {
-      ...newMilestone,
-      completedDate: null
-    });
+    
+    if (!isEditMode && onEditAction) {
+      onEditAction();
+      return;
+    }
+
+    try {
+      if (editingMilestone) {
+        // Update existing milestone
+        const milestoneRef = doc(db, 'technicalMilestones', editingMilestone.id);
+        await updateDoc(milestoneRef, {
+          week: newMilestone.week,
+          task: newMilestone.task,
+          notes: newMilestone.notes,
+          completed: newMilestone.completed,
+          completedDate: newMilestone.completed ? new Date() : null
+        });
+      } else {
+        // Add new milestone
+        await addDoc(collection(db, 'technicalMilestones'), {
+          ...newMilestone,
+          completedDate: null
+        });
+      }
+      
+      setShowAddForm(false);
+      setEditingMilestone(null);
+      setNewMilestone({
+        week: 1,
+        task: '',
+        notes: '',
+        completed: false
+      });
+    } catch (error) {
+      console.error('Error saving milestone:', error);
+      alert('Failed to save milestone');
+    }
+  };
+
+  const toggleMilestoneStatus = async (milestone: TechnicalMilestone) => {
+    if (!isEditMode && onEditAction) {
+      onEditAction();
+      return;
+    }
+
+    try {
+      const milestoneRef = doc(db, 'technicalMilestones', milestone.id);
+      await updateDoc(milestoneRef, {
+        completed: !milestone.completed,
+        completedDate: !milestone.completed ? new Date() : null
+      });
+    } catch (error) {
+      console.error('Error updating milestone:', error);
+      alert('Failed to update milestone status');
+    }
+  };
+
+  const cancelForm = () => {
     setShowAddForm(false);
+    setEditingMilestone(null);
     setNewMilestone({
       week: 1,
       task: '',
       notes: '',
       completed: false
-    });
-  };
-
-  const toggleMilestoneStatus = async (milestone: TechnicalMilestone) => {
-    const milestoneRef = doc(db, 'technicalMilestones', milestone.id);
-    await updateDoc(milestoneRef, {
-      completed: !milestone.completed,
-      completedDate: !milestone.completed ? new Date() : null
     });
   };
 
@@ -71,6 +164,13 @@ const TechnicalLog: React.FC = () => {
         <h2 style={styles.sectionTitle}>⚙️ Technical Implementation</h2>
         <p style={styles.subtitle}>Real-time architecture and development tracking</p>
       </div>
+
+      {/* Edit Mode Indicator */}
+      {isEditMode && (
+        <div style={styles.editModeIndicator}>
+          ✏️ Edit Mode Active - You can add, edit, and delete milestones
+        </div>
+      )}
 
       {/* Technical Specs Cards */}
       <div style={styles.specsGrid}>
@@ -181,15 +281,23 @@ const TechnicalLog: React.FC = () => {
         <div style={styles.milestonesHeader}>
           <h3 style={styles.sectionSubtitle}>📋 Technical Milestones</h3>
           <button 
-            onClick={() => setShowAddForm(!showAddForm)}
-            style={styles.addButton}
+            onClick={handleAddClick}
+            style={{
+              ...styles.addButton,
+              backgroundColor: isEditMode ? '#FF8C42' : '#6c757d',
+              cursor: isEditMode ? 'pointer' : 'not-allowed'
+            }}
           >
-            + Add Milestone
+            {isEditMode ? '+ Add Milestone' : '🔒 Edit Mode Required'}
           </button>
         </div>
 
-        {showAddForm && (
+        {isEditMode && showAddForm && (
           <form onSubmit={handleAddMilestone} style={styles.form}>
+            <h4 style={styles.formTitle}>
+              {editingMilestone ? '✏️ Edit Milestone' : '➕ Add New Milestone'}
+            </h4>
+            
             <input
               type="number"
               placeholder="Week Number"
@@ -200,6 +308,7 @@ const TechnicalLog: React.FC = () => {
               max="6"
               required
             />
+            
             <input
               type="text"
               placeholder="Task Description"
@@ -208,6 +317,7 @@ const TechnicalLog: React.FC = () => {
               style={styles.input}
               required
             />
+            
             <textarea
               placeholder="Technical Notes"
               value={newMilestone.notes}
@@ -216,7 +326,27 @@ const TechnicalLog: React.FC = () => {
               rows={3}
               required
             />
-            <button type="submit" style={styles.submitButton}>Add Milestone</button>
+            
+            <div style={styles.checkboxContainer}>
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={newMilestone.completed}
+                  onChange={(e) => setNewMilestone({...newMilestone, completed: e.target.checked})}
+                  style={styles.checkbox}
+                />
+                Mark as completed
+              </label>
+            </div>
+            
+            <div style={styles.formButtons}>
+              <button type="button" onClick={cancelForm} style={styles.cancelButton}>
+                Cancel
+              </button>
+              <button type="submit" style={styles.submitButton}>
+                {editingMilestone ? 'Update Milestone' : 'Add Milestone'}
+              </button>
+            </div>
           </form>
         )}
 
@@ -225,12 +355,33 @@ const TechnicalLog: React.FC = () => {
             <div key={milestone.id} style={styles.milestoneCard}>
               <div style={styles.milestoneHeader}>
                 <span style={styles.weekBadge}>Week {milestone.week}</span>
-                <input
-                  type="checkbox"
-                  checked={milestone.completed}
-                  onChange={() => toggleMilestoneStatus(milestone)}
-                  style={styles.checkbox}
-                />
+                <div style={styles.milestoneActions}>
+                  {isEditMode && (
+                    <>
+                      <button 
+                        onClick={() => handleEditClick(milestone)}
+                        style={styles.editButton}
+                        title="Edit milestone"
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteClick(milestone.id)}
+                        style={styles.deleteButton}
+                        title="Delete milestone"
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                  <input
+                    type="checkbox"
+                    checked={milestone.completed}
+                    onChange={() => toggleMilestoneStatus(milestone)}
+                    style={styles.checkbox}
+                    disabled={!isEditMode}
+                  />
+                </div>
               </div>
               <h4 style={styles.milestoneTask}>{milestone.task}</h4>
               <p style={styles.milestoneNotes}>{milestone.notes}</p>
@@ -345,6 +496,15 @@ const styles = {
     color: '#666',
     margin: 0
   },
+  editModeIndicator: {
+    backgroundColor: '#fff3cd',
+    color: '#856404',
+    padding: '8px 12px',
+    borderRadius: '6px',
+    marginBottom: '20px',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
   specsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -446,12 +606,12 @@ const styles = {
   },
   addButton: {
     padding: '8px 16px',
-    backgroundColor: '#FF8C42',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: '14px',
+    transition: 'background-color 0.2s'
   },
   form: {
     display: 'flex',
@@ -460,7 +620,13 @@ const styles = {
     padding: '20px',
     backgroundColor: '#f8f9fa',
     borderRadius: '8px',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    border: '2px solid #FF8C42'
+  },
+  formTitle: {
+    margin: '0 0 10px 0',
+    fontSize: '16px',
+    color: '#333'
   },
   input: {
     padding: '8px',
@@ -475,9 +641,34 @@ const styles = {
     fontSize: '14px',
     fontFamily: 'inherit'
   },
+  checkboxContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    marginBottom: '10px'
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    color: '#333'
+  },
+  formButtons: {
+    display: 'flex',
+    gap: '10px',
+    justifyContent: 'flex-end'
+  },
   submitButton: {
-    padding: '10px',
+    padding: '10px 20px',
     backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  },
+  cancelButton: {
+    padding: '10px 20px',
+    backgroundColor: '#6c757d',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -508,6 +699,27 @@ const styles = {
     borderRadius: '4px',
     fontSize: '12px',
     fontWeight: 'bold'
+  },
+  milestoneActions: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+  },
+  editButton: {
+    padding: '4px 8px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dee2e6',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px'
+  },
+  deleteButton: {
+    padding: '4px 8px',
+    backgroundColor: '#f8d7da',
+    border: '1px solid #f5c6cb',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px'
   },
   checkbox: {
     width: '20px',
