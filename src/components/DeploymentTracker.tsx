@@ -374,24 +374,7 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
         ))}
       </div>
 
-      <div style={styles.nextSteps}>
-        <h3 style={styles.nextStepsTitle}>📋 Upcoming Release (Week 4)</h3>
-        <ul style={styles.stepsList}>
-          <li style={styles.completedStep}>✅ iMessage Extension Foundation</li>
-          <li style={styles.completedStep}>✅ AI Integration</li>
-          <li style={styles.completedStep}>✅ Basic Prompt Engineering</li>
-          <li style={styles.inProgressStep}>🔄 Error Handling System</li>
-          <li style={styles.plannedStep}>⏳ Performance Optimization</li>
-          <li style={styles.plannedStep}>⏳ TestFlight Distribution</li>
-        </ul>
-        
-        <div style={styles.releaseNotes}>
-          <h4 style={styles.releaseNotesTitle}>📝 Release Notes v0.4.0</h4>
-          <p style={styles.releaseNoteItem}>• Improved error handling with retry logic</p>
-          <p style={styles.releaseNoteItem}>• Added performance monitoring</p>
-          <p style={styles.releaseNoteItem}>• Fixed memory leaks in message extension</p>
-        </div>
-      </div>
+      
 
       {/* Deployment Detail Modal */}
       {selectedDeployment && (
