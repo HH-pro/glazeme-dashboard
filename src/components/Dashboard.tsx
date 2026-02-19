@@ -251,29 +251,7 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Build Stats Cards */}
-        <div style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <span style={styles.statValue}>{buildStats.totalCommits}</span>
-            <span style={styles.statLabel}>Total Commits</span>
-          </div>
-          <div style={styles.statCard}>
-            <span style={styles.statValue}>+{buildStats.totalAdditions}</span>
-            <span style={styles.statLabel}>Lines Added</span>
-          </div>
-          <div style={styles.statCard}>
-            <span style={styles.statValue}>{buildStats.aiCalls}</span>
-            <span style={styles.statLabel}>AI Calls</span>
-          </div>
-          <div style={styles.statCard}>
-            <span style={styles.statValue}>{buildStats.avgResponseTime}ms</span>
-            <span style={styles.statLabel}>Avg AI Response</span>
-          </div>
-          <div style={styles.statCard}>
-            <span style={styles.statValue}>{buildStats.screensCompleted}</span>
-            <span style={styles.statLabel}>Screens Built</span>
-          </div>
-        </div>
+       
 
         {/* Tech Stack Tags */}
         <div style={styles.specs}>
