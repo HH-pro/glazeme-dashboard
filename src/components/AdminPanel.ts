@@ -165,19 +165,19 @@ const AdminPanel: React.FC = () => {
   );
 };
 
-// Fixed styles with proper TypeScript typing
+// Styles object with proper TypeScript typing
 const styles = {
   sectionTitle: {
     fontSize: '24px',
     margin: '0 0 20px 0',
     color: '#333',
-    fontWeight: '600' as '600'
+    fontWeight: '600' as const
   },
   sectionHeading: {
     fontSize: '18px',
     margin: '0 0 15px 0',
     color: '#444',
-    fontWeight: '500' as '500'
+    fontWeight: '500' as const
   },
   paragraph: {
     fontSize: '14px',
@@ -199,7 +199,7 @@ const styles = {
     marginBottom: '20px',
     borderBottom: '2px solid #dee2e6',
     paddingBottom: '10px',
-    flexWrap: 'wrap' as 'wrap'
+    flexWrap: 'wrap' as const
   },
   adminTab: {
     padding: '8px 16px',
@@ -214,7 +214,7 @@ const styles = {
   activeAdminTab: {
     color: '#FF8C42',
     backgroundColor: '#fff4e5',
-    fontWeight: '500' as '500'
+    fontWeight: '500' as const
   },
   adminContent: {
     padding: '20px',
@@ -263,7 +263,7 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
-    fontWeight: '500' as '500',
+    fontWeight: '500' as const,
     transition: 'background-color 0.2s'
   },
   logEntry: {
@@ -290,7 +290,7 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
-    fontWeight: '500' as '500',
+    fontWeight: '500' as const,
     transition: 'background-color 0.2s'
   },
   restoreButton: {
@@ -301,20 +301,20 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
-    fontWeight: '500' as '500',
+    fontWeight: '500' as const,
     transition: 'background-color 0.2s'
   },
   backupNote: {
     marginTop: '15px',
     fontSize: '13px',
     color: '#6c757d',
-    fontStyle: 'italic' as 'italic'
+    fontStyle: 'italic' as const
   },
   footer: {
     marginTop: '20px',
     paddingTop: '20px',
     borderTop: '1px solid #dee2e6',
-    textAlign: 'right' as 'right'
+    textAlign: 'right' as const
   },
   logoutButton: {
     padding: '10px 24px',
@@ -324,7 +324,7 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
-    fontWeight: '500' as '500',
+    fontWeight: '500' as const,
     transition: 'background-color 0.2s'
   }
 };
