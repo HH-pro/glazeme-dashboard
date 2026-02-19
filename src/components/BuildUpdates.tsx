@@ -2,11 +2,26 @@
 import React, { useState } from 'react';
 import { BuildUpdate } from '../types';
 
+// Define the possible types
+type UpdateCategory = 'development' | 'design' | 'ai-integration' | 'testing' | 'deployment' | 'backend' | 'security';
+type UpdateStatus = 'in-progress' | 'completed' | 'planned' | 'blocked';
+type UpdatePriority = 'low' | 'medium' | 'high';
+
 interface Props {
   updates: BuildUpdate[];
   onAddUpdate: (update: Omit<BuildUpdate, 'id'>) => void;
-  onEditUpdate?: (updateId: string, updatedData: Partial<BuildUpdate>) => void; // Made optional
-  isAuthenticated?: boolean; // Made optional
+  onEditUpdate?: (updateId: string, updatedData: Partial<BuildUpdate>) => void;
+  isAuthenticated?: boolean;
+}
+
+interface NewUpdateState {
+  weekNumber: number;
+  title: string;
+  description: string;
+  category: UpdateCategory;
+  status: UpdateStatus;
+  priority: UpdatePriority;
+  timeSpent: number;
 }
 
 const BuildUpdates: React.FC<Props> = ({ 
@@ -17,13 +32,13 @@ const BuildUpdates: React.FC<Props> = ({
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUpdate, setEditingUpdate] = useState<BuildUpdate | null>(null);
-  const [newUpdate, setNewUpdate] = useState({
+  const [newUpdate, setNewUpdate] = useState<NewUpdateState>({
     weekNumber: 1,
     title: '',
     description: '',
-    category: 'development' as const,
-    status: 'in-progress' as const,
-    priority: 'medium' as const,
+    category: 'development',
+    status: 'in-progress',
+    priority: 'medium',
     timeSpent: 2
   });
 
@@ -41,22 +56,11 @@ const BuildUpdates: React.FC<Props> = ({
       // Handle add
       onAddUpdate({
         ...newUpdate,
-        date: new Date(),
-        priority: "medium",
-        timeSpent: 2
+        date: new Date()
       });
     }
     
-    setShowAddForm(false);
-    setNewUpdate({
-      weekNumber: 1,
-      title: '',
-      description: '',
-      category: 'development',
-      status: 'in-progress',
-      priority: 'medium',
-      timeSpent: 2
-    });
+    handleCancel();
   };
 
   const handleEdit = (update: BuildUpdate) => {
@@ -65,9 +69,9 @@ const BuildUpdates: React.FC<Props> = ({
       weekNumber: update.weekNumber,
       title: update.title,
       description: update.description,
-      category: update.category,
-      status: update.status,
-      priority: update.priority || 'medium',
+      category: update.category as UpdateCategory,
+      status: update.status as UpdateStatus,
+      priority: (update.priority as UpdatePriority) || 'medium',
       timeSpent: update.timeSpent || 2
     });
     setShowAddForm(true);
@@ -92,6 +96,7 @@ const BuildUpdates: React.FC<Props> = ({
       case 'completed': return '#28a745';
       case 'in-progress': return '#ffc107';
       case 'planned': return '#6c757d';
+      case 'blocked': return '#dc3545';
       default: return '#6c757d';
     }
   };
@@ -112,7 +117,7 @@ const BuildUpdates: React.FC<Props> = ({
 
       {showAddForm && (
         <form onSubmit={handleSubmit} style={styles.form}>
-          <h3>{editingUpdate ? 'Edit Update' : 'New Update'}</h3>
+          <h3>{editingUpdate ? '✏️ Edit Update' : '📝 New Update'}</h3>
           
           <input
             type="text"
@@ -144,7 +149,7 @@ const BuildUpdates: React.FC<Props> = ({
 
             <select
               value={newUpdate.category}
-              onChange={(e) => setNewUpdate({...newUpdate, category: e.target.value as any})}
+              onChange={(e) => setNewUpdate({...newUpdate, category: e.target.value as UpdateCategory})}
               style={styles.select}
             >
               <option value="development">Development</option>
@@ -152,28 +157,31 @@ const BuildUpdates: React.FC<Props> = ({
               <option value="ai-integration">AI Integration</option>
               <option value="testing">Testing</option>
               <option value="deployment">Deployment</option>
+              <option value="backend">Backend</option>
+              <option value="security">Security</option>
             </select>
           </div>
 
           <div style={styles.formRow}>
             <select
               value={newUpdate.status}
-              onChange={(e) => setNewUpdate({...newUpdate, status: e.target.value as any})}
+              onChange={(e) => setNewUpdate({...newUpdate, status: e.target.value as UpdateStatus})}
               style={styles.select}
             >
-              <option value="planned">Planned</option>
-              <option value="in-progress">In Progress</option>
-              <option value="completed">Completed</option>
+              <option value="planned">📅 Planned</option>
+              <option value="in-progress">⚙️ In Progress</option>
+              <option value="completed">✅ Completed</option>
+              <option value="blocked">🚫 Blocked</option>
             </select>
 
             <select
               value={newUpdate.priority}
-              onChange={(e) => setNewUpdate({...newUpdate, priority: e.target.value as any})}
+              onChange={(e) => setNewUpdate({...newUpdate, priority: e.target.value as UpdatePriority})}
               style={styles.select}
             >
-              <option value="low">Low Priority</option>
-              <option value="medium">Medium Priority</option>
-              <option value="high">High Priority</option>
+              <option value="low">🔽 Low Priority</option>
+              <option value="medium">⏺️ Medium Priority</option>
+              <option value="high">🔼 High Priority</option>
             </select>
           </div>
 
@@ -182,7 +190,7 @@ const BuildUpdates: React.FC<Props> = ({
               type="number"
               placeholder="Time spent (hours)"
               value={newUpdate.timeSpent}
-              onChange={(e) => setNewUpdate({...newUpdate, timeSpent: parseInt(e.target.value)})}
+              onChange={(e) => setNewUpdate({...newUpdate, timeSpent: parseInt(e.target.value) || 0})}
               style={styles.input}
               min="0"
             />
@@ -193,7 +201,7 @@ const BuildUpdates: React.FC<Props> = ({
               Cancel
             </button>
             <button type="submit" style={styles.submitButton}>
-              {editingUpdate ? 'Update' : 'Post Update'}
+              {editingUpdate ? 'Update Update' : 'Post Update'}
             </button>
           </div>
         </form>
@@ -209,20 +217,29 @@ const BuildUpdates: React.FC<Props> = ({
                   <span style={{
                     ...styles.priorityBadge,
                     backgroundColor: update.priority === 'high' ? '#dc3545' : 
-                                   update.priority === 'medium' ? '#ffc107' : '#28a745'
+                                   update.priority === 'medium' ? '#ffc107' : '#28a745',
+                    color: update.priority === 'medium' ? '#000' : '#fff'
                   }}>
+                    {update.priority === 'high' && '🔥 '}
+                    {update.priority === 'medium' && '⚡ '}
+                    {update.priority === 'low' && '💤 '}
                     {update.priority} priority
                   </span>
                 )}
               </div>
               <div style={styles.headerRight}>
                 <span style={{...styles.statusBadge, backgroundColor: getStatusColor(update.status)}}>
+                  {update.status === 'completed' && '✅ '}
+                  {update.status === 'in-progress' && '⚙️ '}
+                  {update.status === 'planned' && '📅 '}
+                  {update.status === 'blocked' && '🚫 '}
                   {update.status}
                 </span>
                 {isAuthenticated && onEditUpdate && (
                   <button 
                     onClick={() => handleEdit(update)}
                     style={styles.editButton}
+                    title="Edit update"
                   >
                     ✏️
                   </button>
@@ -235,13 +252,28 @@ const BuildUpdates: React.FC<Props> = ({
             
             {update.timeSpent && (
               <div style={styles.timeSpent}>
-                ⏱️ {update.timeSpent} hours spent
+                ⏱️ {update.timeSpent} hour{update.timeSpent !== 1 ? 's' : ''} spent
               </div>
             )}
             
             <div style={styles.updateFooter}>
-              <span style={styles.categoryTag}>{update.category}</span>
-              <span style={styles.date}>{new Date(update.date).toLocaleDateString()}</span>
+              <span style={styles.categoryTag}>
+                {update.category === 'development' && '💻 '}
+                {update.category === 'design' && '🎨 '}
+                {update.category === 'ai-integration' && '🤖 '}
+                {update.category === 'testing' && '🧪 '}
+                {update.category === 'deployment' && '🚀 '}
+                {update.category === 'backend' && '⚙️ '}
+                {update.category === 'security' && '🔒 '}
+                {update.category}
+              </span>
+              <span style={styles.date}>
+                📅 {new Date(update.date).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </span>
             </div>
           </div>
         ))}
@@ -270,6 +302,7 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '14px',
+    fontWeight: '500',
     transition: 'background-color 0.2s',
     ':hover': {
       backgroundColor: '#f57c00'
@@ -291,26 +324,28 @@ const styles = {
   },
   input: {
     flex: 1,
-    padding: '8px',
+    padding: '10px',
     border: '1px solid #ddd',
     borderRadius: '4px',
     fontSize: '14px'
   },
   textarea: {
-    padding: '8px',
+    padding: '10px',
     border: '1px solid #ddd',
     borderRadius: '4px',
     fontSize: '14px',
     minHeight: '80px',
-    resize: 'vertical' as const
+    resize: 'vertical' as const,
+    fontFamily: 'inherit'
   },
   select: {
     flex: 1,
-    padding: '8px',
+    padding: '10px',
     border: '1px solid #ddd',
     borderRadius: '4px',
     fontSize: '14px',
-    backgroundColor: 'white'
+    backgroundColor: 'white',
+    cursor: 'pointer'
   },
   buttonGroup: {
     display: 'flex',
@@ -324,7 +359,12 @@ const styles = {
     color: 'white',
     border: 'none',
     borderRadius: '4px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '14px',
+    transition: 'background-color 0.2s',
+    ':hover': {
+      backgroundColor: '#5a6268'
+    }
   },
   submitButton: {
     padding: '10px 20px',
@@ -332,7 +372,12 @@ const styles = {
     color: 'white',
     border: 'none',
     borderRadius: '4px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '14px',
+    transition: 'background-color 0.2s',
+    ':hover': {
+      backgroundColor: '#218838'
+    }
   },
   timeline: {
     display: 'flex',
@@ -340,7 +385,7 @@ const styles = {
     gap: '15px'
   },
   updateCard: {
-    padding: '15px',
+    padding: '20px',
     backgroundColor: 'white',
     borderRadius: '8px',
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -355,12 +400,13 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '10px'
+    marginBottom: '12px'
   },
   headerLeft: {
     display: 'flex',
     gap: '8px',
-    alignItems: 'center'
+    alignItems: 'center',
+    flexWrap: 'wrap' as const
   },
   headerRight: {
     display: 'flex',
@@ -372,19 +418,21 @@ const styles = {
     backgroundColor: '#e9ecef',
     borderRadius: '4px',
     fontSize: '12px',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    color: '#495057'
   },
   priorityBadge: {
     padding: '4px 8px',
     borderRadius: '4px',
     fontSize: '12px',
-    color: 'white'
+    fontWeight: '500'
   },
   statusBadge: {
     padding: '4px 8px',
     borderRadius: '4px',
     fontSize: '12px',
-    color: 'white'
+    color: 'white',
+    fontWeight: '500'
   },
   editButton: {
     padding: '4px 8px',
@@ -401,18 +449,19 @@ const styles = {
   updateTitle: {
     fontSize: '18px',
     margin: '0 0 10px 0',
-    color: '#333'
+    color: '#333',
+    fontWeight: '600'
   },
   updateDescription: {
     fontSize: '14px',
     color: '#666',
-    margin: '0 0 10px 0',
-    lineHeight: '1.5'
+    margin: '0 0 15px 0',
+    lineHeight: '1.6'
   },
   timeSpent: {
     fontSize: '12px',
     color: '#666',
-    marginBottom: '10px',
+    marginBottom: '15px',
     padding: '4px 8px',
     backgroundColor: '#f8f9fa',
     borderRadius: '4px',
@@ -423,14 +472,16 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTop: '1px solid #eee',
-    paddingTop: '10px'
+    paddingTop: '12px',
+    marginTop: '4px'
   },
   categoryTag: {
-    padding: '2px 6px',
+    padding: '4px 8px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '3px',
+    borderRadius: '4px',
     fontSize: '12px',
-    color: '#666'
+    color: '#495057',
+    fontWeight: '500'
   },
   date: {
     fontSize: '12px',
