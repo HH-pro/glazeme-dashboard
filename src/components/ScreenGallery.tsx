@@ -59,13 +59,7 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
           buildVersion: 'v1.0.0',
           componentName: file.name.replace(/\.[^/.]+$/, ''),
           filePath: `src/components/${file.name}`,
-          tags: ['ios', 'swiftui', 'imessage', 'screen'],
-          dimensions: {
-            width: result.width || 0,
-            height: result.height || 0
-          },
-          format: result.format || 'png',
-          size: result.bytes || 0
+          tags: ['ios', 'swiftui', 'imessage', 'screen']
         });
 
         // Clear progress for this file
@@ -259,20 +253,8 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
                   <span style={styles.detailValue}>{selectedScreen.buildVersion}</span>
                 </div>
                 <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>Dimensions:</span>
-                  <span style={styles.detailValue}>
-                    {selectedScreen.dimensions?.width} x {selectedScreen.dimensions?.height}
-                  </span>
-                </div>
-                <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>Format:</span>
-                  <span style={styles.detailValue}>{selectedScreen.format?.toUpperCase()}</span>
-                </div>
-                <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>Size:</span>
-                  <span style={styles.detailValue}>
-                    {selectedScreen.size ? (selectedScreen.size / 1024).toFixed(2) : 0} KB
-                  </span>
+                  <span style={styles.detailLabel}>File Path:</span>
+                  <span style={styles.detailValue}>{selectedScreen.filePath}</span>
                 </div>
               </div>
               
