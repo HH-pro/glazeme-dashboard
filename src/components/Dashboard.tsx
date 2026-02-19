@@ -292,8 +292,6 @@ const Dashboard: React.FC = () => {
           { id: 'screens', label: '📱 Screen Gallery', icon: '📱' },
           { id: 'progress', label: '📊 Progress Tracker', icon: '📊' },
           { id: 'tech', label: '⚙️ Technical Log', icon: '⚙️' },
-          { id: 'code', label: '💻 Code Metrics', icon: '💻' },
-          { id: 'ai', label: '🤖 AI Dashboard', icon: '🤖' },
           { id: 'deploy', label: '🚀 Deployment', icon: '🚀' }
         ].map(tab => (
           <button
