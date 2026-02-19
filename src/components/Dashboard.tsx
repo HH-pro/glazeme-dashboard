@@ -45,7 +45,7 @@ const Dashboard: React.FC = () => {
     ],
     technicalStack: {
       frontend: ["SwiftUI", "iMessage Extension", "UIKit"],
-      backend: ["Node.js", "Express", "Firebase Functions"],
+      backend: ["Firebase"],
       ai: ["OpenAI GPT-4", "Prompt Engineering", "Response Caching"],
       database: ["Firebase Firestore", "Redis Cache"],
       hosting: ["Firebase Hosting", "Vercel", "AWS Lambda"]
