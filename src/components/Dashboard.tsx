@@ -1,7 +1,8 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { db } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, where, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
@@ -9,14 +10,16 @@ import TechnicalLog from './TechnicalLog';
 import CodeMetrics from './CodeMetrics';
 import AIDashboard from './AIDashboard';
 import DeploymentTracker from './DeploymentTracker';
+import AdminPanel from './AdminPanel';
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
 
 const Dashboard: React.FC = () => {
+  const { isAdmin, logout } = useAuth();
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [screens, setScreens] = useState<ScreenCapture[]>([]);
   const [commits, setCommits] = useState<CodeCommit[]>([]);
   const [aiMetrics, setAiMetrics] = useState<AIPromptMetric[]>([]);
-  const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech' | 'code' | 'ai' | 'deploy'>('updates');
+  const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech' | 'code' | 'ai' | 'deploy' | 'admin'>('updates');
   const [buildStats, setBuildStats] = useState({
     totalCommits: 0,
     totalAdditions: 0,
@@ -53,7 +56,7 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    // Real-time updates listener
+    // Real-time updates listener (read-only for both admin and client)
     const updatesQuery = query(collection(db, 'buildUpdates'), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(updatesQuery, (snapshot) => {
       const updatesData = snapshot.docs.map(doc => ({
@@ -123,15 +126,26 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const addBuildUpdate = async (update: Omit<BuildUpdate, 'id'>) => {
+    if (!isAdmin) return; // Only admin can add
     await addDoc(collection(db, 'buildUpdates'), {
       ...update,
       date: new Date()
     });
   };
 
+  const updateBuildUpdate = async (id: string, update: Partial<BuildUpdate>) => {
+    if (!isAdmin) return;
+    await updateDoc(doc(db, 'buildUpdates', id), update);
+  };
+
+  const deleteBuildUpdate = async (id: string) => {
+    if (!isAdmin) return;
+    await deleteDoc(doc(db, 'buildUpdates', id));
+  };
+
   return (
     <div style={styles.container}>
-      {/* Header with build stats */}
+      {/* Header with user role indicator */}
       <div style={styles.header}>
         <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
         <div style={styles.headerContent}>
@@ -141,13 +155,21 @@ const Dashboard: React.FC = () => {
               {glazemeSpecs.concept} • {glazemeSpecs.platform}
             </p>
           </div>
-          <div style={styles.buildBadge}>
-            <span style={styles.buildVersion}>Build v1.0.0-alpha</span>
-            <span style={styles.buildStatus}>🟢 Active Development</span>
+          <div style={styles.userSection}>
+            <span style={{
+              ...styles.roleBadge,
+              backgroundColor: isAdmin ? '#d4edda' : '#cce5ff',
+              color: isAdmin ? '#155724' : '#004085'
+            }}>
+              {isAdmin ? '👑 Admin Access' : '👀 Client View'}
+            </span>
+            <button onClick={logout} style={styles.logoutButton}>
+              Logout
+            </button>
           </div>
         </div>
 
-        {/* Build Stats Cards */}
+        {/* Build Stats Cards - visible to both */}
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
             <span style={styles.statValue}>{buildStats.totalCommits}</span>
@@ -181,17 +203,18 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs - Admin sees all, Client sees limited */}
       <div style={styles.tabs}>
         {[
-          { id: 'updates', label: '📋 Build Updates', icon: '📋' },
-          { id: 'screens', label: '📱 Screen Gallery', icon: '📱' },
-          { id: 'progress', label: '📊 Progress Tracker', icon: '📊' },
-          { id: 'tech', label: '⚙️ Technical Log', icon: '⚙️' },
-          { id: 'code', label: '💻 Code Metrics', icon: '💻' },
-          { id: 'ai', label: '🤖 AI Dashboard', icon: '🤖' },
-          { id: 'deploy', label: '🚀 Deployment', icon: '🚀' }
-        ].map(tab => (
+          { id: 'updates', label: '📋 Build Updates', icon: '📋', public: true },
+          { id: 'screens', label: '📱 Screen Gallery', icon: '📱', public: true },
+          { id: 'progress', label: '📊 Progress Tracker', icon: '📊', public: true },
+          { id: 'tech', label: '⚙️ Technical Log', icon: '⚙️', public: true },
+          { id: 'code', label: '💻 Code Metrics', icon: '💻', public: true },
+          { id: 'ai', label: '🤖 AI Dashboard', icon: '🤖', public: true },
+          { id: 'deploy', label: '🚀 Deployment', icon: '🚀', public: true },
+          ...(isAdmin ? [{ id: 'admin', label: '⚡ Admin Panel', icon: '⚡', public: false }] : [])
+        ].filter(tab => tab.public || isAdmin).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
@@ -205,32 +228,41 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Content Area */}
+      {/* Content Area with role-based rendering */}
       <div style={styles.content}>
         {activeTab === 'updates' && (
-          <BuildUpdates updates={updates} onAddUpdate={addBuildUpdate} />
+          <BuildUpdates 
+            updates={updates} 
+            onAddUpdate={addBuildUpdate}
+            onUpdateUpdate={updateBuildUpdate}
+            onDeleteUpdate={deleteBuildUpdate}
+            isAdmin={isAdmin}
+          />
         )}
         {activeTab === 'screens' && (
-          <ScreenGallery screens={screens} />
+          <ScreenGallery screens={screens} isAdmin={isAdmin} />
         )}
         {activeTab === 'progress' && (
-          <WeeklyProgress />
+          <WeeklyProgress isAdmin={isAdmin} />
         )}
         {activeTab === 'tech' && (
-          <TechnicalLog />
+          <TechnicalLog isAdmin={isAdmin} />
         )}
         {activeTab === 'code' && (
-          <CodeMetrics commits={commits} />
+          <CodeMetrics commits={commits} isAdmin={isAdmin} />
         )}
         {activeTab === 'ai' && (
-          <AIDashboard metrics={aiMetrics} />
+          <AIDashboard metrics={aiMetrics} isAdmin={isAdmin} />
         )}
         {activeTab === 'deploy' && (
-          <DeploymentTracker />
+          <DeploymentTracker isAdmin={isAdmin} />
+        )}
+        {activeTab === 'admin' && isAdmin && (
+          <AdminPanel />
         )}
       </div>
 
-      {/* Live Development Feed */}
+      {/* Live Development Feed - visible to both */}
       <div style={styles.footer}>
         <div style={styles.feedHeader}>
           <span>📡 Live Development Feed</span>
@@ -290,6 +322,26 @@ const styles = {
     fontSize: '14px',
     color: '#666',
     margin: 0
+  },
+  userSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px'
+  },
+  roleBadge: {
+    padding: '6px 12px',
+    borderRadius: '20px',
+    fontSize: '13px',
+    fontWeight: '500'
+  },
+  logoutButton: {
+    padding: '6px 12px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dee2e6',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    color: '#495057'
   },
   buildBadge: {
     display: 'flex',
