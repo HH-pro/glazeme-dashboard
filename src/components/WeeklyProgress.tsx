@@ -537,11 +537,15 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
           <p style={styles.statusText}>
             <strong>Screen Progress:</strong> {completedScreens}/{totalScreens} screens complete
           </p>
-          <p style={styles.statusText}>
-            <strong>Next Screen:</strong> {weeks.find(w => w.number === activeWeek)?.screens.find((_, i) => 
-              !(activeWeek && weeks[activeWeek-1]?.progress && weeks[activeWeek-1]?.progress > (i / weeks[activeWeek-1]?.screens.length) * 100)
-            ) || 'All screens in progress'}
-          </p>
+         <p style={styles.statusText}>
+  <strong>Next Screen:</strong>{' '}
+  {weeks.find(w => w.number === activeWeek)?.screens.find((_, i) => {
+    const prevWeek = weeks[activeWeek - 1];
+    if (!activeWeek || !prevWeek || !prevWeek.progress || !prevWeek.screens) return false;
+
+    return !(prevWeek.progress > (i / prevWeek.screens.length) * 100);
+  }) || 'All screens in progress'}
+</p>
         </div>
         <div style={styles.statusTags}>
           <span style={styles.statusTag}>🔨 In Development</span>
