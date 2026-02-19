@@ -6,8 +6,6 @@ import BuildUpdates from './BuildUpdates';
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
 import TechnicalLog from './TechnicalLog';
-import CodeMetrics from './CodeMetrics';
-import AIDashboard from './AIDashboard';
 import DeploymentTracker from './DeploymentTracker';
 import PasswordModal from './PasswordModal';
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
@@ -340,20 +338,7 @@ const Dashboard: React.FC = () => {
             onEditAction={() => handleEditAction('editTech')}
           />
         )}
-        {activeTab === 'code' && (
-          <CodeMetrics 
-            commits={commits} 
-            isEditMode={isEditMode}
-            onAddCommit={() => handleEditAction('addCommit')}
-          />
-        )}
-        {activeTab === 'ai' && (
-          <AIDashboard 
-            metrics={aiMetrics} 
-            isEditMode={isEditMode}
-            onAddMetric={() => handleEditAction('addAIMetric')}
-          />
-        )}
+       
         {activeTab === 'deploy' && (
           <DeploymentTracker 
             isEditMode={isEditMode}
