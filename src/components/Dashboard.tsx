@@ -9,6 +9,7 @@ import TechnicalLog from './TechnicalLog';
 import CodeMetrics from './CodeMetrics';
 import AIDashboard from './AIDashboard';
 import DeploymentTracker from './DeploymentTracker';
+import PasswordModal from './PasswordModal';
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
 
 const Dashboard: React.FC = () => {
@@ -17,6 +18,9 @@ const Dashboard: React.FC = () => {
   const [commits, setCommits] = useState<CodeCommit[]>([]);
   const [aiMetrics, setAiMetrics] = useState<AIPromptMetric[]>([]);
   const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech' | 'code' | 'ai' | 'deploy'>('updates');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ type: string; data?: any } | null>(null);
   const [buildStats, setBuildStats] = useState({
     totalCommits: 0,
     totalAdditions: 0,
@@ -53,7 +57,7 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    // Real-time updates listener
+    // Real-time updates listener (read-only for all users)
     const updatesQuery = query(collection(db, 'buildUpdates'), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(updatesQuery, (snapshot) => {
       const updatesData = snapshot.docs.map(doc => ({
@@ -64,7 +68,7 @@ const Dashboard: React.FC = () => {
       setUpdates(updatesData);
     });
 
-    // Screenshots listener
+    // Screenshots listener (read-only for all users)
     const screensQuery = query(collection(db, 'screenshots'), orderBy('date', 'desc'));
     const unsubscribeScreens = onSnapshot(screensQuery, (snapshot) => {
       const screensData = snapshot.docs.map(doc => ({
@@ -76,7 +80,7 @@ const Dashboard: React.FC = () => {
       setBuildStats(prev => ({ ...prev, screensCompleted: screensData.length }));
     });
 
-    // Commits listener
+    // Commits listener (read-only for all users)
     const commitsQuery = query(collection(db, 'commits'), orderBy('timestamp', 'desc'));
     const unsubscribeCommits = onSnapshot(commitsQuery, (snapshot) => {
       const commitsData = snapshot.docs.map(doc => ({
@@ -96,7 +100,7 @@ const Dashboard: React.FC = () => {
       }));
     });
 
-    // AI Metrics listener
+    // AI Metrics listener (read-only for all users)
     const aiQuery = query(collection(db, 'aiMetrics'), orderBy('timestamp', 'desc'));
     const unsubscribeAI = onSnapshot(aiQuery, (snapshot) => {
       const aiData = snapshot.docs.map(doc => ({
@@ -122,15 +126,101 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
+  const handleEditAction = (actionType: string, actionData?: any) => {
+    setPendingAction({ type: actionType, data: actionData });
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSuccess = () => {
+    setIsEditMode(true);
+    setShowPasswordModal(false);
+    
+    // Execute pending action if any
+    if (pendingAction) {
+      switch (pendingAction.type) {
+        case 'addUpdate':
+          addBuildUpdate(pendingAction.data);
+          break;
+        case 'addScreen':
+          addScreenCapture(pendingAction.data);
+          break;
+        case 'addCommit':
+          addCodeCommit(pendingAction.data);
+          break;
+        case 'addAIMetric':
+          addAIMetric(pendingAction.data);
+          break;
+        default:
+          break;
+      }
+      setPendingAction(null);
+    }
+  };
+
   const addBuildUpdate = async (update: Omit<BuildUpdate, 'id'>) => {
+    if (!isEditMode) {
+      handleEditAction('addUpdate', update);
+      return;
+    }
     await addDoc(collection(db, 'buildUpdates'), {
       ...update,
       date: new Date()
     });
   };
 
+  const addScreenCapture = async (screen: Omit<ScreenCapture, 'id'>) => {
+    if (!isEditMode) {
+      handleEditAction('addScreen', screen);
+      return;
+    }
+    await addDoc(collection(db, 'screenshots'), {
+      ...screen,
+      date: new Date()
+    });
+  };
+
+  const addCodeCommit = async (commit: Omit<CodeCommit, 'id'>) => {
+    if (!isEditMode) {
+      handleEditAction('addCommit', commit);
+      return;
+    }
+    await addDoc(collection(db, 'commits'), {
+      ...commit,
+      timestamp: new Date()
+    });
+  };
+
+  const addAIMetric = async (metric: Omit<AIPromptMetric, 'id'>) => {
+    if (!isEditMode) {
+      handleEditAction('addAIMetric', metric);
+      return;
+    }
+    await addDoc(collection(db, 'aiMetrics'), {
+      ...metric,
+      timestamp: new Date()
+    });
+  };
+
+  const toggleEditMode = () => {
+    if (!isEditMode) {
+      setShowPasswordModal(true);
+    } else {
+      setIsEditMode(false);
+    }
+  };
+
   return (
     <div style={styles.container}>
+      {/* Password Modal */}
+      <PasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPendingAction(null);
+        }}
+        onSuccess={handlePasswordSuccess}
+      />
+
       {/* Header with build stats */}
       <div style={styles.header}>
         <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
@@ -144,8 +234,24 @@ const Dashboard: React.FC = () => {
           <div style={styles.buildBadge}>
             <span style={styles.buildVersion}>Build v1.0.0-alpha</span>
             <span style={styles.buildStatus}>🟢 Active Development</span>
+            <button
+              onClick={toggleEditMode}
+              style={{
+                ...styles.editButton,
+                backgroundColor: isEditMode ? '#dc3545' : '#28a745'
+              }}
+            >
+              {isEditMode ? '🔒 Exit Edit Mode' : '✏️ Enable Edit'}
+            </button>
           </div>
         </div>
+
+        {/* Edit Mode Indicator */}
+        {isEditMode && (
+          <div style={styles.editModeBanner}>
+            <span>✏️ Edit Mode Active - Changes will be saved</span>
+          </div>
+        )}
 
         {/* Build Stats Cards */}
         <div style={styles.statsGrid}>
@@ -208,25 +314,51 @@ const Dashboard: React.FC = () => {
       {/* Content Area */}
       <div style={styles.content}>
         {activeTab === 'updates' && (
-          <BuildUpdates updates={updates} onAddUpdate={addBuildUpdate} />
+          <BuildUpdates 
+            updates={updates} 
+            onAddUpdate={addBuildUpdate}
+            isEditMode={isEditMode}
+            onEditAction={() => handleEditAction('addUpdate')}
+          />
         )}
         {activeTab === 'screens' && (
-          <ScreenGallery screens={screens} />
+          <ScreenGallery 
+            screens={screens} 
+            isEditMode={isEditMode}
+            onAddScreen={() => handleEditAction('addScreen')}
+          />
         )}
         {activeTab === 'progress' && (
-          <WeeklyProgress />
+          <WeeklyProgress 
+            isEditMode={isEditMode}
+            onEditAction={() => handleEditAction('editProgress')}
+          />
         )}
         {activeTab === 'tech' && (
-          <TechnicalLog />
+          <TechnicalLog 
+            isEditMode={isEditMode}
+            onEditAction={() => handleEditAction('editTech')}
+          />
         )}
         {activeTab === 'code' && (
-          <CodeMetrics commits={commits} />
+          <CodeMetrics 
+            commits={commits} 
+            isEditMode={isEditMode}
+            onAddCommit={() => handleEditAction('addCommit')}
+          />
         )}
         {activeTab === 'ai' && (
-          <AIDashboard metrics={aiMetrics} />
+          <AIDashboard 
+            metrics={aiMetrics} 
+            isEditMode={isEditMode}
+            onAddMetric={() => handleEditAction('addAIMetric')}
+          />
         )}
         {activeTab === 'deploy' && (
-          <DeploymentTracker />
+          <DeploymentTracker 
+            isEditMode={isEditMode}
+            onEditAction={() => handleEditAction('editDeploy')}
+          />
         )}
       </div>
 
@@ -309,6 +441,25 @@ const styles = {
     borderRadius: '20px',
     fontSize: '13px',
     color: '#155724'
+  },
+  editButton: {
+    padding: '6px 12px',
+    border: 'none',
+    borderRadius: '20px',
+    fontSize: '13px',
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  editModeBanner: {
+    backgroundColor: '#fff3cd',
+    color: '#856404',
+    padding: '10px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    textAlign: 'center' as const,
+    fontWeight: '500',
+    fontSize: '14px'
   },
   statsGrid: {
     display: 'grid',
