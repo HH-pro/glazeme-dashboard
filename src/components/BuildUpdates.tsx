@@ -20,9 +20,11 @@ const BuildUpdates: React.FC<Props> = ({ updates, onAddUpdate }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onAddUpdate({
-      ...newUpdate,
-      date: new Date()
-    });
+  ...newUpdate,
+  date: new Date(),
+  priority: "medium",     // 👈 add this
+  timeSpent: 2            // 👈 add this (hours ya jo bhi format hai)
+});
     setShowAddForm(false);
     setNewUpdate({
       weekNumber: 1,
