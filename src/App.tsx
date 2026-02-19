@@ -1,12 +1,13 @@
 // src/App.tsx
 import React from 'react';
-import Dashboard from './components/Dashboard';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedDashboard from './components/ProtectedDashboard';
 
 function App() {
   return (
-    <div className="App">
-      <Dashboard />
-    </div>
+    <AuthProvider>
+      <ProtectedDashboard />
+    </AuthProvider>
   );
 }
 
