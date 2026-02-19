@@ -76,7 +76,7 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
         completed: newWeek.completed || false,
         progress: newWeek.progress || 0
       };
-      setWeeks([...weeks, weekToAdd]);
+      setWeeks([...weeks, weekToAdd].sort((a, b) => a.number - b.number));
       setShowAddWeekForm(false);
       setNewWeek({
         number: weeks.length + 2,
@@ -156,7 +156,7 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
           <span style={styles.overallProgressLabel}>Overall Progress</span>
           <span style={styles.overallProgressValue}>{overallProgress}%</span>
         </div>
-        <div style={styles.progressBarContainer}>
+        <div style={styles.progressBarBg}>
           <div style={{...styles.progressBarFill, width: `${overallProgress}%`}} />
         </div>
       </div>
@@ -185,14 +185,17 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
             onChange={(e) => setNewWeek({...newWeek, tasks: e.target.value.split(',').map(t => t.trim())})}
             style={styles.textarea}
           />
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={newWeek.progress}
-            onChange={(e) => setNewWeek({...newWeek, progress: parseInt(e.target.value)})}
-            style={styles.range}
-          />
+          <div style={styles.progressControl}>
+            <span>Progress: {newWeek.progress}%</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={newWeek.progress}
+              onChange={(e) => setNewWeek({...newWeek, progress: parseInt(e.target.value)})}
+              style={styles.range}
+            />
+          </div>
           <div style={styles.formButtons}>
             <button onClick={() => setShowAddWeekForm(false)} style={styles.cancelButton}>
               Cancel
@@ -282,9 +285,9 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
                     <span style={styles.progressLabel}>Week Progress</span>
                     <span style={styles.progressValue}>{week.progress || 0}%</span>
                   </div>
-                  <div style={styles.progressBar}>
+                  <div style={styles.progressBarBg}>
                     <div style={{
-                      ...styles.progressFill,
+                      ...styles.progressBarFill,
                       width: `${week.progress || 0}%`,
                       background: week.completed ? '#28a745' : '#FF8C42'
                     }} />
@@ -307,9 +310,9 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
       </div>
 
       <div style={styles.note}>
-        <p>🎯 Current Focus: Week 1 - Building iMessage extension foundation</p>
-        <p>📱 Next Screen: Keyboard extension UI with yellow→orange gradient</p>
-        <p>⚡ Development Velocity: {weeks.filter(w => w.completed).length} weeks completed</p>
+        <p style={styles.noteText}>🎯 Current Focus: Week 1 - Building iMessage extension foundation</p>
+        <p style={styles.noteText}>📱 Next Screen: Keyboard extension UI with yellow→orange gradient</p>
+        <p style={styles.noteText}>⚡ Development Velocity: {weeks.filter(w => w.completed).length} weeks completed</p>
       </div>
     </div>
   );
@@ -370,6 +373,18 @@ const styles = {
     fontWeight: 'bold',
     color: '#FF8C42'
   },
+  progressBarBg: {
+    width: '100%',
+    height: '8px',
+    backgroundColor: '#e9ecef',
+    borderRadius: '4px',
+    overflow: 'hidden'
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#FF8C42',
+    transition: 'width 0.3s ease'
+  },
   timeline: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -417,7 +432,8 @@ const styles = {
   taskList: {
     margin: '10px 0',
     paddingLeft: '20px',
-    color: '#666'
+    color: '#666',
+    listStyle: 'none'
   },
   taskItem: {
     fontSize: '14px',
@@ -450,17 +466,6 @@ const styles = {
     fontSize: '12px',
     fontWeight: 'bold',
     color: '#FF8C42'
-  },
-  progressBar: {
-    height: '8px',
-    backgroundColor: '#e9ecef',
-    borderRadius: '4px',
-    overflow: 'hidden',
-    marginBottom: '5px'
-  },
-  progressFill: {
-    height: '100%',
-    transition: 'width 0.3s ease'
   },
   progressSlider: {
     width: '100%',
@@ -537,6 +542,11 @@ const styles = {
     backgroundColor: '#fff3cd',
     borderRadius: '8px',
     border: '1px solid #ffeeba'
+  },
+  noteText: {
+    margin: '5px 0',
+    fontSize: '14px',
+    color: '#856404'
   }
 };
 
