@@ -2,220 +2,118 @@
 import React, { useState } from 'react';
 
 interface PasswordProtectionProps {
-  onAuthenticated: () => void;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
-const PasswordProtection: React.FC<PasswordProtectionProps> = ({ onAuthenticated }) => {
+const PasswordProtection: React.FC<PasswordProtectionProps> = ({ onSuccess, onCancel }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-
-  // You can change this password to whatever you want
-  const DASHBOARD_PASSWORD = 'glazeme2024';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === DASHBOARD_PASSWORD) {
-      onAuthenticated();
-      setError('');
+    // Replace with your actual password check
+    if (password === 'your-secure-password') { // ⚠️ In production, use environment variables and proper auth
+      onSuccess();
     } else {
-      setError('Incorrect password');
-      setPassword('');
+      setError('Invalid password');
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.gradientBar} />
-        
-        <div style={styles.iconContainer}>
-          <span style={styles.lockIcon}>🔒</span>
-        </div>
-
-        <h1 style={styles.title}>GlazeMe Dashboard</h1>
-        <p style={styles.subtitle}>Protected Development Environment</p>
-
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Password</label>
-            <div style={styles.passwordContainer}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter dashboard password"
-                style={styles.input}
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={styles.toggleButton}
-              >
-                {showPassword ? '👁️' : '👁️‍🗨️'}
-              </button>
-            </div>
-          </div>
-
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
+        <h3 style={styles.title}>🔒 Authentication Required</h3>
+        <p style={styles.subtitle}>Enter password to add or edit updates</p>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            style={styles.input}
+            autoFocus
+          />
           {error && <p style={styles.error}>{error}</p>}
-
-          <button type="submit" style={styles.button}>
-            Access Dashboard
-          </button>
-
-          <p style={styles.hint}>
-            Hint: Ask the developer for the password
-          </p>
+          <div style={styles.buttonGroup}>
+            <button type="button" onClick={onCancel} style={styles.cancelButton}>
+              Cancel
+            </button>
+            <button type="submit" style={styles.submitButton}>
+              Authenticate
+            </button>
+          </div>
         </form>
-
-        <div style={styles.features}>
-          <div style={styles.feature}>
-            <span>🚀</span>
-            <span>Build Updates</span>
-          </div>
-          <div style={styles.feature}>
-            <span>📊</span>
-            <span>Analytics</span>
-          </div>
-          <div style={styles.feature}>
-            <span>🤖</span>
-            <span>AI Metrics</span>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
 
 const styles = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#f5f7fa',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-  },
-  card: {
-    width: '100%',
-    maxWidth: '400px',
-    padding: '40px',
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-    position: 'relative' as const,
-    overflow: 'hidden'
-  },
-  gradientBar: {
-    position: 'absolute' as const,
+  overlay: {
+    position: 'fixed' as const,
     top: 0,
     left: 0,
     right: 0,
-    height: '6px',
-    background: 'linear-gradient(135deg, #FFE55C 0%, #FF8C42 100%)'
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999
   },
-  iconContainer: {
-    textAlign: 'center' as const,
-    marginBottom: '20px'
-  },
-  lockIcon: {
-    fontSize: '48px'
+  modal: {
+    backgroundColor: 'white',
+    padding: '30px',
+    borderRadius: '12px',
+    width: '400px',
+    maxWidth: '90%',
+    boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
   },
   title: {
-    fontSize: '28px',
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center' as const,
-    margin: '0 0 8px 0'
-  },
-  subtitle: {
-    fontSize: '14px',
-    color: '#666',
-    textAlign: 'center' as const,
-    marginBottom: '30px'
-  },
-  form: {
-    marginBottom: '30px'
-  },
-  inputGroup: {
-    marginBottom: '20px'
-  },
-  label: {
-    display: 'block',
-    marginBottom: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
+    margin: '0 0 10px 0',
     color: '#333'
   },
-  passwordContainer: {
-    position: 'relative' as const,
-    display: 'flex',
-    alignItems: 'center'
+  subtitle: {
+    margin: '0 0 20px 0',
+    color: '#666',
+    fontSize: '14px'
   },
   input: {
     width: '100%',
     padding: '12px',
-    paddingRight: '45px',
     border: '1px solid #ddd',
-    borderRadius: '8px',
+    borderRadius: '6px',
     fontSize: '16px',
-    outline: 'none',
-    transition: 'border-color 0.2s',
+    marginBottom: '15px',
     boxSizing: 'border-box' as const
-  },
-  toggleButton: {
-    position: 'absolute' as const,
-    right: '12px',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '18px',
-    padding: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  button: {
-    width: '100%',
-    padding: '14px',
-    backgroundColor: '#FF8C42',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    marginBottom: '15px'
   },
   error: {
     color: '#dc3545',
     fontSize: '14px',
-    marginTop: '-10px',
-    marginBottom: '15px',
-    textAlign: 'center' as const
+    margin: '0 0 15px 0'
   },
-  hint: {
-    fontSize: '12px',
-    color: '#999',
-    textAlign: 'center' as const,
-    margin: 0
-  },
-  features: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '10px',
-    borderTop: '1px solid #eee',
-    paddingTop: '20px'
-  },
-  feature: {
+  buttonGroup: {
     display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    gap: '5px',
-    fontSize: '12px',
-    color: '#666'
+    gap: '10px',
+    justifyContent: 'flex-end'
+  },
+  cancelButton: {
+    padding: '10px 20px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #ddd',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px'
+  },
+  submitButton: {
+    padding: '10px 20px',
+    backgroundColor: '#FF8C42',
+    border: 'none',
+    borderRadius: '6px',
+    color: 'white',
+    cursor: 'pointer',
+    fontSize: '14px'
   }
 };
 
