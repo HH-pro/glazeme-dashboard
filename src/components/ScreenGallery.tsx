@@ -39,9 +39,13 @@ const ScreenGallery: React.FC<Props> = ({ screens, isEditMode = false, onAddScre
         setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
         
         // Upload to Cloudinary with progress tracking
-        const result = await uploadToCloudinary(file, 'glazeme-screens', (progress) => {
-          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-        });
+        const result = await uploadToCloudinary(
+          file, 
+          'glazeme-screens', 
+          (progress: number) => {
+            setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+          }
+        );
         
         // Get screen details via prompts
         const screenName = prompt(`Enter name for ${file.name}:`, file.name.replace(/\.[^/.]+$/, ""));
