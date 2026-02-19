@@ -20,39 +20,7 @@ interface Props {
 
 const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }) => {
   const [deployments, setDeployments] = useState<Deployment[]>([
-    {
-      id: 1,
-      version: 'v0.1.0',
-      date: '2024-01-15',
-      status: 'live',
-      environment: 'development',
-      features: ['iMessage Extension Setup', 'Basic UI'],
-      buildTime: '5m 23s',
-      testCoverage: 78,
-      issues: []
-    },
-    {
-      id: 2,
-      version: 'v0.2.0',
-      date: '2024-01-22',
-      status: 'live',
-      environment: 'development',
-      features: ['AI Integration', 'Prompt Engineering'],
-      buildTime: '6m 45s',
-      testCoverage: 82,
-      issues: []
-    },
-    {
-      id: 3,
-      version: 'v0.3.0',
-      date: '2024-01-29',
-      status: 'in-progress',
-      environment: 'staging',
-      features: ['Error Handling', 'Performance Optimization'],
-      buildTime: '8m 12s',
-      testCoverage: 65,
-      issues: ['Memory leak in message extension', 'API timeout needs tuning']
-    }
+   
   ]);
 
   const [showAddForm, setShowAddForm] = useState(false);
