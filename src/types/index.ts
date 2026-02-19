@@ -5,8 +5,13 @@ export interface BuildUpdate {
   weekNumber: number;
   title: string;
   description: string;
-  category: 'development' | 'design' | 'ai-integration' | 'testing' | 'deployment';
-  status: 'completed' | 'in-progress' | 'planned';
+  category: 'development' | 'design' | 'ai-integration' | 'testing' | 'deployment' | 'backend' | 'security';
+  status: 'completed' | 'in-progress' | 'planned' | 'blocked';
+  priority: 'high' | 'medium' | 'low';
+  timeSpent: number; // in hours
+  commitHash?: string;
+  branch?: string;
+  completedBy?: string;
 }
 
 export interface ScreenCapture {
@@ -14,8 +19,14 @@ export interface ScreenCapture {
   date: Date;
   screenName: string;
   imageUrl: string;
+  cloudinaryId: string;
   description: string;
   buildVersion: string;
+  componentName: string;
+  filePath: string;
+  lineCount?: number;
+  dependencies?: string[];
+  tags: string[];
 }
 
 export interface TechnicalMilestone {
@@ -25,6 +36,13 @@ export interface TechnicalMilestone {
   completed: boolean;
   notes: string;
   completedDate?: Date;
+  prUrl?: string;
+  issueNumber?: string;
+  performanceMetrics?: {
+    responseTime?: number;
+    memoryUsage?: number;
+    apiLatency?: number;
+  };
 }
 
 export interface GlazeMeSpecs {
@@ -38,4 +56,32 @@ export interface GlazeMeSpecs {
   };
   platform: string;
   targetFeatures: string[];
+  technicalStack: {
+    frontend: string[];
+    backend: string[];
+    ai: string[];
+    database: string[];
+    hosting: string[];
+  };
+}
+
+export interface CodeCommit {
+  id: string;
+  timestamp: Date;
+  message: string;
+  files: string[];
+  additions: number;
+  deletions: number;
+  author: string;
+  branch: string;
+}
+
+export interface AIPromptMetric {
+  id: string;
+  timestamp: Date;
+  promptType: string;
+  responseTime: number;
+  tokensUsed: number;
+  success: boolean;
+  errorType?: string;
 }
