@@ -1,41 +1,86 @@
 // src/components/WeeklyProgress.tsx
 import React, { useState, useEffect } from 'react';
+import { db } from '../firebase/config';
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  orderBy
+} from 'firebase/firestore';
 
 interface Week {
+  id?: string;
   number: number;
   focus: string;
   screens: string[];
   tasks: string[];
   completed: boolean;
   progress?: number;
+  createdAt?: Date;
 }
 
 interface Props {
   isEditMode?: boolean;
   onEditAction?: () => void;
+  projectId?: string; // Optional: if you want to group by project
 }
 
-const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) => {
-  const [weeks, setWeeks] = useState<Week[]>([
-   
-  ]);
-
-  const [editingWeek, setEditingWeek] = useState<number | null>(null);
+const WeeklyProgress: React.FC<Props> = ({ 
+  isEditMode = false, 
+  onEditAction,
+  projectId = 'default' 
+}) => {
+  const [weeks, setWeeks] = useState<Week[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editingWeek, setEditingWeek] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Week | null>(null);
   const [showAddWeekForm, setShowAddWeekForm] = useState(false);
-  const [selectedScreen, setSelectedScreen] = useState<{week: number, screen: string} | null>(null);
+  const [selectedScreen, setSelectedScreen] = useState<{weekId: string, weekNumber: number, screen: string} | null>(null);
   const [newWeek, setNewWeek] = useState<Partial<Week>>({
-    number: 5,
+    number: 1,
     focus: '',
     screens: [],
     tasks: [],
     completed: false,
     progress: 0
   });
-
-  // Add resize listener for mobile responsiveness
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
+  // Firebase collection reference
+  const weeksCollection = collection(db, `projects/${projectId}/weeks`);
+
+  // Fetch data from Firebase
+  useEffect(() => {
+    setLoading(true);
+    const weeksQuery = query(weeksCollection, orderBy('number', 'asc'));
+    
+    const unsubscribe = onSnapshot(weeksQuery, 
+      (snapshot) => {
+        const weeksData: Week[] = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Week[];
+        
+        setWeeks(weeksData);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('Error fetching weeks:', err);
+        setError('Failed to load data from Firebase');
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [projectId]);
+
+  // Resize listener
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -50,21 +95,47 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
       onEditAction();
       return;
     }
-    setEditingWeek(week.number);
+    setEditingWeek(week.id || null);
     setEditForm({ ...week });
   };
 
-  const handleDeleteClick = (weekNumber: number) => {
-    if (window.confirm('Are you sure you want to delete this week?')) {
-      setWeeks(weeks.filter(w => w.number !== weekNumber));
+  const handleDeleteClick = async (weekId: string, weekNumber: number) => {
+    if (!isEditMode && onEditAction) {
+      onEditAction();
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to delete Week ${weekNumber}?`)) {
+      try {
+        const weekDoc = doc(db, `projects/${projectId}/weeks`, weekId);
+        await deleteDoc(weekDoc);
+        console.log('Week deleted successfully');
+      } catch (err) {
+        console.error('Error deleting week:', err);
+        setError('Failed to delete week');
+      }
     }
   };
 
-  const handleSaveEdit = () => {
-    if (editForm) {
-      setWeeks(weeks.map(w => w.number === editForm.number ? editForm : w));
-      setEditingWeek(null);
-      setEditForm(null);
+  const handleSaveEdit = async () => {
+    if (editForm && editForm.id) {
+      try {
+        const weekDoc = doc(db, `projects/${projectId}/weeks`, editForm.id);
+        await updateDoc(weekDoc, {
+          focus: editForm.focus,
+          screens: editForm.screens,
+          tasks: editForm.tasks,
+          progress: editForm.progress,
+          completed: editForm.progress === 100
+        });
+        
+        setEditingWeek(null);
+        setEditForm(null);
+        console.log('Week updated successfully');
+      } catch (err) {
+        console.error('Error updating week:', err);
+        setError('Failed to update week');
+      }
     }
   };
 
@@ -78,78 +149,121 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
       onEditAction();
       return;
     }
+    
+    // Find the next available week number
+    const maxNumber = weeks.length > 0 
+      ? Math.max(...weeks.map(w => w.number)) 
+      : 0;
+    
+    setNewWeek({
+      number: maxNumber + 1,
+      focus: '',
+      screens: [],
+      tasks: [],
+      completed: false,
+      progress: 0
+    });
     setShowAddWeekForm(true);
   };
 
-  const handleSaveNewWeek = () => {
+  const handleSaveNewWeek = async () => {
     if (newWeek.focus && newWeek.tasks && newWeek.screens) {
-      const weekToAdd: Week = {
-        number: newWeek.number || weeks.length + 1,
-        focus: newWeek.focus,
-        screens: typeof newWeek.screens === 'string' 
-          ? (newWeek.screens as string).split(',').map(s => s.trim()) 
-          : newWeek.screens as string[],
-        tasks: typeof newWeek.tasks === 'string' 
-          ? (newWeek.tasks as string).split(',').map(t => t.trim()) 
-          : newWeek.tasks as string[],
-        completed: newWeek.completed || false,
-        progress: newWeek.progress || 0
-      };
-      setWeeks([...weeks, weekToAdd].sort((a, b) => a.number - b.number));
-      setShowAddWeekForm(false);
-      setNewWeek({
-        number: weeks.length + 2,
-        focus: '',
-        screens: [],
-        tasks: [],
-        completed: false,
-        progress: 0
-      });
-    }
-  };
-
-  const handleTaskToggle = (weekNumber: number, taskIndex: number) => {
-    if (!isEditMode && onEditAction) {
-      onEditAction();
-      return;
-    }
-    
-    setWeeks(weeks.map(week => {
-      if (week.number === weekNumber) {
-        const completedCount = taskIndex + 1;
-        const newProgress = Math.round((completedCount / week.tasks.length) * 100);
-        
-        return {
-          ...week,
-          progress: newProgress,
-          completed: newProgress === 100
-        };
+      // Check for duplicate week number
+      const weekExists = weeks.some(w => w.number === newWeek.number);
+      if (weekExists) {
+        setError(`Week ${newWeek.number} already exists. Please choose a different number.`);
+        return;
       }
-      return week;
-    }));
+
+      try {
+        const weekToAdd: Omit<Week, 'id'> = {
+          number: newWeek.number || weeks.length + 1,
+          focus: newWeek.focus,
+          screens: typeof newWeek.screens === 'string' 
+            ? (newWeek.screens as string).split(',').map(s => s.trim()).filter(s => s) 
+            : newWeek.screens as string[],
+          tasks: typeof newWeek.tasks === 'string' 
+            ? (newWeek.tasks as string).split(',').map(t => t.trim()).filter(t => t) 
+            : newWeek.tasks as string[],
+          completed: newWeek.completed || false,
+          progress: newWeek.progress || 0,
+          createdAt: new Date()
+        };
+
+        await addDoc(weeksCollection, weekToAdd);
+        
+        setShowAddWeekForm(false);
+        setNewWeek({
+          number: weeks.length + 2,
+          focus: '',
+          screens: [],
+          tasks: [],
+          completed: false,
+          progress: 0
+        });
+        setError(null);
+        console.log('Week added successfully');
+      } catch (err) {
+        console.error('Error adding week:', err);
+        setError('Failed to add week to Firebase');
+      }
+    } else {
+      setError('Please fill in all required fields');
+    }
   };
 
-  const handleProgressUpdate = (weekNumber: number, progress: number) => {
+  const handleTaskToggle = async (weekId: string, weekNumber: number, taskIndex: number) => {
     if (!isEditMode && onEditAction) {
       onEditAction();
       return;
     }
     
-    setWeeks(weeks.map(week => 
-      week.number === weekNumber 
-        ? { ...week, progress, completed: progress === 100 }
-        : week
-    ));
+    try {
+      const week = weeks.find(w => w.id === weekId);
+      if (!week) return;
+
+      const completedCount = taskIndex + 1;
+      const newProgress = Math.round((completedCount / week.tasks.length) * 100);
+      
+      const weekDoc = doc(db, `projects/${projectId}/weeks`, weekId);
+      await updateDoc(weekDoc, {
+        progress: newProgress,
+        completed: newProgress === 100
+      });
+    } catch (err) {
+      console.error('Error updating task:', err);
+      setError('Failed to update task progress');
+    }
   };
 
-  const overallProgress = Math.round(
-    weeks.reduce((acc, week) => acc + (week.progress || 0), 0) / weeks.length
-  );
+  const handleProgressUpdate = async (weekId: string, progress: number) => {
+    if (!isEditMode && onEditAction) {
+      onEditAction();
+      return;
+    }
+    
+    try {
+      const weekDoc = doc(db, `projects/${projectId}/weeks`, weekId);
+      await updateDoc(weekDoc, {
+        progress,
+        completed: progress === 100
+      });
+    } catch (err) {
+      console.error('Error updating progress:', err);
+      setError('Failed to update progress');
+    }
+  };
+
+  // Calculate statistics
+  const overallProgress = weeks.length > 0
+    ? Math.round(weeks.reduce((acc, week) => acc + (week.progress || 0), 0) / weeks.length)
+    : 0;
 
   const completedWeeks = weeks.filter(w => w.completed).length;
-  const activeWeek = weeks.find(w => w.progress && w.progress > 0 && w.progress < 100)?.number || 1;
+  const activeWeek = weeks.find(w => w.progress && w.progress > 0 && w.progress < 100)?.number || 
+                    (weeks.length > 0 ? weeks[0].number : 1);
   const totalScreens = weeks.reduce((acc, week) => acc + week.screens.length, 0);
-  const completedScreens = Math.round((overallProgress / 100) * totalScreens);
+  const completedScreens = Math.round((overallProgress / 100) * totalScreens) || 0;
 
   // Mobile-specific styles
   const mobileStyles = {
@@ -177,6 +291,17 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
     },
   };
 
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loadingContainer}>
+          <div style={styles.loadingSpinner}></div>
+          <p style={styles.loadingText}>Loading development plan...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -191,10 +316,18 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
         )}
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <div style={styles.errorMessage}>
+          <span>❌ {error}</span>
+          <button onClick={() => setError(null)} style={styles.errorClose}>×</button>
+        </div>
+      )}
+
       {/* Edit Mode Indicator */}
       {isEditMode && (
         <div style={styles.editModeIndicator}>
-          ✏️ Edit Mode Active - You can update progress and tasks
+          ✏️ Edit Mode Active - Changes are saved to Firebase automatically
         </div>
       )}
 
@@ -257,8 +390,9 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
             type="number"
             placeholder="Week Number"
             value={newWeek.number}
-            onChange={(e) => setNewWeek({...newWeek, number: parseInt(e.target.value)})}
+            onChange={(e) => setNewWeek({...newWeek, number: parseInt(e.target.value) || 1})}
             style={styles.input}
+            min="1"
           />
           <input
             type="text"
@@ -297,176 +431,194 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
               Cancel
             </button>
             <button onClick={handleSaveNewWeek} style={styles.saveButton}>
-              Add Week
+              Add Week to Firebase
             </button>
           </div>
         </div>
       )}
       
+      {/* Weeks Timeline */}
       <div style={styles.timeline}>
-        {weeks.sort((a, b) => a.number - b.number).map((week) => (
-          <div key={week.number} style={styles.weekCard}>
-            {editingWeek === week.number && editForm ? (
-              // Edit Mode
-              <div style={styles.editForm}>
-                <input
-                  type="text"
-                  value={editForm.focus}
-                  onChange={(e) => setEditForm({...editForm, focus: e.target.value})}
-                  style={styles.input}
-                  placeholder="Week Focus"
-                />
-                <textarea
-                  value={editForm.screens.join('\n')}
-                  onChange={(e) => setEditForm({...editForm, screens: e.target.value.split('\n').filter(s => s.trim())})}
-                  style={styles.textarea}
-                  placeholder="Screens (one per line)"
-                  rows={3}
-                />
-                <textarea
-                  value={editForm.tasks.join('\n')}
-                  onChange={(e) => setEditForm({...editForm, tasks: e.target.value.split('\n').filter(t => t.trim())})}
-                  style={styles.textarea}
-                  placeholder="Tasks (one per line)"
-                  rows={4}
-                />
-                <div style={styles.progressControl}>
-                  <span>Progress: {editForm.progress}%</span>
+        {weeks.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyStateText}>No development weeks added yet.</p>
+            {isEditMode && (
+              <button onClick={handleAddWeek} style={styles.emptyStateButton}>
+                Add Your First Week
+              </button>
+            )}
+          </div>
+        ) : (
+          weeks.map((week) => (
+            <div key={week.id} style={styles.weekCard}>
+              {editingWeek === week.id && editForm ? (
+                // Edit Mode
+                <div style={styles.editForm}>
                   <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={editForm.progress}
-                    onChange={(e) => setEditForm({...editForm, progress: parseInt(e.target.value)})}
-                    style={styles.range}
+                    type="text"
+                    value={editForm.focus}
+                    onChange={(e) => setEditForm({...editForm, focus: e.target.value})}
+                    style={styles.input}
+                    placeholder="Week Focus"
                   />
-                </div>
-                <div style={styles.editButtons}>
-                  <button onClick={handleCancelEdit} style={styles.cancelButton}>Cancel</button>
-                  <button onClick={handleSaveEdit} style={styles.saveButton}>Save</button>
-                </div>
-              </div>
-            ) : (
-              // View Mode
-              <>
-                <div style={{
-                  ...styles.weekHeader,
-                  ...(isMobile ? mobileStyles.weekHeader : {})
-                }}>
-                  <div style={{
-                    ...styles.weekHeaderLeft,
-                    ...(isMobile ? mobileStyles.weekHeaderLeft : {})
-                  }}>
-                    <span style={styles.weekNumber}>Week {week.number}</span>
-                    <span style={styles.weekFocus}>{week.focus}</span>
-                  </div>
-                  <div style={{
-                    ...styles.weekHeaderRight,
-                    ...(isMobile ? mobileStyles.weekHeaderRight : {})
-                  }}>
-                    {week.progress === 100 && (
-                      <span style={styles.completedBadge}>✅ Complete</span>
-                    )}
-                    {isEditMode && (
-                      <>
-                        <button 
-                          onClick={() => handleEditClick(week)}
-                          style={styles.editWeekButton}
-                        >
-                          ✏️
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteClick(week.number)}
-                          style={styles.deleteWeekButton}
-                        >
-                          🗑️
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Screens Section */}
-                <div style={styles.screensSection}>
-                  <h4 style={styles.screensTitle}>📱 Screens to Build:</h4>
-                  <div style={{
-                    ...styles.screensGrid,
-                    ...(isMobile ? mobileStyles.screensGrid : {})
-                  }}>
-                    {week.screens.map((screen, index) => {
-                      const screenCompleted = week.progress && week.progress > (index / week.screens.length) * 100;
-                      return (
-                        <div 
-                          key={index} 
-                          style={{
-                            ...styles.screenCard,
-                            ...(screenCompleted ? styles.screenCompleted : {})
-                          }}
-                          onClick={() => setSelectedScreen({week: week.number, screen})}
-                        >
-                          <span style={styles.screenIcon}>
-                            {screenCompleted ? '✅' : '📱'}
-                          </span>
-                          <span style={styles.screenName}>{screen}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                
-                {/* Tasks List */}
-                <div style={styles.tasksSection}>
-                  <h4 style={styles.tasksTitle}>⚙️ Development Tasks:</h4>
-                  <ul style={styles.taskList}>
-                    {week.tasks.map((task, index) => {
-                      const isCompleted = week.progress && week.progress > (index / week.tasks.length) * 100;
-                      return (
-                        <li 
-                          key={index} 
-                          style={{
-                            ...styles.taskItem,
-                            ...(isCompleted ? styles.taskCompleted : {})
-                          }}
-                          onClick={() => handleTaskToggle(week.number, index)}
-                        >
-                          <span style={styles.taskBullet}>
-                            {isCompleted ? '✅' : '○'}
-                          </span>
-                          {task}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-                
-                {/* Progress Bar */}
-                <div style={styles.progressSection}>
-                  <div style={styles.progressHeader}>
-                    <span style={styles.progressLabel}>Week Progress</span>
-                    <span style={styles.progressValue}>{week.progress || 0}%</span>
-                  </div>
-                  <div style={styles.progressBarBg}>
-                    <div style={{
-                      ...styles.progressBarFill,
-                      width: `${week.progress || 0}%`,
-                      background: week.completed ? '#28a745' : '#FF8C42'
-                    }} />
-                  </div>
-                  {isEditMode && (
+                  <textarea
+                    value={editForm.screens.join('\n')}
+                    onChange={(e) => setEditForm({...editForm, screens: e.target.value.split('\n').filter(s => s.trim())})}
+                    style={styles.textarea}
+                    placeholder="Screens (one per line)"
+                    rows={3}
+                  />
+                  <textarea
+                    value={editForm.tasks.join('\n')}
+                    onChange={(e) => setEditForm({...editForm, tasks: e.target.value.split('\n').filter(t => t.trim())})}
+                    style={styles.textarea}
+                    placeholder="Tasks (one per line)"
+                    rows={4}
+                  />
+                  <div style={styles.progressControl}>
+                    <span>Progress: {editForm.progress}%</span>
                     <input
                       type="range"
                       min="0"
                       max="100"
-                      value={week.progress || 0}
-                      onChange={(e) => handleProgressUpdate(week.number, parseInt(e.target.value))}
-                      style={styles.progressSlider}
+                      value={editForm.progress}
+                      onChange={(e) => setEditForm({...editForm, progress: parseInt(e.target.value)})}
+                      style={styles.range}
                     />
-                  )}
+                  </div>
+                  <div style={styles.editButtons}>
+                    <button onClick={handleCancelEdit} style={styles.cancelButton}>Cancel</button>
+                    <button onClick={handleSaveEdit} style={styles.saveButton}>Save to Firebase</button>
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
-        ))}
+              ) : (
+                // View Mode
+                <>
+                  <div style={{
+                    ...styles.weekHeader,
+                    ...(isMobile ? mobileStyles.weekHeader : {})
+                  }}>
+                    <div style={{
+                      ...styles.weekHeaderLeft,
+                      ...(isMobile ? mobileStyles.weekHeaderLeft : {})
+                    }}>
+                      <span style={styles.weekNumber}>Week {week.number}</span>
+                      <span style={styles.weekFocus}>{week.focus}</span>
+                    </div>
+                    <div style={{
+                      ...styles.weekHeaderRight,
+                      ...(isMobile ? mobileStyles.weekHeaderRight : {})
+                    }}>
+                      {week.progress === 100 && (
+                        <span style={styles.completedBadge}>✅ Complete</span>
+                      )}
+                      {isEditMode && week.id && (
+                        <>
+                          <button 
+                            onClick={() => handleEditClick(week)}
+                            style={styles.editWeekButton}
+                            title="Edit Week"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteClick(week.id!, week.number)}
+                            style={styles.deleteWeekButton}
+                            title="Delete Week"
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Screens Section */}
+                  <div style={styles.screensSection}>
+                    <h4 style={styles.screensTitle}>📱 Screens to Build:</h4>
+                    <div style={{
+                      ...styles.screensGrid,
+                      ...(isMobile ? mobileStyles.screensGrid : {})
+                    }}>
+                      {week.screens.map((screen, index) => {
+                        const screenCompleted = week.progress && week.progress > (index / week.screens.length) * 100;
+                        return (
+                          <div 
+                            key={index} 
+                            style={{
+                              ...styles.screenCard,
+                              ...(screenCompleted ? styles.screenCompleted : {})
+                            }}
+                            onClick={() => week.id && setSelectedScreen({
+                              weekId: week.id,
+                              weekNumber: week.number,
+                              screen
+                            })}
+                          >
+                            <span style={styles.screenIcon}>
+                              {screenCompleted ? '✅' : '📱'}
+                            </span>
+                            <span style={styles.screenName}>{screen}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* Tasks List */}
+                  <div style={styles.tasksSection}>
+                    <h4 style={styles.tasksTitle}>⚙️ Development Tasks:</h4>
+                    <ul style={styles.taskList}>
+                      {week.tasks.map((task, index) => {
+                        const isCompleted = week.progress && week.progress > (index / week.tasks.length) * 100;
+                        return (
+                          <li 
+                            key={index} 
+                            style={{
+                              ...styles.taskItem,
+                              ...(isCompleted ? styles.taskCompleted : {})
+                            }}
+                            onClick={() => week.id && handleTaskToggle(week.id, week.number, index)}
+                          >
+                            <span style={styles.taskBullet}>
+                              {isCompleted ? '✅' : '○'}
+                            </span>
+                            {task}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div style={styles.progressSection}>
+                    <div style={styles.progressHeader}>
+                      <span style={styles.progressLabel}>Week Progress</span>
+                      <span style={styles.progressValue}>{week.progress || 0}%</span>
+                    </div>
+                    <div style={styles.progressBarBg}>
+                      <div style={{
+                        ...styles.progressBarFill,
+                        width: `${week.progress || 0}%`,
+                        background: week.completed ? '#28a745' : '#FF8C42'
+                      }} />
+                    </div>
+                    {isEditMode && week.id && (
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={week.progress || 0}
+                        onChange={(e) => handleProgressUpdate(week.id!, parseInt(e.target.value))}
+                        style={styles.progressSlider}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       {/* Screen Preview Modal */}
@@ -478,7 +630,7 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
             <div style={styles.modalBody}>
               <div style={styles.modalIcon}>📱</div>
               <h4 style={styles.modalScreenName}>{selectedScreen.screen}</h4>
-              <p style={styles.modalWeek}>Week {selectedScreen.week}</p>
+              <p style={styles.modalWeek}>Week {selectedScreen.weekNumber}</p>
               <div style={styles.modalActions}>
                 <button 
                   style={{
@@ -493,6 +645,16 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
                     ...styles.modalButton,
                     ...(isMobile ? { flex: '1' } : {})
                   }}
+                  onClick={() => {
+                    // Find the week and mark this screen as complete
+                    const week = weeks.find(w => w.id === selectedScreen.weekId);
+                    if (week && week.id) {
+                      const screenIndex = week.screens.findIndex(s => s === selectedScreen.screen);
+                      const newProgress = Math.round(((screenIndex + 1) / week.screens.length) * 100);
+                      handleProgressUpdate(week.id, newProgress);
+                    }
+                    setSelectedScreen(null);
+                  }}
                 >
                   Mark Complete
                 </button>
@@ -503,30 +665,32 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
       )}
 
       {/* Development Roadmap */}
-      <div style={styles.roadmap}>
-        <h3 style={styles.roadmapTitle}>🗺️ Screen Development Roadmap</h3>
-        <div style={{
-          ...styles.roadmapGrid,
-          ...(isMobile ? mobileStyles.roadmapGrid : {})
-        }}>
-          {weeks.map(week => (
-            <div key={week.number} style={styles.roadmapColumn}>
-              <div style={styles.roadmapHeader}>
-                <span style={styles.roadmapWeek}>Week {week.number}</span>
-                <span style={styles.roadmapFocus}>{week.focus}</span>
+      {weeks.length > 0 && (
+        <div style={styles.roadmap}>
+          <h3 style={styles.roadmapTitle}>🗺️ Screen Development Roadmap</h3>
+          <div style={{
+            ...styles.roadmapGrid,
+            ...(isMobile ? mobileStyles.roadmapGrid : {})
+          }}>
+            {weeks.map(week => (
+              <div key={week.id} style={styles.roadmapColumn}>
+                <div style={styles.roadmapHeader}>
+                  <span style={styles.roadmapWeek}>Week {week.number}</span>
+                  <span style={styles.roadmapFocus}>{week.focus}</span>
+                </div>
+                <div style={styles.roadmapScreens}>
+                  {week.screens.map((screen, index) => (
+                    <div key={index} style={styles.roadmapScreen}>
+                      <span style={styles.roadmapBullet}>•</span>
+                      {screen}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={styles.roadmapScreens}>
-                {week.screens.map((screen, index) => (
-                  <div key={index} style={styles.roadmapScreen}>
-                    <span style={styles.roadmapBullet}>•</span>
-                    {screen}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -537,6 +701,65 @@ const styles = {
     margin: '0 auto',
     padding: '20px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '400px',
+  },
+  loadingSpinner: {
+    width: '50px',
+    height: '50px',
+    border: '5px solid #f3f3f3',
+    borderTop: '5px solid #FF8C42',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '20px',
+  },
+  loadingText: {
+    fontSize: '16px',
+    color: '#666',
+  },
+  errorMessage: {
+    backgroundColor: '#f8d7da',
+    color: '#721c24',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '14px',
+  },
+  errorClose: {
+    background: 'none',
+    border: 'none',
+    color: '#721c24',
+    fontSize: '20px',
+    cursor: 'pointer',
+    padding: '0 5px',
+  },
+  emptyState: {
+    textAlign: 'center' as const,
+    padding: '40px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '12px',
+  },
+  emptyStateText: {
+    fontSize: '16px',
+    color: '#666',
+    marginBottom: '20px',
+  },
+  emptyStateButton: {
+    padding: '12px 24px',
+    backgroundColor: '#FF8C42',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '16px',
   },
   header: {
     display: 'flex',
@@ -1051,5 +1274,15 @@ const styles = {
     fontSize: 'clamp(14px, 4vw, 16px)',
   },
 };
+
+// Add keyframe animation for spinner
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style);
 
 export default WeeklyProgress;
