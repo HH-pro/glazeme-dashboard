@@ -76,7 +76,6 @@ const Dashboard: React.FC = () => {
       commitHash: 'abc123def456'
     }
   ]);
- const [isEditMode, setIsEditMode] = useState(true);
 
   const handleAddUpdate = (update: Omit<BuildUpdate, 'id'>) => {
     const newUpdate: BuildUpdate = {
