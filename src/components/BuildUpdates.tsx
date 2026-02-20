@@ -1,6 +1,6 @@
 // src/components/BuildUpdates.tsx
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase/config';
+import { db } from '../services/firebase';
 import {
   collection,
   addDoc,
