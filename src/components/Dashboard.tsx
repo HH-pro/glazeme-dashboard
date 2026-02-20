@@ -54,6 +54,18 @@ const Dashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [reviewFilterStatus, setReviewFilterStatus] = useState<string>('all');
 
+  // Mobile responsiveness
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const glazemeSpecs: GlazeMeSpecs = {
     name: "GlazeMe",
     concept: "Meme-based AI compliment generator for iMessage",
@@ -278,7 +290,116 @@ const Dashboard: React.FC = () => {
     return { total, pending, approved, changesRequested, inReview, averageRating, criticalIssues };
   }, [reviews]);
 
-  // Styles
+  // Mobile-optimized styles
+  const mobileStyles = {
+    mainContent: {
+      padding: isMobile ? '12px' : '20px',
+      maxWidth: '100%',
+      width: '100%',
+    },
+    header: {
+      padding: isMobile ? '16px' : '25px',
+      marginBottom: isMobile ? '16px' : '30px',
+    },
+    headerTop: {
+      flexDirection: 'column' as const,
+      alignItems: 'stretch' as const,
+      gap: '12px',
+    },
+    headerLeft: {
+      width: '100%',
+    },
+    iconWrapper: {
+      width: '40px',
+      height: '40px',
+    },
+    title: {
+      fontSize: '20px',
+    },
+    subtitle: {
+      fontSize: '13px',
+    },
+    headerActions: {
+      width: '100%',
+      flexDirection: 'column' as const,
+      gap: '8px',
+    },
+    searchContainer: {
+      width: '100%',
+    },
+    searchInput: {
+      width: '100%',
+      padding: '12px 15px 12px 40px',
+      fontSize: '15px',
+    },
+    filterButton: {
+      width: '100%',
+      justifyContent: 'center',
+    },
+    buildBadge: {
+      width: '100%',
+      justifyContent: 'space-between',
+    },
+    specs: {
+      gap: '6px',
+    },
+    specItem: {
+      fontSize: '11px',
+      padding: '4px 8px',
+    },
+    tabs: {
+      padding: '8px',
+      gap: '4px',
+      overflowX: 'auto' as const,
+      WebkitOverflowScrolling: 'touch' as const,
+      scrollbarWidth: 'none' as const,
+      msOverflowStyle: 'none' as const,
+    },
+    tab: {
+      padding: '10px 14px',
+      fontSize: '13px',
+      whiteSpace: 'nowrap' as const,
+    },
+    tabIcon: {
+      fontSize: '14px',
+    },
+    content: {
+      padding: isMobile ? '16px' : '25px',
+      minHeight: isMobile ? 'auto' : '600px',
+    },
+    statsGrid: {
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '10px',
+    },
+    statCard: {
+      padding: '12px',
+    },
+    statValue: {
+      fontSize: '22px',
+    },
+    statLabel: {
+      fontSize: '11px',
+    },
+    reviewFilters: {
+      flexDirection: 'column' as const,
+      gap: '8px',
+    },
+    reviewFilterSelect: {
+      width: '100%',
+    },
+    footer: {
+      padding: '16px',
+    },
+    feedItem: {
+      flexDirection: 'column' as const,
+      alignItems: 'flex-start',
+      gap: '6px',
+    },
+    feedTime: {
+      minWidth: 'auto',
+    },
+  };
+
   const styles = {
     container: {
       minHeight: '100vh',
@@ -427,7 +548,9 @@ const Dashboard: React.FC = () => {
       maxWidth: '1600px',
       margin: '0 auto',
       padding: '20px',
-      transition: 'all 0.3s ease'
+      transition: 'all 0.3s ease',
+      width: '100%',
+      boxSizing: 'border-box' as const,
     },
     mainContentShifted: {
       '@media (max-width: 768px)': {
@@ -811,12 +934,16 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Notifications */}
-      <div style={styles.notificationContainer}>
+      <div style={{
+        ...styles.notificationContainer,
+        ...(isMobile ? { left: '12px', right: '12px', maxWidth: 'calc(100% - 24px)' } : {})
+      }}>
         {notifications.map(notification => (
           <div 
             key={notification.id}
             style={{
               ...styles.notification,
+              ...(isMobile ? { width: '100%', maxWidth: '100%' } : {}),
               ...(notification.type === 'success' ? styles.notificationSuccess : {}),
               ...(notification.type === 'error' ? styles.notificationError : {}),
               ...(notification.type === 'info' ? styles.notificationInfo : {})
@@ -835,42 +962,76 @@ const Dashboard: React.FC = () => {
       {/* Main Content */}
       <div style={{
         ...styles.mainContent,
+        ...(isMobile ? mobileStyles.mainContent : {}),
         ...(isSidebarOpen ? styles.mainContentShifted : {})
       }}>
         {/* Header */}
-        <div style={styles.header}>
+        <div style={{
+          ...styles.header,
+          ...(isMobile ? mobileStyles.header : {})
+        }}>
           <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
           
-          <div style={styles.headerTop}>
-            <div style={styles.headerLeft}>
-              <div style={styles.iconWrapper}>
+          <div style={{
+            ...styles.headerTop,
+            ...(isMobile ? mobileStyles.headerTop : {})
+          }}>
+            <div style={{
+              ...styles.headerLeft,
+              ...(isMobile ? mobileStyles.headerLeft : {})
+            }}>
+              <div style={{
+                ...styles.iconWrapper,
+                ...(isMobile ? mobileStyles.iconWrapper : {})
+              }}>
                 <Icons.Rocket />
               </div>
               <div>
-                <h1 style={styles.title}>GlazeMe Development Dashboard</h1>
-                <p style={styles.subtitle}>
+                <h1 style={{
+                  ...styles.title,
+                  ...(isMobile ? mobileStyles.title : {})
+                }}>GlazeMe Development Dashboard</h1>
+                <p style={{
+                  ...styles.subtitle,
+                  ...(isMobile ? mobileStyles.subtitle : {})
+                }}>
                   {glazemeSpecs.concept} • {glazemeSpecs.platform}
                 </p>
               </div>
             </div>
             
-            <div style={styles.headerActions}>
-              <div style={styles.searchContainer}>
+            <div style={{
+              ...styles.headerActions,
+              ...(isMobile ? mobileStyles.headerActions : {})
+            }}>
+              <div style={{
+                ...styles.searchContainer,
+                ...(isMobile ? mobileStyles.searchContainer : {})
+              }}>
                 <span style={styles.searchIcon}><Icons.Search /></span>
                 <input
                   type="text"
                   placeholder="Search updates, reviews..."
-                  style={styles.searchInput}
+                  style={{
+                    ...styles.searchInput,
+                    ...(isMobile ? mobileStyles.searchInput : {})
+                  }}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               
-              <button style={styles.filterButton}>
-                <Icons.Filter />
+              <button style={{
+                ...styles.filterButton,
+                ...(isMobile ? mobileStyles.filterButton : {})
+              }}>
+                <Icons.Filter /> {isMobile ? 'Filters' : ''}
               </button>
               
-              <div style={styles.buildBadge}>
+              <div style={{
+                ...styles.buildBadge,
+                ...(isMobile ? mobileStyles.buildBadge : {})
+              }}>
                 <span style={styles.buildVersion}>v1.0.0-alpha</span>
                 <span style={styles.buildStatus}>🟢 Active</span>
                 <button
@@ -880,7 +1041,7 @@ const Dashboard: React.FC = () => {
                     backgroundColor: isEditMode ? '#dc3545' : '#28a745'
                   }}
                 >
-                  {isEditMode ? '🔒 Exit Edit' : '✏️ Edit'}
+                  {isEditMode ? '🔒 Exit' : '✏️ Edit'}
                 </button>
               </div>
             </div>
@@ -894,22 +1055,36 @@ const Dashboard: React.FC = () => {
           )}
 
           {/* Tech Stack */}
-          <div style={styles.specs}>
-            <span style={styles.specItem}>🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}</span>
+          <div style={{
+            ...styles.specs,
+            ...(isMobile ? mobileStyles.specs : {})
+          }}>
+            <span style={isMobile ? mobileStyles.specItem : styles.specItem}>
+              🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}
+            </span>
             {glazemeSpecs.technicalStack.ai.map((tech, i) => (
-              <span key={i} style={styles.specItem}>🤖 {tech}</span>
+              <span key={i} style={isMobile ? mobileStyles.specItem : styles.specItem}>
+                🤖 {tech}
+              </span>
             ))}
             {glazemeSpecs.technicalStack.frontend.map((tech, i) => (
-              <span key={i} style={styles.specItem}>📱 {tech}</span>
+              <span key={i} style={isMobile ? mobileStyles.specItem : styles.specItem}>
+                📱 {tech}
+              </span>
             ))}
             {glazemeSpecs.technicalStack.backend.map((tech, i) => (
-              <span key={i} style={styles.specItem}>⚙️ {tech}</span>
+              <span key={i} style={isMobile ? mobileStyles.specItem : styles.specItem}>
+                ⚙️ {tech}
+              </span>
             ))}
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div style={styles.tabs}>
+        <div style={{
+          ...styles.tabs,
+          ...(isMobile ? mobileStyles.tabs : {})
+        }}>
           {[
             { id: 'updates', label: 'Updates', icon: <Icons.Rocket /> },
             { id: 'reviews', label: 'Reviews', icon: <Icons.Review /> },
@@ -923,10 +1098,11 @@ const Dashboard: React.FC = () => {
               onClick={() => setActiveTab(tab.id as any)}
               style={{
                 ...styles.tab,
+                ...(isMobile ? mobileStyles.tab : {}),
                 ...(activeTab === tab.id ? styles.activeTab : {})
               }}
             >
-              <span style={styles.tabIcon}>{tab.icon}</span>
+              <span style={isMobile ? mobileStyles.tabIcon : styles.tabIcon}>{tab.icon}</span>
               <span style={styles.tabLabel}>{tab.label}</span>
               {activeTab === tab.id && (
                 <span style={styles.tabIndicator} />
@@ -936,7 +1112,10 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <div style={styles.content}>
+        <div style={{
+          ...styles.content,
+          ...(isMobile ? mobileStyles.content : {})
+        }}>
           {activeTab === 'updates' && (
             <BuildUpdates initialEditMode={isEditMode} />
           )}
@@ -944,37 +1123,43 @@ const Dashboard: React.FC = () => {
           {activeTab === 'reviews' && (
             <>
               {/* Review Stats */}
-              <div style={styles.statsGrid}>
-                <div style={styles.statCard}>
-                  <div style={styles.statValue}>{reviewStats.total}</div>
-                  <div style={styles.statLabel}>Total Reviews</div>
+              <div style={{
+                ...styles.statsGrid,
+                ...(isMobile ? mobileStyles.statsGrid : {})
+              }}>
+                <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+                  <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.total}</div>
+                  <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Total</div>
                 </div>
-                <div style={styles.statCard}>
-                  <div style={styles.statValue}>{reviewStats.pending}</div>
-                  <div style={styles.statLabel}>Pending</div>
+                <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+                  <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.pending}</div>
+                  <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Pending</div>
                 </div>
-                <div style={styles.statCard}>
-                  <div style={styles.statValue}>{reviewStats.approved}</div>
-                  <div style={styles.statLabel}>Approved</div>
+                <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+                  <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.approved}</div>
+                  <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Approved</div>
                 </div>
-                <div style={styles.statCard}>
-                  <div style={styles.statValue}>{reviewStats.changesRequested}</div>
-                  <div style={styles.statLabel}>Changes Requested</div>
+                <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+                  <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.changesRequested}</div>
+                  <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Changes</div>
                 </div>
-                <div style={styles.statCard}>
-                  <div style={styles.statValue}>{reviewStats.averageRating.toFixed(1)}</div>
-                  <div style={styles.statLabel}>Avg Rating</div>
+                <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+                  <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.averageRating.toFixed(1)}</div>
+                  <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Rating</div>
                 </div>
-                <div style={styles.statCard}>
-                  <div style={styles.statValue}>{reviewStats.criticalIssues}</div>
-                  <div style={styles.statLabel}>Critical Issues</div>
+                <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+                  <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.criticalIssues}</div>
+                  <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Critical</div>
                 </div>
               </div>
 
               {/* Review Filters */}
-              <div style={styles.reviewFilters}>
+              <div style={{
+                ...styles.reviewFilters,
+                ...(isMobile ? mobileStyles.reviewFilters : {})
+              }}>
                 <select 
-                  style={styles.reviewFilterSelect}
+                  style={isMobile ? mobileStyles.reviewFilterSelect : styles.reviewFilterSelect}
                   value={reviewFilterStatus}
                   onChange={(e) => setReviewFilterStatus(e.target.value)}
                 >
@@ -982,7 +1167,7 @@ const Dashboard: React.FC = () => {
                   <option value="pending">Pending</option>
                   <option value="in-review">In Review</option>
                   <option value="approved">Approved</option>
-                  <option value="changes-requested">Changes Requested</option>
+                  <option value="changes-requested">Changes</option>
                 </select>
               </div>
 
@@ -1023,43 +1208,52 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Live Feed */}
-        <div style={styles.footer}>
+        <div style={{
+          ...styles.footer,
+          ...(isMobile ? mobileStyles.footer : {})
+        }}>
           <div style={styles.feedHeader}>
             <div style={styles.feedHeaderLeft}>
               <Icons.Bell />
-              <span style={styles.feedTitle}>Live Development Feed</span>
+              <span style={styles.feedTitle}>Live Feed</span>
             </div>
             <div style={styles.feedStatus}>
               <span style={styles.statusDot} />
-              <span>Connected</span>
+              <span>Live</span>
             </div>
           </div>
           <div style={styles.feedContent}>
-            {/* Show recent reviews in feed - without client name */}
-            {reviews.slice(0, 3).map(review => (
-              <div key={review.id} style={styles.feedItem}>
-                <span style={styles.feedTime}>
-                  {new Date(review.createdAt).toLocaleTimeString()}
+            {/* Show recent reviews in feed */}
+            {reviews.slice(0, 2).map(review => (
+              <div key={review.id} style={{
+                ...styles.feedItem,
+                ...(isMobile ? mobileStyles.feedItem : {})
+              }}>
+                <span style={isMobile ? mobileStyles.feedTime : styles.feedTime}>
+                  {new Date(review.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <span style={styles.feedText}>
-                  <Icons.Review /> New review: "{review.feedback.substring(0, 50)}..."
+                  <Icons.Review /> New review
                 </span>
               </div>
             ))}
             {/* Show recent updates in feed */}
             {updates.slice(0, 2).map(update => (
-              <div key={update.id} style={styles.feedItem}>
-                <span style={styles.feedTime}>
-                  {new Date(update.date).toLocaleTimeString()}
+              <div key={update.id} style={{
+                ...styles.feedItem,
+                ...(isMobile ? mobileStyles.feedItem : {})
+              }}>
+                <span style={isMobile ? mobileStyles.feedTime : styles.feedTime}>
+                  {new Date(update.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <span style={styles.feedText}>
-                  <strong>{update.title}</strong> - {update.description.substring(0, 50)}...
+                  <strong>{update.title}</strong>
                 </span>
               </div>
             ))}
           </div>
           <button style={styles.feedViewAll}>
-            View All Activity <Icons.ChevronDown />
+            View All <Icons.ChevronDown />
           </button>
         </div>
       </div>
@@ -1078,6 +1272,22 @@ const Dashboard: React.FC = () => {
           0% { opacity: 1; }
           50% { opacity: 0.5; }
           100% { opacity: 1; }
+        }
+
+        /* Mobile-specific optimizations */
+        @media (max-width: 768px) {
+          input, select, button {
+            font-size: 16px !important;
+          }
+          
+          /* Hide scrollbar for tabs on mobile */
+          div[style*="overflowX: auto"] {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          div[style*="overflowX: auto"]::-webkit-scrollbar {
+            display: none;
+          }
         }
       `}</style>
     </div>
