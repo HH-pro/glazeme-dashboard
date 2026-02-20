@@ -17,7 +17,7 @@ interface Notification {
   type: 'success' | 'error' | 'info';
 }
 
-type TabType = 'updates' | 'reviews' | 'screens' | 'progress' | 'tech' | 'deploy';
+type TabType = 'updates' | 'reviews' | 'screens' | 'progress' | 'tech' | 'deploy' | 'more';
 
 // --- Icons (Lucide-style, optimized for light theme) ---
 const Icons = {
