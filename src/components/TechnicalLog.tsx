@@ -221,7 +221,20 @@ const TechnicalLog: React.FC<Props> = ({ isEditMode = false, onEditAction }) => 
      
 
       {/* Technical Milestones Tracker */}
-      
+      <div style={styles.milestonesSection}>
+        <div style={styles.milestonesHeader}>
+          <h3 style={styles.sectionSubtitle}>📋 Technical Milestones</h3>
+          <button 
+            onClick={handleAddClick}
+            style={{
+              ...styles.addButton,
+              backgroundColor: isEditMode ? '#FF8C42' : '#6c757d',
+              cursor: isEditMode ? 'pointer' : 'not-allowed'
+            }}
+          >
+            {isEditMode ? '+ Add Milestone' : '🔒 Edit Mode Required'}
+          </button>
+        </div>
 
         {isEditMode && showAddForm && (
           <form onSubmit={handleAddMilestone} style={styles.form}>
