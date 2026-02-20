@@ -48,30 +48,6 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
- const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([]);
-
-  const handleAddUpdate = (update: Omit<BuildUpdate, 'id'>) => {
-    const newUpdate: BuildUpdate = {
-      ...update,
-      id: Date.now().toString() // Generate unique ID
-    };
-    setBuildUpdates([...buildUpdates, newUpdate]);
-    console.log('Added update:', newUpdate);
-  };
-
-  const handleEditUpdate = (id: string, updatedUpdate: Omit<BuildUpdate, 'id'>) => {
-    setBuildUpdates(buildUpdates.map(update => 
-      update.id === id 
-        ? { ...updatedUpdate, id } 
-        : update
-    ));
-    console.log('Edited update with id:', id);
-  };
-
-  const handleDeleteUpdate = (id: string) => {
-    setBuildUpdates(buildUpdates.filter(update => update.id !== id));
-    console.log('Deleted update with id:', id);
-  };
 
   const glazemeSpecs: GlazeMeSpecs = {
     name: "GlazeMe",
@@ -99,102 +75,96 @@ const Dashboard: React.FC = () => {
     }
   };
 
- useEffect(() => {
-  setIsLoading(true);
-  setError(null);
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
 
-  // 🔹 Updates listener
-  const updatesQuery = query(
-    collection(db, 'buildUpdates'),
-    orderBy('date', 'desc'),
-    limit(50)
-  );
+    // 🔹 Updates listener
+    const updatesQuery = query(
+      collection(db, 'buildUpdates'),
+      orderBy('date', 'desc'),
+      limit(50)
+    );
 
-  const unsubscribeUpdates = onSnapshot(
-  updatesQuery,
-  (snapshot) => {
-    const updatesData: BuildUpdate[] = snapshot.docs.map((doc) => {
-      const data = doc.data();
+    const unsubscribeUpdates = onSnapshot(
+      updatesQuery,
+      (snapshot) => {
+        const updatesData: BuildUpdate[] = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            weekNumber: data.weekNumber ?? 0,
+            title: data.title ?? "",
+            description: data.description ?? "",
+            category: data.category ?? "development",
+            status: data.status ?? "planned",
+            priority: data.priority ?? "medium",
+            timeSpent: data.timeSpent ?? 0,
+            date: data.date?.toDate?.() ?? new Date()
+          };
+        });
+        setUpdates(updatesData);
+      },
+      (error) => {
+        console.error("Updates fetch error:", error);
+        setError("Failed to load updates");
+      }
+    );
 
-      return {
-        id: doc.id, // ✅ string (fixes TS error)
-        weekNumber: data.weekNumber ?? 0,
-        title: data.title ?? "",
-        description: data.description ?? "",
-        category: data.category ?? "",
-        status: data.status ?? "",
-        author: data.author ?? "",
-        priority: data.priority ?? "low",
-        timeSpent: data.timeSpent ?? 0,
-        date: data.date?.toDate?.() ?? new Date()
-      };
-    });
+    // 🔹 Screenshots listener
+    const screensQuery = query(
+      collection(db, 'screenshots'),
+      orderBy('date', 'desc'),
+      limit(50)
+    );
 
-    setUpdates(updatesData);
-  },
-  (error) => {
-    console.error("Updates fetch error:", error);
-    setError("Failed to load updates");
-  }
-);
-  // 🔹 Screenshots listener
-  const screensQuery = query(
-    collection(db, 'screenshots'),
-    orderBy('date', 'desc'),
-    limit(50)
-  );
+    const unsubscribeScreens = onSnapshot(
+      screensQuery,
+      (snapshot) => {
+        const screensData: ScreenCapture[] = snapshot.docs.map((doc: any) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            date: data.date?.toDate?.() ?? new Date()
+          };
+        });
+        setScreens(screensData);
+      }
+    );
 
-  const unsubscribeScreens = onSnapshot(
-    screensQuery,
-    (snapshot) => {
-      const screensData: ScreenCapture[] = snapshot.docs.map((doc: any) => {
-        const data = doc.data();
+    // 🔹 Commits listener
+    const commitsQuery = query(
+      collection(db, 'commits'),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
 
-        return {
-          id: doc.id, // string id
-          ...data,
-          date: data.date?.toDate?.() ?? new Date()
-        };
-      });
+    const unsubscribeCommits = onSnapshot(
+      commitsQuery,
+      (snapshot) => {
+        const commitsData: CodeCommit[] = snapshot.docs.map((doc: any) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate?.() ?? new Date()
+          };
+        });
+        setCommits(commitsData);
+      }
+    );
 
-      setScreens(screensData);
-    }
-  );
+    setIsLoading(false);
+    addNotification('Welcome to GlazeMe Dashboard', 'success');
 
-  // 🔹 Commits listener
-  const commitsQuery = query(
-    collection(db, 'commits'),
-    orderBy('timestamp', 'desc'),
-    limit(100)
-  );
-
-  const unsubscribeCommits = onSnapshot(
-    commitsQuery,
-    (snapshot) => {
-      const commitsData: CodeCommit[] = snapshot.docs.map((doc: any) => {
-        const data = doc.data();
-
-        return {
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp?.toDate?.() ?? new Date()
-        };
-      });
-
-      setCommits(commitsData);
-    }
-  );
-
-  setIsLoading(false);
-  addNotification('Welcome to GlazeMe Dashboard', 'success');
-
-  // ✅ Proper cleanup
-  return () => {
-    unsubscribeUpdates();
-    unsubscribeScreens();
-    unsubscribeCommits();
-  };
-}, []);
+    // ✅ Proper cleanup
+    return () => {
+      unsubscribeUpdates();
+      unsubscribeScreens();
+      unsubscribeCommits();
+    };
+  }, []);
 
   const addNotification = useCallback((message: string, type: Notification['type'] = 'info') => {
     const id = Date.now().toString();
@@ -217,13 +187,13 @@ const Dashboard: React.FC = () => {
     if (pendingAction) {
       switch (pendingAction.type) {
         case 'addUpdate':
-          addBuildUpdate(pendingAction.data);
+          // Handle add update after password success
           break;
         case 'addScreen':
-          addScreenCapture(pendingAction.data);
+          // Handle add screen after password success
           break;
         case 'addCommit':
-          addCodeCommit(pendingAction.data);
+          // Handle add commit after password success
           break;
         default:
           break;
@@ -231,54 +201,6 @@ const Dashboard: React.FC = () => {
       setPendingAction(null);
     }
   }, [pendingAction, addNotification]);
-
-  const addBuildUpdate = useCallback(async (update: Omit<BuildUpdate, 'id'>) => {
-    if (!isEditMode) {
-      handleEditAction('addUpdate', update);
-      return;
-    }
-    try {
-      await addDoc(collection(db, 'buildUpdates'), {
-        ...update,
-        date: new Date()
-      });
-      addNotification('Build update added successfully', 'success');
-    } catch {
-      addNotification('Failed to add build update', 'error');
-    }
-  }, [isEditMode, handleEditAction, addNotification]);
-
-  const addScreenCapture = useCallback(async (screen: Omit<ScreenCapture, 'id'>) => {
-    if (!isEditMode) {
-      handleEditAction('addScreen', screen);
-      return;
-    }
-    try {
-      await addDoc(collection(db, 'screenshots'), {
-        ...screen,
-        date: new Date()
-      });
-      addNotification('Screen capture added successfully', 'success');
-    } catch {
-      addNotification('Failed to add screen capture', 'error');
-    }
-  }, [isEditMode, handleEditAction, addNotification]);
-
-  const addCodeCommit = useCallback(async (commit: Omit<CodeCommit, 'id'>) => {
-    if (!isEditMode) {
-      handleEditAction('addCommit', commit);
-      return;
-    }
-    try {
-      await addDoc(collection(db, 'commits'), {
-        ...commit,
-        timestamp: new Date()
-      });
-      addNotification('Commit added successfully', 'success');
-    } catch {
-      addNotification('Failed to add commit', 'error');
-    }
-  }, [isEditMode, handleEditAction, addNotification]);
 
   const toggleEditMode = useCallback(() => {
     if (!isEditMode) {
@@ -825,7 +747,7 @@ const Dashboard: React.FC = () => {
         ...styles.mainContent,
         ...(isSidebarOpen ? styles.mainContentShifted : {})
       }}>
-        {/* Header - Removed stats and charts sections */}
+        {/* Header */}
         <div style={styles.header}>
           <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
           
@@ -881,7 +803,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Tech Stack - Kept only the tech stack section */}
+          {/* Tech Stack */}
           <div style={styles.specs}>
             <span style={styles.specItem}>🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}</span>
             {glazemeSpecs.technicalStack.ai.map((tech, i) => (
@@ -923,13 +845,7 @@ const Dashboard: React.FC = () => {
         {/* Content Area */}
         <div style={styles.content}>
           {activeTab === 'updates' && (
-            <BuildUpdates 
-        updates={buildUpdates}
-        onAddUpdate={handleAddUpdate}
-        onEditUpdate={handleEditUpdate}
-        onDeleteUpdate={handleDeleteUpdate}
-        isEditMode={isEditMode}
-      />
+            <BuildUpdates initialEditMode={isEditMode} />
           )}
           {activeTab === 'screens' && (
             <ScreenGallery 
