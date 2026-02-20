@@ -222,10 +222,7 @@ const TechnicalLog: React.FC<Props> = ({ isEditMode = false, onEditAction }) => 
 
       {/* Technical Milestones Tracker */}
       <div style={styles.milestonesSection}>
-        <div style={styles.milestonesHeader}>
-         
-        </div>
-
+     
         {isEditMode && showAddForm && (
           <form onSubmit={handleAddMilestone} style={styles.form}>
             <h4 style={styles.formTitle}>
