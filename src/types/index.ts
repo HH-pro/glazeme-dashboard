@@ -1,13 +1,19 @@
 // src/types/index.ts
+
+// Type aliases for BuildUpdate fields
+export type UpdateCategory = 'development' | 'design' | 'ai-integration' | 'testing' | 'deployment' | 'backend' | 'security';
+export type UpdateStatus = 'completed' | 'in-progress' | 'planned' | 'blocked';
+export type UpdatePriority = 'high' | 'medium' | 'low';
+
 export interface BuildUpdate {
-  id: string;
+  id: number; // Changed from string to number to match component usage
   date: Date;
   weekNumber: number;
   title: string;
   description: string;
-  category: 'development' | 'design' | 'ai-integration' | 'testing' | 'deployment' | 'backend' | 'security';
-  status: 'completed' | 'in-progress' | 'planned' | 'blocked';
-  priority: 'high' | 'medium' | 'low';
+  category: UpdateCategory;
+  status: UpdateStatus;
+  priority: UpdatePriority;
   timeSpent: number; // in hours
   commitHash?: string;
   branch?: string;
@@ -85,3 +91,27 @@ export interface AIPromptMetric {
   success: boolean;
   errorType?: string;
 }
+
+// Optional: Add some utility types or constants if needed
+export const UPDATE_CATEGORIES: UpdateCategory[] = [
+  'development',
+  'design',
+  'ai-integration',
+  'testing',
+  'deployment',
+  'backend',
+  'security'
+];
+
+export const UPDATE_STATUSES: UpdateStatus[] = [
+  'completed',
+  'in-progress',
+  'planned',
+  'blocked'
+];
+
+export const UPDATE_PRIORITIES: UpdatePriority[] = [
+  'high',
+  'medium',
+  'low'
+];
