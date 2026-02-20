@@ -8,8 +8,7 @@ import {
   getDocs, 
   query, 
   orderBy,
-  Timestamp,
-  getDoc
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
@@ -54,7 +53,6 @@ const Icons = {
   Check: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
   Trash: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
   Edit: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-  MessageSquare: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
   Bug: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="14" x="8" y="6" rx="4"/><path d="m18 8 2 2"/><path d="m22 8-2 2"/><path d="m18 16 2-2"/><path d="m22 16-2-2"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>,
   Lightbulb: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>,
   Palette: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>,
@@ -64,7 +62,8 @@ const Icons = {
   Inbox: () => <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>,
   ThumbsUp: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>,
   AlertCircle: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
-  HelpCircle: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+  HelpCircle: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>,
+  MoreVertical: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
 };
 
 const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
@@ -72,9 +71,10 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingReview, setEditingReview] = useState<string | null>(null);
+  const [editingReview, setEditingReview] = useState<ClientReview | null>(null);
   const [filterStatus, setFilterStatus] = useState<ReviewStatus | 'all'>('all');
   const [filterType, setFilterType] = useState<FeedbackType | 'all'>('all');
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
   
   const [newReview, setNewReview] = useState({
     updateId: '',
@@ -100,6 +100,17 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     fetchUpdates();
     fetchReviews();
   }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (activeMenu && !(e.target as Element).closest('.review-actions')) {
+        setActiveMenu(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [activeMenu]);
 
   const fetchUpdates = async () => {
     try {
@@ -197,7 +208,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
 
     try {
       setLoading(true);
-      const reviewRef = doc(db, 'clientReviews', editingReview);
+      const reviewRef = doc(db, 'clientReviews', editingReview.id);
       
       await updateDoc(reviewRef, {
         feedback: newReview.feedback.trim(),
@@ -216,7 +227,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
   };
 
   const startEditing = (review: ClientReview) => {
-    setEditingReview(review.id);
+    setEditingReview(review);
     setNewReview({
       updateId: review.updateId,
       feedback: review.feedback,
@@ -224,17 +235,23 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
       points: review.points || []
     });
     setShowForm(true);
+    setActiveMenu(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (reviewId: string) => {
-    if (!window.confirm('Are you sure you want to delete this feedback?')) return;
+    if (!window.confirm('Are you sure you want to delete this feedback? This action cannot be undone.')) return;
     
     try {
+      setLoading(true);
       await deleteDoc(doc(db, 'clientReviews', reviewId));
+      setActiveMenu(null);
       fetchReviews();
     } catch (err) {
       console.error('Error deleting review:', err);
+      alert('Failed to delete feedback. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -279,6 +296,11 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     setCurrentPoint({ text: '', type: 'suggestion' });
     setShowForm(false);
     setEditingReview(null);
+  };
+
+  const toggleMenu = (reviewId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveMenu(activeMenu === reviewId ? null : reviewId);
   };
 
   const filteredReviews = reviews.filter(review => {
@@ -392,7 +414,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
       {/* Form */}
       {showForm && (
         <form onSubmit={editingReview ? handleEdit : handleSubmit} className="review-form">
-          <h3>{editingReview ? 'Edit Feedback' : 'New Feedback'}</h3>
+          <h3>{editingReview ? '✏️ Edit Feedback' : '📝 New Feedback'}</h3>
           
           {!editingReview && (
             <div className="form-group">
@@ -495,7 +517,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
               Cancel
             </button>
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Saving...' : (editingReview ? 'Save Changes' : 'Submit Feedback')}
+              {loading ? 'Saving...' : (editingReview ? '💾 Save Changes' : '📤 Submit Feedback')}
             </button>
           </div>
         </form>
@@ -517,20 +539,60 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
             return (
               <div key={review.id} className={`review-item ${review.status}`}>
                 <div className="review-main">
-                  <div className="review-meta-row">
-                    <span 
-                      className="type-badge"
-                      style={{ background: type.bg, color: type.color }}
-                    >
-                      {type.icon}
-                      {type.label}
-                    </span>
-                    <span 
-                      className="status-badge"
-                      style={{ background: status.bg, color: status.color }}
-                    >
-                      {status.label}
-                    </span>
+                  <div className="review-header-row">
+                    <div className="review-meta-row">
+                      <span 
+                        className="type-badge"
+                        style={{ background: type.bg, color: type.color }}
+                      >
+                        {type.icon}
+                        {type.label}
+                      </span>
+                      <span 
+                        className="status-badge"
+                        style={{ background: status.bg, color: status.color }}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+                    
+                    {/* Action Menu */}
+                    <div className="review-actions">
+                      <button 
+                        className="menu-toggle"
+                        onClick={(e) => toggleMenu(review.id, e)}
+                      >
+                        <Icons.MoreVertical />
+                      </button>
+                      
+                      {activeMenu === review.id && (
+                        <div className="action-menu">
+                          <button 
+                            onClick={() => startEditing(review)}
+                            className="menu-item edit"
+                          >
+                            <Icons.Edit /> Edit Feedback
+                          </button>
+                          {review.status !== 'resolved' && (
+                            <button 
+                              onClick={() => {
+                                handleStatusChange(review.id, 'resolved');
+                                setActiveMenu(null);
+                              }}
+                              className="menu-item resolve"
+                            >
+                              <Icons.CheckCircle /> Mark Resolved
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => handleDelete(review.id)}
+                            className="menu-item delete"
+                          >
+                            <Icons.Trash /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <h4 className="review-title">{review.updateTitle}</h4>
@@ -586,37 +648,8 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
                         hour: '2-digit',
                         minute: '2-digit'
                       })}
-                      {review.updatedAt && ' (edited)'}
+                      {review.updatedAt && <span className="edited-tag"> (edited)</span>}
                     </span>
-                    
-                    <div className="review-actions">
-                      {isAdmin && (
-                        <>
-                          {review.status !== 'resolved' && (
-                            <button 
-                              onClick={() => handleStatusChange(review.id, 'resolved')}
-                              className="btn-resolve"
-                            >
-                              <Icons.CheckCircle /> Resolve
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => startEditing(review)}
-                            className="btn-edit"
-                            title="Edit"
-                          >
-                            <Icons.Edit />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(review.id)}
-                            className="btn-delete"
-                            title="Delete"
-                          >
-                            <Icons.Trash />
-                          </button>
-                        </>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1014,6 +1047,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
           border-radius: 16px;
           padding: 20px;
           transition: all 0.2s;
+          position: relative;
         }
 
         .review-item:hover {
@@ -1026,11 +1060,18 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
           background: var(--gray-50);
         }
 
+        .review-header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 12px;
+        }
+
         .review-meta-row {
           display: flex;
           gap: 8px;
-          margin-bottom: 12px;
           flex-wrap: wrap;
+          flex: 1;
         }
 
         .type-badge,
@@ -1042,6 +1083,88 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
           border-radius: 20px;
           font-size: 12px;
           font-weight: 600;
+        }
+
+        /* Action Menu */
+        .review-actions {
+          position: relative;
+        }
+
+        .menu-toggle {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--gray-100);
+          border: none;
+          border-radius: 8px;
+          color: var(--gray-600);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .menu-toggle:hover {
+          background: var(--gray-200);
+          color: var(--gray-900);
+        }
+
+        .action-menu {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          margin-top: 8px;
+          background: white;
+          border: 1px solid var(--gray-200);
+          border-radius: 12px;
+          box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+          z-index: 100;
+          min-width: 180px;
+          overflow: hidden;
+        }
+
+        .menu-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 12px 16px;
+          border: none;
+          background: none;
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--gray-700);
+          cursor: pointer;
+          transition: all 0.2s;
+          text-align: left;
+        }
+
+        .menu-item:hover {
+          background: var(--gray-50);
+        }
+
+        .menu-item.edit {
+          color: #2563eb;
+        }
+
+        .menu-item.edit:hover {
+          background: #eff6ff;
+        }
+
+        .menu-item.resolve {
+          color: #059669;
+        }
+
+        .menu-item.resolve:hover {
+          background: #ecfdf5;
+        }
+
+        .menu-item.delete {
+          color: #ef4444;
+        }
+
+        .menu-item.delete:hover {
+          background: #fef2f2;
         }
 
         .review-title {
@@ -1160,59 +1283,9 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
           color: var(--gray-400);
         }
 
-        .review-actions {
-          display: flex;
-          gap: 8px;
-        }
-
-        .btn-resolve {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 16px;
-          background: #ecfdf5;
-          color: #059669;
-          border: none;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn-resolve:hover {
-          background: #d1fae5;
-        }
-
-        .btn-edit,
-        .btn-delete {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn-edit {
-          background: #eff6ff;
-          color: #2563eb;
-        }
-
-        .btn-edit:hover {
-          background: #dbeafe;
-        }
-
-        .btn-delete {
-          background: #fef2f2;
-          color: #ef4444;
-        }
-
-        .btn-delete:hover {
-          background: #fee2e2;
+        .edited-tag {
+          color: var(--gray-400);
+          font-style: italic;
         }
 
         .reviews-loading {
@@ -1278,14 +1351,14 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
             grid-template-columns: 1fr;
           }
 
-          .review-footer {
-            flex-direction: column;
-            align-items: flex-start;
+          .review-header-row {
+            flex-wrap: wrap;
           }
 
-          .review-actions {
-            width: 100%;
-            justify-content: flex-end;
+          .action-menu {
+            right: -10px;
+            left: auto;
+            min-width: 160px;
           }
         }
       `}</style>
