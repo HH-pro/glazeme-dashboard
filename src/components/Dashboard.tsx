@@ -48,9 +48,7 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
- const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([
-   
-  ]);
+ const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([]);
 
   const handleAddUpdate = (update: Omit<BuildUpdate, 'id'>) => {
     const newUpdate: BuildUpdate = {
