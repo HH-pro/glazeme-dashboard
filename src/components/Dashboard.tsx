@@ -18,7 +18,7 @@ import {
   FaBrain, 
   FaChartLine,
   FaCloud, 
-  FaShield, 
+   
   FaBell, 
   FaSearch,
   FaFilter, 
