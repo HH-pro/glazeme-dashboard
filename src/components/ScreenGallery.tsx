@@ -309,12 +309,12 @@ const ScreenGallery: React.FC<Props> = ({
       modalImage.resize(scale().width(600));
 
       return (
-        <AdvancedImage 
-          cldImg={modalImage} 
-          style={styles.modalImage}
-          onClick={(e) => handleImageClick(screen, e)}
-          onError={() => handleImageError(screen.id)}
-        />
+       <AdvancedImage 
+  cldImg={modalImage} 
+  style={styles.modalImage}
+  onClick={(e: React.MouseEvent<HTMLImageElement>) => handleImageClick(screen, e)}
+  onError={() => handleImageError(screen.id)}
+/>
       );
     } catch (error) {
       console.error('Error creating modal image:', error);
