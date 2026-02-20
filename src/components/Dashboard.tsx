@@ -1,7 +1,7 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
@@ -9,19 +9,33 @@ import TechnicalLog from './TechnicalLog';
 import DeploymentTracker from './DeploymentTracker';
 import PasswordModal from './PasswordModal';
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
+
+// Import icons correctly for React
+import { 
+  FaRocket, 
+  FaMobile, 
+  FaCode, 
+  FaBrain, 
+  FaChartLine,
+  FaCloud, 
+  FaShield, 
+  FaBell, 
+  FaSearch,
+  FaFilter, 
+  FaClock,
+  FaCheckCircle, 
+  FaExclamationTriangle,
+  FaRedo, 
+  FaBars, 
+  FaTimes,
+  FaChevronDown
+} from 'react-icons/fa';
+
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   Area, AreaChart, ComposedChart
 } from 'recharts';
-import {
-  FaRocket, FaMobile, FaCode, FaBrain, FaChartLine,
-  FaGithub, FaCloud, FaBell, FaSearch,
-  FaFilter, FaDownload, FaShare, FaStar, FaClock,
-  FaCheckCircle, FaExclamationTriangle, FaPlayCircle,
-  FaPauseCircle, FaStopCircle, FaRedo, FaPlus,
-  FaChevronDown, FaChevronUp, FaBars, FaTimes
-} from 'react-icons/fa';
 
 const Dashboard: React.FC = () => {
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
@@ -100,8 +114,7 @@ const Dashboard: React.FC = () => {
             })) as BuildUpdate[];
             setUpdates(updatesData);
           },
-          (error) => {
-            console.error('Updates listener error:', error);
+          () => {
             setError('Failed to load updates');
           }
         );
@@ -122,12 +135,12 @@ const Dashboard: React.FC = () => {
             const progressData = [
               { name: 'Completed', value: screensData.length },
               { name: 'In Progress', value: Math.floor(screensData.length * 0.3) },
-              { name: 'Planned', value: 20 - screensData.length }
+              { name: 'Planned', value: Math.max(0, 20 - screensData.length) }
             ];
             setChartData(prev => ({ ...prev, screenProgress: progressData }));
           },
-          (error) => {
-            console.error('Screens listener error:', error);
+          () => {
+            // Error handled silently
           }
         );
 
@@ -167,8 +180,8 @@ const Dashboard: React.FC = () => {
 
             setChartData(prev => ({ ...prev, commitsOverTime: commitsByDay }));
           },
-          (error) => {
-            console.error('Commits listener error:', error);
+          () => {
+            // Error handled silently
           }
         );
 
@@ -199,8 +212,8 @@ const Dashboard: React.FC = () => {
 
             setChartData(prev => ({ ...prev, aiPerformance: last10Calls }));
           },
-          (error) => {
-            console.error('AI Metrics listener error:', error);
+          () => {
+            // Error handled silently
           }
         );
 
@@ -215,8 +228,7 @@ const Dashboard: React.FC = () => {
           unsubscribeCommits();
           unsubscribeAI();
         };
-      } catch (error) {
-        console.error('Setup error:', error);
+      } catch {
         setError('Failed to initialize dashboard');
         setIsLoading(false);
       }
@@ -275,8 +287,7 @@ const Dashboard: React.FC = () => {
         date: new Date()
       });
       addNotification('Build update added successfully', 'success');
-    } catch (error) {
-      console.error('Error adding update:', error);
+    } catch {
       addNotification('Failed to add build update', 'error');
     }
   }, [isEditMode, handleEditAction, addNotification]);
@@ -292,8 +303,7 @@ const Dashboard: React.FC = () => {
         date: new Date()
       });
       addNotification('Screen capture added successfully', 'success');
-    } catch (error) {
-      console.error('Error adding screen:', error);
+    } catch {
       addNotification('Failed to add screen capture', 'error');
     }
   }, [isEditMode, handleEditAction, addNotification]);
@@ -309,8 +319,7 @@ const Dashboard: React.FC = () => {
         timestamp: new Date()
       });
       addNotification('Commit added successfully', 'success');
-    } catch (error) {
-      console.error('Error adding commit:', error);
+    } catch {
       addNotification('Failed to add commit', 'error');
     }
   }, [isEditMode, handleEditAction, addNotification]);
@@ -326,8 +335,7 @@ const Dashboard: React.FC = () => {
         timestamp: new Date()
       });
       addNotification('AI metric added successfully', 'success');
-    } catch (error) {
-      console.error('Error adding AI metric:', error);
+    } catch {
       addNotification('Failed to add AI metric', 'error');
     }
   }, [isEditMode, handleEditAction, addNotification]);
@@ -343,15 +351,15 @@ const Dashboard: React.FC = () => {
 
   const filteredUpdates = useMemo(() => {
     return updates.filter(update => 
-      update.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      update.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      (update.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (update.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
     );
   }, [updates, searchQuery]);
 
   const filteredScreens = useMemo(() => {
     return screens.filter(screen =>
-      screen.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      screen.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      (screen.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (screen.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
     );
   }, [screens, searchQuery]);
 
@@ -579,8 +587,8 @@ const Dashboard: React.FC = () => {
                     dataKey="value"
                     label
                   >
-                    {chartData.screenProgress.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#FF8C42', '#FFE55C', '#FFB347'][index]} />
+                    {chartData.screenProgress.map((_entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#FF8C42', '#FFE55C', '#FFB347'][index % 3]} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -686,16 +694,6 @@ const Dashboard: React.FC = () => {
                 <span style={styles.feedText}>
                   <strong>{update.title}</strong> - {update.description}
                 </span>
-                {update.type && (
-                  <span style={{
-                    ...styles.feedBadge,
-                    ...(update.type === 'feature' ? styles.badgeFeature : {}),
-                    ...(update.type === 'bugfix' ? styles.badgeBugfix : {}),
-                    ...(update.type === 'deployment' ? styles.badgeDeployment : {})
-                  }}>
-                    {update.type}
-                  </span>
-                )}
               </div>
             ))}
           </div>
@@ -708,17 +706,18 @@ const Dashboard: React.FC = () => {
   );
 };
 
-const styles = {
+// Styles object with proper typing
+const styles: { [key: string]: React.CSSProperties } = {
   container: {
     minHeight: '100vh',
     backgroundColor: '#f8f9fa',
-    position: 'relative' as const,
+    position: 'relative',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    overflowX: 'hidden' as const
+    overflowX: 'hidden'
   },
   loadingContainer: {
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '100vh',
@@ -739,13 +738,13 @@ const styles = {
   },
   errorContainer: {
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '100vh',
     backgroundColor: '#f8f9fa',
     padding: '20px',
-    textAlign: 'center' as const
+    textAlign: 'center'
   },
   errorTitle: {
     marginTop: '20px',
@@ -769,10 +768,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#e07b3b'
-    }
+    transition: 'all 0.2s'
   },
   mobileHeader: {
     display: 'none',
@@ -783,11 +779,11 @@ const styles = {
       padding: '15px 20px',
       backgroundColor: 'white',
       boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-      position: 'sticky' as const,
+      position: 'sticky',
       top: 0,
       zIndex: 1000
     }
-  },
+  } as React.CSSProperties,
   menuButton: {
     background: 'none',
     border: 'none',
@@ -803,12 +799,12 @@ const styles = {
     margin: 0
   },
   mobileNotifications: {
-    position: 'relative' as const,
+    position: 'relative',
     fontSize: '20px',
     color: '#666'
   },
   notificationBadge: {
-    position: 'absolute' as const,
+    position: 'absolute',
     top: '-8px',
     right: '-8px',
     backgroundColor: '#dc3545',
@@ -817,15 +813,15 @@ const styles = {
     padding: '2px 6px',
     borderRadius: '10px',
     minWidth: '18px',
-    textAlign: 'center' as const
+    textAlign: 'center'
   },
   notificationContainer: {
-    position: 'fixed' as const,
+    position: 'fixed',
     top: '20px',
     right: '20px',
     zIndex: 9999,
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     gap: '10px'
   },
   notification: {
@@ -847,42 +843,32 @@ const styles = {
     backgroundColor: '#17a2b8'
   },
   sidebarOverlay: {
-    position: 'fixed' as const,
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 1001,
-    '@media (min-width: 769px)': {
-      display: 'none'
-    }
+    zIndex: 1001
   },
   mainContent: {
     maxWidth: '1600px',
     margin: '0 auto',
     padding: '20px',
-    transition: 'all 0.3s ease',
-    '@media (max-width: 768px)': {
-      padding: '15px',
-      marginLeft: 0
-    }
+    transition: 'all 0.3s ease'
   },
   mainContentShifted: {
     '@media (max-width: 768px)': {
       transform: 'translateX(250px)',
       overflow: 'hidden'
     }
-  },
+  } as React.CSSProperties,
   header: {
     marginBottom: '30px',
     padding: '25px',
     backgroundColor: 'white',
     borderRadius: '16px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-    '@media (max-width: 768px)': {
-      padding: '20px 15px'
-    }
+    boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
   },
   gradientBar: {
     height: '6px',
@@ -895,12 +881,8 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '20px',
-    flexWrap: 'wrap' as const,
-    gap: '15px',
-    '@media (max-width: 1024px)': {
-      flexDirection: 'column' as const,
-      alignItems: 'flex-start'
-    }
+    flexWrap: 'wrap',
+    gap: '15px'
   },
   headerLeft: {
     display: 'flex',
@@ -931,19 +913,13 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    flexWrap: 'wrap' as const,
-    '@media (max-width: 1024px)': {
-      width: '100%'
-    }
+    flexWrap: 'wrap'
   },
   searchContainer: {
-    position: 'relative' as const,
-    '@media (max-width: 1024px)': {
-      flex: 1
-    }
+    position: 'relative'
   },
   searchIcon: {
-    position: 'absolute' as const,
+    position: 'absolute',
     left: '12px',
     top: '50%',
     transform: 'translateY(-50%)',
@@ -957,18 +933,7 @@ const styles = {
     fontSize: '14px',
     width: '250px',
     transition: 'all 0.2s',
-    ':focus': {
-      outline: 'none',
-      borderColor: '#FF8C42',
-      boxShadow: '0 0 0 3px rgba(255,140,66,0.1)',
-      width: '300px'
-    },
-    '@media (max-width: 1024px)': {
-      width: '100%',
-      ':focus': {
-        width: '100%'
-      }
-    }
+    outline: 'none'
   },
   filterButton: {
     padding: '10px 15px',
@@ -980,16 +945,13 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#f8f9fa'
-    }
+    transition: 'all 0.2s'
   },
   buildBadge: {
     display: 'flex',
     gap: '10px',
     alignItems: 'center',
-    flexWrap: 'wrap' as const
+    flexWrap: 'wrap'
   },
   buildVersion: {
     padding: '6px 12px',
@@ -1020,7 +982,7 @@ const styles = {
     padding: '12px',
     borderRadius: '8px',
     marginBottom: '20px',
-    textAlign: 'center' as const,
+    textAlign: 'center',
     fontWeight: '500',
     fontSize: '14px',
     display: 'flex',
@@ -1038,15 +1000,11 @@ const styles = {
     padding: '20px 15px',
     backgroundColor: '#f8f9fa',
     borderRadius: '12px',
-    textAlign: 'center' as const,
+    textAlign: 'center',
     border: '1px solid #e9ecef',
     transition: 'all 0.2s',
     cursor: 'pointer',
-    position: 'relative' as const,
-    ':hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-    }
+    position: 'relative'
   },
   statIcon: {
     fontSize: '24px',
@@ -1062,11 +1020,11 @@ const styles = {
   statLabel: {
     fontSize: '12px',
     color: '#6c757d',
-    textTransform: 'uppercase' as const,
+    textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
   statTrend: {
-    position: 'absolute' as const,
+    position: 'absolute',
     top: '8px',
     right: '8px',
     fontSize: '11px',
@@ -1095,7 +1053,7 @@ const styles = {
   specs: {
     display: 'flex',
     gap: '10px',
-    flexWrap: 'wrap' as const,
+    flexWrap: 'wrap',
     marginTop: '15px'
   },
   specItem: {
@@ -1105,33 +1063,20 @@ const styles = {
     fontSize: '12px',
     color: '#495057',
     border: '1px solid #dee2e6',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#e9ecef'
-    }
+    transition: 'all 0.2s'
   },
   tabs: {
     display: 'flex',
     gap: '5px',
     marginBottom: '25px',
-    flexWrap: 'wrap' as const,
+    flexWrap: 'wrap',
     backgroundColor: 'white',
     padding: '10px',
     borderRadius: '12px',
     boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-    position: 'sticky' as const,
+    position: 'sticky',
     top: '10px',
-    zIndex: 100,
-    '@media (max-width: 768px)': {
-      top: '70px',
-      overflowX: 'auto' as const,
-      flexWrap: 'nowrap' as const,
-      WebkitOverflowScrolling: 'touch',
-      scrollbarWidth: 'none' as const,
-      '::-webkit-scrollbar': {
-        display: 'none'
-      }
-    }
+    zIndex: 100
   },
   tab: {
     padding: '12px 20px',
@@ -1146,15 +1091,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    position: 'relative' as const,
-    ':hover': {
-      backgroundColor: '#f8f9fa',
-      color: '#FF8C42'
-    },
-    '@media (max-width: 768px)': {
-      padding: '10px 15px',
-      whiteSpace: 'nowrap' as const
-    }
+    position: 'relative'
   },
   activeTab: {
     color: '#FF8C42',
@@ -1162,15 +1099,15 @@ const styles = {
     fontWeight: '600'
   },
   tabIcon: {
-    fontSize: '16px'
+    fontSize: '16px',
+    display: 'flex',
+    alignItems: 'center'
   },
   tabLabel: {
-    '@media (max-width: 480px)': {
-      display: 'none'
-    }
+    whiteSpace: 'nowrap' as const
   },
   tabIndicator: {
-    position: 'absolute' as const,
+    position: 'absolute',
     bottom: '-5px',
     left: '50%',
     transform: 'translateX(-50%)',
@@ -1185,10 +1122,7 @@ const styles = {
     borderRadius: '16px',
     padding: '25px',
     boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-    marginBottom: '25px',
-    '@media (max-width: 768px)': {
-      padding: '15px'
-    }
+    marginBottom: '25px'
   },
   footer: {
     backgroundColor: 'white',
@@ -1229,7 +1163,7 @@ const styles = {
   },
   feedContent: {
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     gap: '10px',
     marginBottom: '15px'
   },
@@ -1241,11 +1175,8 @@ const styles = {
     backgroundColor: '#f8f9fa',
     borderRadius: '8px',
     alignItems: 'center',
-    flexWrap: 'wrap' as const,
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#f1f3f5'
-    }
+    flexWrap: 'wrap',
+    transition: 'all 0.2s'
   },
   feedTime: {
     color: '#6c757d',
@@ -1261,7 +1192,7 @@ const styles = {
     borderRadius: '12px',
     fontSize: '11px',
     fontWeight: '600',
-    textTransform: 'uppercase' as const
+    textTransform: 'uppercase'
   },
   badgeFeature: {
     backgroundColor: '#cce5ff',
@@ -1288,25 +1219,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '5px',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#e9ecef'
-    }
-  },
-
-  // Global animations
-  '@keyframes spin': {
-    '0%': { transform: 'rotate(0deg)' },
-    '100%': { transform: 'rotate(360deg)' }
-  },
-  '@keyframes slideIn': {
-    '0%': { transform: 'translateX(100%)', opacity: 0 },
-    '100%': { transform: 'translateX(0)', opacity: 1 }
-  },
-  '@keyframes pulse': {
-    '0%': { opacity: 1 },
-    '50%': { opacity: 0.5 },
-    '100%': { opacity: 1 }
+    transition: 'all 0.2s'
   }
 };
 
