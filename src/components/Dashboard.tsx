@@ -46,7 +46,6 @@ interface Notification {
 
 interface ChartData {
   commitsOverTime: Array<{ date: string; commits: number }>;
-  aiPerformance: Array<{ time: string; responseTime: number; success: number }>;
   screenProgress: Array<{ name: string; value: number }>;
 }
 
@@ -54,7 +53,6 @@ const Dashboard: React.FC = () => {
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [screens, setScreens] = useState<ScreenCapture[]>([]);
   const [commits, setCommits] = useState<CodeCommit[]>([]);
-  const [aiMetrics, setAiMetrics] = useState<AIPromptMetric[]>([]);
   const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech' | 'deploy'>('updates');
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -66,20 +64,13 @@ const Dashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [buildStats, setBuildStats] = useState({
     totalCommits: 0,
-    totalAdditions: 0,
-    totalDeletions: 0,
-    aiCalls: 0,
-    avgResponseTime: 0,
     screensCompleted: 0,
     activeBuilds: 3,
-    testCoverage: 78,
-    performanceScore: 92,
-    securityScore: 85
+    testCoverage: 78
   });
 
   const [chartData, setChartData] = useState<ChartData>({
     commitsOverTime: [],
-    aiPerformance: [],
     screenProgress: []
   });
 
@@ -167,13 +158,9 @@ const Dashboard: React.FC = () => {
             })) as CodeCommit[];
             setCommits(commitsData);
             
-            const totalAdds = commitsData.reduce((acc, c) => acc + (c.additions || 0), 0);
-            const totalDels = commitsData.reduce((acc, c) => acc + (c.deletions || 0), 0);
             setBuildStats(prev => ({ 
               ...prev, 
-              totalCommits: commitsData.length,
-              totalAdditions: totalAdds,
-              totalDeletions: totalDels
+              totalCommits: commitsData.length
             }));
 
             // Update commits over time chart
@@ -197,38 +184,6 @@ const Dashboard: React.FC = () => {
           }
         );
 
-        // AI Metrics listener
-        const aiQuery = query(collection(db, 'aiMetrics'), orderBy('timestamp', 'desc'), limit(100));
-        const unsubscribeAI = onSnapshot(aiQuery,
-          (snapshot) => {
-            const aiData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-              timestamp: doc.data().timestamp.toDate()
-            })) as AIPromptMetric[];
-            setAiMetrics(aiData);
-            
-            const avgTime = aiData.reduce((acc, m) => acc + (m.responseTime || 0), 0) / aiData.length || 0;
-            setBuildStats(prev => ({ 
-              ...prev, 
-              aiCalls: aiData.length,
-              avgResponseTime: Math.round(avgTime * 100) / 100
-            }));
-
-            // Update AI performance chart
-            const last10Calls = aiData.slice(0, 10).reverse().map((m, i) => ({
-              time: `${i + 1}`,
-              responseTime: m.responseTime || 0,
-              success: m.success ? 1 : 0
-            }));
-
-            setChartData(prev => ({ ...prev, aiPerformance: last10Calls }));
-          },
-          () => {
-            // Error handled silently
-          }
-        );
-
         setIsLoading(false);
         addNotification('Welcome to GlazeMe Dashboard', 'success');
 
@@ -236,7 +191,6 @@ const Dashboard: React.FC = () => {
           unsubscribeUpdates();
           unsubscribeScreens();
           unsubscribeCommits();
-          unsubscribeAI();
         };
       } catch {
         setError('Failed to initialize dashboard');
@@ -275,9 +229,6 @@ const Dashboard: React.FC = () => {
           break;
         case 'addCommit':
           addCodeCommit(pendingAction.data);
-          break;
-        case 'addAIMetric':
-          addAIMetric(pendingAction.data);
           break;
         default:
           break;
@@ -331,22 +282,6 @@ const Dashboard: React.FC = () => {
       addNotification('Commit added successfully', 'success');
     } catch {
       addNotification('Failed to add commit', 'error');
-    }
-  }, [isEditMode, handleEditAction, addNotification]);
-
-  const addAIMetric = useCallback(async (metric: Omit<AIPromptMetric, 'id'>) => {
-    if (!isEditMode) {
-      handleEditAction('addAIMetric', metric);
-      return;
-    }
-    try {
-      await addDoc(collection(db, 'aiMetrics'), {
-        ...metric,
-        timestamp: new Date()
-      });
-      addNotification('AI metric added successfully', 'success');
-    } catch {
-      addNotification('Failed to add AI metric', 'error');
     }
   }, [isEditMode, handleEditAction, addNotification]);
 
@@ -661,7 +596,7 @@ const Dashboard: React.FC = () => {
     },
     statsGrid: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
       gap: '15px',
       marginBottom: '25px'
     },
@@ -1011,47 +946,23 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Stats Grid */}
+          {/* Stats Grid - Updated with only two metrics */}
           <div style={styles.statsGrid}>
             <div style={styles.statCard}>
               <div style={styles.statIcon}><Icons.Code /></div>
               <span style={styles.statValue}>{buildStats.totalCommits}</span>
-              <span style={styles.statLabel}>Commits</span>
-              <small style={styles.statTrend}>+12%</small>
-            </div>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}><Icons.Brain /></div>
-              <span style={styles.statValue}>{buildStats.aiCalls}</span>
-              <span style={styles.statLabel}>AI Calls</span>
-              <small style={styles.statTrend}>+8%</small>
+              <span style={styles.statLabel}>Total Commits</span>
+              <small style={styles.statTrend}>+{buildStats.totalCommits > 0 ? Math.floor(buildStats.totalCommits * 0.12) : 0}</small>
             </div>
             <div style={styles.statCard}>
               <div style={styles.statIcon}><Icons.Mobile /></div>
               <span style={styles.statValue}>{buildStats.screensCompleted}</span>
-              <span style={styles.statLabel}>Screens</span>
-              <small style={styles.statTrend}>+3</small>
-            </div>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}><Icons.Chart /></div>
-              <span style={styles.statValue}>{buildStats.performanceScore}%</span>
-              <span style={styles.statLabel}>Performance</span>
-              <small style={styles.statTrend}>+5%</small>
-            </div>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}><Icons.Cloud /></div>
-              <span style={styles.statValue}>{buildStats.securityScore}%</span>
-              <span style={styles.statLabel}>Security</span>
-              <small style={styles.statTrend}>+2%</small>
-            </div>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}><Icons.Clock /></div>
-              <span style={styles.statValue}>{buildStats.avgResponseTime}ms</span>
-              <span style={styles.statLabel}>Response</span>
-              <small style={styles.statTrend}>-15ms</small>
+              <span style={styles.statLabel}>Screens Completed</span>
+              <small style={styles.statTrend}>+{buildStats.screensCompleted > 0 ? Math.floor(buildStats.screensCompleted * 0.15) : 0}</small>
             </div>
           </div>
 
-          {/* Charts Grid */}
+          {/* Charts Grid - Updated with only two charts */}
           <div style={styles.chartsGrid}>
             <div style={styles.chartCard}>
               <h3 style={styles.chartTitle}>Commits Over Time</h3>
@@ -1063,22 +974,6 @@ const Dashboard: React.FC = () => {
                   <Tooltip />
                   <Area type="monotone" dataKey="commits" stroke="#FF8C42" fill="#FFE55C" />
                 </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div style={styles.chartCard}>
-              <h3 style={styles.chartTitle}>AI Performance</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <ComposedChart data={chartData.aiPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
-                  <Legend />
-                  <Bar yAxisId="right" dataKey="success" fill="#28a745" />
-                  <Line yAxisId="left" type="monotone" dataKey="responseTime" stroke="#FF8C42" />
-                </ComposedChart>
               </ResponsiveContainer>
             </div>
 
