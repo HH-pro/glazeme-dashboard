@@ -444,40 +444,6 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
         </div>
       </div>
 
-      {/* Current Status */}
-      <div style={styles.statusCard}>
-        <div style={styles.statusHeader}>
-          <span style={styles.statusIcon}>⚡</span>
-          <span style={styles.statusTitle}>Current Development Status</span>
-        </div>
-        <div style={styles.statusContent}>
-          <p style={styles.statusText}>
-            <strong>Active Week:</strong> Week {activeWeek} - {weeks.find(w => w.number === activeWeek)?.focus}
-          </p>
-          <p style={styles.statusText}>
-            <strong>Screen Progress:</strong> {completedScreens}/{totalScreens} screens complete
-          </p>
-         <p style={styles.statusText}>
-  <strong>Next Screen:</strong>{' '}
-  {weeks.find(w => w.number === activeWeek)?.screens.find((_, i) => {
-    const prevWeek = weeks[activeWeek - 1];
-    if (!activeWeek || !prevWeek || !prevWeek.progress || !prevWeek.screens) return false;
-
-    return !(prevWeek.progress > (i / prevWeek.screens.length) * 100);
-  }) || 'All screens in progress'}
-</p>
-        </div>
-        <div style={styles.statusTags}>
-          <span style={styles.statusTag}>🔨 In Development</span>
-          <span style={styles.statusTag}>🎨 Design Ready</span>
-          <span style={styles.statusTag}>🧪 Testing</span>
-          <span style={styles.statusTag}>✅ Complete</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const styles = {
   header: {
     display: 'flex',
