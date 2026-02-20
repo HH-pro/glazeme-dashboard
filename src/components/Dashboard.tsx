@@ -529,8 +529,8 @@ const Dashboard: React.FC = () => {
                   icon={<Icons.Star />} 
                   time={new Date(r.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 
                   text={`New Review: ${r.updateTitle || 'General'}`}
-                  subtext={`Rating: ${r.rating}/5`}
-                  highlight={r.rating >= 4}
+                 subtext={`Rating: ${r.rating ? `${r.rating}/5` : 'No rating'}`}
+highlight={r.rating ? r.rating >= 4 : false}
                 />
               ))}
             </div>
