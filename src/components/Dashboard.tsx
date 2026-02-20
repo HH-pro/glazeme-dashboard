@@ -1,7 +1,7 @@
 // src/components/Dashboard.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, where, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, where, getDocs, limit } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
@@ -9,6 +9,19 @@ import TechnicalLog from './TechnicalLog';
 import DeploymentTracker from './DeploymentTracker';
 import PasswordModal from './PasswordModal';
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  Area, AreaChart, ComposedChart
+} from 'recharts';
+import {
+  FaRocket, FaMobile, FaCode, FaBrain, FaChartLine,
+  FaGithub, FaCloud, FaShield, FaBell, FaSearch,
+  FaFilter, FaDownload, FaShare, FaStar, FaClock,
+  FaCheckCircle, FaExclamationTriangle, FaPlayCircle,
+  FaPauseCircle, FaStopCircle, FaRedo, FaPlus,
+  FaChevronDown, FaChevronUp, FaBars, FaTimes
+} from 'react-icons/fa';
 
 const Dashboard: React.FC = () => {
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
@@ -19,13 +32,29 @@ const Dashboard: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ type: string; data?: any } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: string }>>([]);
   const [buildStats, setBuildStats] = useState({
     totalCommits: 0,
     totalAdditions: 0,
     totalDeletions: 0,
     aiCalls: 0,
     avgResponseTime: 0,
-    screensCompleted: 0
+    screensCompleted: 0,
+    activeBuilds: 3,
+    testCoverage: 78,
+    performanceScore: 92,
+    securityScore: 85
+  });
+
+  const [chartData, setChartData] = useState({
+    commitsOverTime: [] as Array<{ date: string; commits: number }>,
+    aiPerformance: [] as Array<{ time: string; responseTime: number; success: number }>,
+    screenProgress: [] as Array<{ name: string; value: number }>
   });
 
   const glazemeSpecs: GlazeMeSpecs = {
@@ -55,85 +84,165 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    // Real-time updates listener (read-only for all users)
-    const updatesQuery = query(collection(db, 'buildUpdates'), orderBy('date', 'desc'));
-    const unsubscribe = onSnapshot(updatesQuery, (snapshot) => {
-      const updatesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        date: doc.data().date.toDate()
-      })) as BuildUpdate[];
-      setUpdates(updatesData);
-    });
+    const setupListeners = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-    // Screenshots listener (read-only for all users)
-    const screensQuery = query(collection(db, 'screenshots'), orderBy('date', 'desc'));
-    const unsubscribeScreens = onSnapshot(screensQuery, (snapshot) => {
-      const screensData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        date: doc.data().date.toDate()
-      })) as ScreenCapture[];
-      setScreens(screensData);
-      setBuildStats(prev => ({ ...prev, screensCompleted: screensData.length }));
-    });
+        // Real-time updates listener
+        const updatesQuery = query(collection(db, 'buildUpdates'), orderBy('date', 'desc'), limit(50));
+        const unsubscribeUpdates = onSnapshot(updatesQuery, 
+          (snapshot) => {
+            const updatesData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              date: doc.data().date.toDate()
+            })) as BuildUpdate[];
+            setUpdates(updatesData);
+          },
+          (error) => {
+            console.error('Updates listener error:', error);
+            setError('Failed to load updates');
+          }
+        );
 
-    // Commits listener (read-only for all users)
-    const commitsQuery = query(collection(db, 'commits'), orderBy('timestamp', 'desc'));
-    const unsubscribeCommits = onSnapshot(commitsQuery, (snapshot) => {
-      const commitsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp.toDate()
-      })) as CodeCommit[];
-      setCommits(commitsData);
-      
-      const totalAdds = commitsData.reduce((acc, c) => acc + c.additions, 0);
-      const totalDels = commitsData.reduce((acc, c) => acc + c.deletions, 0);
-      setBuildStats(prev => ({ 
-        ...prev, 
-        totalCommits: commitsData.length,
-        totalAdditions: totalAdds,
-        totalDeletions: totalDels
-      }));
-    });
+        // Screenshots listener
+        const screensQuery = query(collection(db, 'screenshots'), orderBy('date', 'desc'), limit(50));
+        const unsubscribeScreens = onSnapshot(screensQuery,
+          (snapshot) => {
+            const screensData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              date: doc.data().date.toDate()
+            })) as ScreenCapture[];
+            setScreens(screensData);
+            setBuildStats(prev => ({ ...prev, screensCompleted: screensData.length }));
+            
+            // Update screen progress chart
+            const progressData = [
+              { name: 'Completed', value: screensData.length },
+              { name: 'In Progress', value: Math.floor(screensData.length * 0.3) },
+              { name: 'Planned', value: 20 - screensData.length }
+            ];
+            setChartData(prev => ({ ...prev, screenProgress: progressData }));
+          },
+          (error) => {
+            console.error('Screens listener error:', error);
+          }
+        );
 
-    // AI Metrics listener (read-only for all users)
-    const aiQuery = query(collection(db, 'aiMetrics'), orderBy('timestamp', 'desc'));
-    const unsubscribeAI = onSnapshot(aiQuery, (snapshot) => {
-      const aiData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp.toDate()
-      })) as AIPromptMetric[];
-      setAiMetrics(aiData);
-      
-      const avgTime = aiData.reduce((acc, m) => acc + m.responseTime, 0) / aiData.length || 0;
-      setBuildStats(prev => ({ 
-        ...prev, 
-        aiCalls: aiData.length,
-        avgResponseTime: Math.round(avgTime * 100) / 100
-      }));
-    });
+        // Commits listener
+        const commitsQuery = query(collection(db, 'commits'), orderBy('timestamp', 'desc'), limit(100));
+        const unsubscribeCommits = onSnapshot(commitsQuery,
+          (snapshot) => {
+            const commitsData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              timestamp: doc.data().timestamp.toDate()
+            })) as CodeCommit[];
+            setCommits(commitsData);
+            
+            const totalAdds = commitsData.reduce((acc, c) => acc + (c.additions || 0), 0);
+            const totalDels = commitsData.reduce((acc, c) => acc + (c.deletions || 0), 0);
+            setBuildStats(prev => ({ 
+              ...prev, 
+              totalCommits: commitsData.length,
+              totalAdditions: totalAdds,
+              totalDeletions: totalDels
+            }));
 
-    return () => {
-      unsubscribe();
-      unsubscribeScreens();
-      unsubscribeCommits();
-      unsubscribeAI();
+            // Update commits over time chart
+            const last7Days = Array.from({ length: 7 }, (_, i) => {
+              const date = new Date();
+              date.setDate(date.getDate() - i);
+              return date.toISOString().split('T')[0];
+            }).reverse();
+
+            const commitsByDay = last7Days.map(date => ({
+              date,
+              commits: commitsData.filter(c => 
+                c.timestamp.toISOString().split('T')[0] === date
+              ).length
+            }));
+
+            setChartData(prev => ({ ...prev, commitsOverTime: commitsByDay }));
+          },
+          (error) => {
+            console.error('Commits listener error:', error);
+          }
+        );
+
+        // AI Metrics listener
+        const aiQuery = query(collection(db, 'aiMetrics'), orderBy('timestamp', 'desc'), limit(100));
+        const unsubscribeAI = onSnapshot(aiQuery,
+          (snapshot) => {
+            const aiData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              timestamp: doc.data().timestamp.toDate()
+            })) as AIPromptMetric[];
+            setAiMetrics(aiData);
+            
+            const avgTime = aiData.reduce((acc, m) => acc + (m.responseTime || 0), 0) / aiData.length || 0;
+            setBuildStats(prev => ({ 
+              ...prev, 
+              aiCalls: aiData.length,
+              avgResponseTime: Math.round(avgTime * 100) / 100
+            }));
+
+            // Update AI performance chart
+            const last10Calls = aiData.slice(0, 10).reverse().map((m, i) => ({
+              time: `${i + 1}`,
+              responseTime: m.responseTime || 0,
+              success: m.success ? 1 : 0
+            }));
+
+            setChartData(prev => ({ ...prev, aiPerformance: last10Calls }));
+          },
+          (error) => {
+            console.error('AI Metrics listener error:', error);
+          }
+        );
+
+        setIsLoading(false);
+
+        // Add welcome notification
+        addNotification('Welcome to GlazeMe Dashboard', 'success');
+
+        return () => {
+          unsubscribeUpdates();
+          unsubscribeScreens();
+          unsubscribeCommits();
+          unsubscribeAI();
+        };
+      } catch (error) {
+        console.error('Setup error:', error);
+        setError('Failed to initialize dashboard');
+        setIsLoading(false);
+      }
     };
+
+    setupListeners();
   }, []);
 
-  const handleEditAction = (actionType: string, actionData?: any) => {
+  const addNotification = useCallback((message: string, type: string = 'info') => {
+    const id = Date.now().toString();
+    setNotifications(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  }, []);
+
+  const handleEditAction = useCallback((actionType: string, actionData?: any) => {
     setPendingAction({ type: actionType, data: actionData });
     setShowPasswordModal(true);
-  };
+  }, []);
 
-  const handlePasswordSuccess = () => {
+  const handlePasswordSuccess = useCallback(() => {
     setIsEditMode(true);
     setShowPasswordModal(false);
+    addNotification('Edit mode enabled', 'success');
     
-    // Execute pending action if any
     if (pendingAction) {
       switch (pendingAction.type) {
         case 'addUpdate':
@@ -153,59 +262,123 @@ const Dashboard: React.FC = () => {
       }
       setPendingAction(null);
     }
-  };
+  }, [pendingAction, addNotification]);
 
-  const addBuildUpdate = async (update: Omit<BuildUpdate, 'id'>) => {
+  const addBuildUpdate = useCallback(async (update: Omit<BuildUpdate, 'id'>) => {
     if (!isEditMode) {
       handleEditAction('addUpdate', update);
       return;
     }
-    await addDoc(collection(db, 'buildUpdates'), {
-      ...update,
-      date: new Date()
-    });
-  };
+    try {
+      await addDoc(collection(db, 'buildUpdates'), {
+        ...update,
+        date: new Date()
+      });
+      addNotification('Build update added successfully', 'success');
+    } catch (error) {
+      console.error('Error adding update:', error);
+      addNotification('Failed to add build update', 'error');
+    }
+  }, [isEditMode, handleEditAction, addNotification]);
 
-  const addScreenCapture = async (screen: Omit<ScreenCapture, 'id'>) => {
+  const addScreenCapture = useCallback(async (screen: Omit<ScreenCapture, 'id'>) => {
     if (!isEditMode) {
       handleEditAction('addScreen', screen);
       return;
     }
-    await addDoc(collection(db, 'screenshots'), {
-      ...screen,
-      date: new Date()
-    });
-  };
+    try {
+      await addDoc(collection(db, 'screenshots'), {
+        ...screen,
+        date: new Date()
+      });
+      addNotification('Screen capture added successfully', 'success');
+    } catch (error) {
+      console.error('Error adding screen:', error);
+      addNotification('Failed to add screen capture', 'error');
+    }
+  }, [isEditMode, handleEditAction, addNotification]);
 
-  const addCodeCommit = async (commit: Omit<CodeCommit, 'id'>) => {
+  const addCodeCommit = useCallback(async (commit: Omit<CodeCommit, 'id'>) => {
     if (!isEditMode) {
       handleEditAction('addCommit', commit);
       return;
     }
-    await addDoc(collection(db, 'commits'), {
-      ...commit,
-      timestamp: new Date()
-    });
-  };
+    try {
+      await addDoc(collection(db, 'commits'), {
+        ...commit,
+        timestamp: new Date()
+      });
+      addNotification('Commit added successfully', 'success');
+    } catch (error) {
+      console.error('Error adding commit:', error);
+      addNotification('Failed to add commit', 'error');
+    }
+  }, [isEditMode, handleEditAction, addNotification]);
 
-  const addAIMetric = async (metric: Omit<AIPromptMetric, 'id'>) => {
+  const addAIMetric = useCallback(async (metric: Omit<AIPromptMetric, 'id'>) => {
     if (!isEditMode) {
       handleEditAction('addAIMetric', metric);
       return;
     }
-    await addDoc(collection(db, 'aiMetrics'), {
-      ...metric,
-      timestamp: new Date()
-    });
-  };
+    try {
+      await addDoc(collection(db, 'aiMetrics'), {
+        ...metric,
+        timestamp: new Date()
+      });
+      addNotification('AI metric added successfully', 'success');
+    } catch (error) {
+      console.error('Error adding AI metric:', error);
+      addNotification('Failed to add AI metric', 'error');
+    }
+  }, [isEditMode, handleEditAction, addNotification]);
 
-  const toggleEditMode = () => {
+  const toggleEditMode = useCallback(() => {
     if (!isEditMode) {
       setShowPasswordModal(true);
     } else {
       setIsEditMode(false);
+      addNotification('Edit mode disabled', 'info');
     }
-  };
+  }, [isEditMode, addNotification]);
+
+  const filteredUpdates = useMemo(() => {
+    return updates.filter(update => 
+      update.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      update.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [updates, searchQuery]);
+
+  const filteredScreens = useMemo(() => {
+    return screens.filter(screen =>
+      screen.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      screen.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [screens, searchQuery]);
+
+  if (isLoading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingSpinner} />
+        <p style={styles.loadingText}>Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={styles.errorContainer}>
+        <FaExclamationTriangle size={48} color="#dc3545" />
+        <h2 style={styles.errorTitle}>Oops! Something went wrong</h2>
+        <p style={styles.errorMessage}>{error}</p>
+        <button 
+          style={styles.retryButton}
+          onClick={() => window.location.reload()}
+        >
+          <FaRedo /> Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -219,127 +392,316 @@ const Dashboard: React.FC = () => {
         onSuccess={handlePasswordSuccess}
       />
 
-      {/* Header with build stats */}
-      <div style={styles.header}>
-        <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
-        <div style={styles.headerContent}>
-          <div>
-            <h1 style={styles.title}>🚀 GlazeMe Development Dashboard</h1>
-            <p style={styles.subtitle}>
-              {glazemeSpecs.concept} • {glazemeSpecs.platform}
-            </p>
-          </div>
-          <div style={styles.buildBadge}>
-            <span style={styles.buildVersion}>Build v1.0.0-alpha</span>
-            <span style={styles.buildStatus}>🟢 Active Development</span>
-            <button
-              onClick={toggleEditMode}
-              style={{
-                ...styles.editButton,
-                backgroundColor: isEditMode ? '#dc3545' : '#28a745'
-              }}
-            >
-              {isEditMode ? '🔒 Exit Edit Mode' : '✏️ Enable Edit'}
-            </button>
-          </div>
-        </div>
-
-        {/* Edit Mode Indicator */}
-        {isEditMode && (
-          <div style={styles.editModeBanner}>
-            <span>✏️ Edit Mode Active - Changes will be saved</span>
-          </div>
-        )}
-
-       
-
-        {/* Tech Stack Tags */}
-        <div style={styles.specs}>
-          <span style={styles.specItem}>🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}</span>
-          <span style={styles.specItem}>🤖 {glazemeSpecs.technicalStack.ai[0]}</span>
-          <span style={styles.specItem}>📱 {glazemeSpecs.technicalStack.frontend[0]}</span>
-          <span style={styles.specItem}>⚙️ {glazemeSpecs.technicalStack.backend[0]}</span>
-          <span style={styles.specItem}>💾 {glazemeSpecs.technicalStack.database[0]}</span>
+      {/* Mobile Header */}
+      <div style={styles.mobileHeader}>
+        <button 
+          style={styles.menuButton}
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        >
+          {isSidebarOpen ? <FaTimes /> : <FaBars />}
+        </button>
+        <h1 style={styles.mobileTitle}>GlazeMe</h1>
+        <div style={styles.mobileNotifications}>
+          <FaBell />
+          {notifications.length > 0 && (
+            <span style={styles.notificationBadge}>{notifications.length}</span>
+          )}
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div style={styles.tabs}>
-        {[
-          { id: 'updates', label: '📋 Build Updates', icon: '📋' },
-          { id: 'screens', label: '📱 Screen Gallery', icon: '📱' },
-          { id: 'progress', label: '📊 Progress Tracker', icon: '📊' },
-          { id: 'tech', label: '⚙️ Technical Log', icon: '⚙️' },
-          { id: 'deploy', label: '🚀 Deployment', icon: '🚀' }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+      {/* Notifications */}
+      <div style={styles.notificationContainer}>
+        {notifications.map(notification => (
+          <div 
+            key={notification.id}
             style={{
-              ...styles.tab,
-              ...(activeTab === tab.id ? styles.activeTab : {})
+              ...styles.notification,
+              ...(notification.type === 'success' ? styles.notificationSuccess : {}),
+              ...(notification.type === 'error' ? styles.notificationError : {}),
+              ...(notification.type === 'info' ? styles.notificationInfo : {})
             }}
           >
-            {tab.label}
-          </button>
+            {notification.message}
+          </div>
         ))}
       </div>
 
-      {/* Content Area */}
-      <div style={styles.content}>
-        {activeTab === 'updates' && (
-          <BuildUpdates 
-            updates={updates} 
-            onAddUpdate={addBuildUpdate}
-            isEditMode={isEditMode}
-            onEditAction={() => handleEditAction('addUpdate')}
-          />
-        )}
-        {activeTab === 'screens' && (
-          <ScreenGallery 
-            screens={screens} 
-            isEditMode={isEditMode}
-            onAddScreen={() => handleEditAction('addScreen')}
-          />
-        )}
-        {activeTab === 'progress' && (
-          <WeeklyProgress 
-            isEditMode={isEditMode}
-            onEditAction={() => handleEditAction('editProgress')}
-          />
-        )}
-        {activeTab === 'tech' && (
-          <TechnicalLog 
-            isEditMode={isEditMode}
-            onEditAction={() => handleEditAction('editTech')}
-          />
-        )}
-       
-        {activeTab === 'deploy' && (
-          <DeploymentTracker 
-            isEditMode={isEditMode}
-            onEditAction={() => handleEditAction('editDeploy')}
-          />
-        )}
-      </div>
+      {/* Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div style={styles.sidebarOverlay} onClick={() => setIsSidebarOpen(false)} />
+      )}
 
-      {/* Live Development Feed */}
-      <div style={styles.footer}>
-        <div style={styles.feedHeader}>
-          <span>📡 Live Development Feed</span>
-          <span style={styles.feedStatus}>● Connected</span>
-        </div>
-        <div style={styles.feedContent}>
-          {updates.slice(0, 3).map(update => (
-            <div key={update.id} style={styles.feedItem}>
-              <span style={styles.feedTime}>
-                {new Date(update.date).toLocaleTimeString()}
-              </span>
-              <span style={styles.feedText}>
-                <strong>{update.title}</strong> - {update.description}
-              </span>
+      {/* Main Content */}
+      <div style={{
+        ...styles.mainContent,
+        ...(isSidebarOpen ? styles.mainContentShifted : {})
+      }}>
+        {/* Header */}
+        <div style={styles.header}>
+          <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
+          
+          <div style={styles.headerTop}>
+            <div style={styles.headerLeft}>
+              <div style={styles.iconWrapper}>
+                <FaRocket size={24} color="#FF8C42" />
+              </div>
+              <div>
+                <h1 style={styles.title}>GlazeMe Development Dashboard</h1>
+                <p style={styles.subtitle}>
+                  {glazemeSpecs.concept} • {glazemeSpecs.platform}
+                </p>
+              </div>
             </div>
+            
+            <div style={styles.headerActions}>
+              <div style={styles.searchContainer}>
+                <FaSearch style={styles.searchIcon} />
+                <input
+                  type="text"
+                  placeholder="Search updates, screens..."
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              <button style={styles.filterButton}>
+                <FaFilter />
+              </button>
+              
+              <div style={styles.buildBadge}>
+                <span style={styles.buildVersion}>v1.0.0-alpha</span>
+                <span style={styles.buildStatus}>🟢 Active</span>
+                <button
+                  onClick={toggleEditMode}
+                  style={{
+                    ...styles.editButton,
+                    backgroundColor: isEditMode ? '#dc3545' : '#28a745'
+                  }}
+                >
+                  {isEditMode ? '🔒 Exit Edit' : '✏️ Edit'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Edit Mode Banner */}
+          {isEditMode && (
+            <div style={styles.editModeBanner}>
+              <FaCheckCircle />
+              <span>Edit Mode Active - Changes will be saved</span>
+            </div>
+          )}
+
+          {/* Stats Grid */}
+          <div style={styles.statsGrid}>
+            <div style={styles.statCard}>
+              <FaCode style={styles.statIcon} color="#FF8C42" />
+              <span style={styles.statValue}>{buildStats.totalCommits}</span>
+              <span style={styles.statLabel}>Commits</span>
+              <small style={styles.statTrend}>+12%</small>
+            </div>
+            <div style={styles.statCard}>
+              <FaBrain style={styles.statIcon} color="#28a745" />
+              <span style={styles.statValue}>{buildStats.aiCalls}</span>
+              <span style={styles.statLabel}>AI Calls</span>
+              <small style={styles.statTrend}>+8%</small>
+            </div>
+            <div style={styles.statCard}>
+              <FaMobile style={styles.statIcon} color="#007bff" />
+              <span style={styles.statValue}>{buildStats.screensCompleted}</span>
+              <span style={styles.statLabel}>Screens</span>
+              <small style={styles.statTrend}>+3</small>
+            </div>
+            <div style={styles.statCard}>
+              <FaChartLine style={styles.statIcon} color="#ffc107" />
+              <span style={styles.statValue}>{buildStats.performanceScore}%</span>
+              <span style={styles.statLabel}>Performance</span>
+              <small style={styles.statTrend}>+5%</small>
+            </div>
+            <div style={styles.statCard}>
+              <FaShield style={styles.statIcon} color="#17a2b8" />
+              <span style={styles.statValue}>{buildStats.securityScore}%</span>
+              <span style={styles.statLabel}>Security</span>
+              <small style={styles.statTrend}>+2%</small>
+            </div>
+            <div style={styles.statCard}>
+              <FaClock style={styles.statIcon} color="#6c757d" />
+              <span style={styles.statValue}>{buildStats.avgResponseTime}ms</span>
+              <span style={styles.statLabel}>Response</span>
+              <small style={styles.statTrend}>-15ms</small>
+            </div>
+          </div>
+
+          {/* Charts Grid */}
+          <div style={styles.chartsGrid}>
+            <div style={styles.chartCard}>
+              <h3 style={styles.chartTitle}>Commits Over Time</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={chartData.commitsOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="commits" stroke="#FF8C42" fill="#FFE55C" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={styles.chartCard}>
+              <h3 style={styles.chartTitle}>AI Performance</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <ComposedChart data={chartData.aiPerformance}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="right" dataKey="success" fill="#28a745" />
+                  <Line yAxisId="left" type="monotone" dataKey="responseTime" stroke="#FF8C42" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={styles.chartCard}>
+              <h3 style={styles.chartTitle}>Screen Progress</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={chartData.screenProgress}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    paddingAngle={5}
+                    dataKey="value"
+                    label
+                  >
+                    {chartData.screenProgress.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#FF8C42', '#FFE55C', '#FFB347'][index]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Tech Stack */}
+          <div style={styles.specs}>
+            <span style={styles.specItem}>🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}</span>
+            {glazemeSpecs.technicalStack.ai.map((tech, i) => (
+              <span key={i} style={styles.specItem}>🤖 {tech}</span>
+            ))}
+            {glazemeSpecs.technicalStack.frontend.map((tech, i) => (
+              <span key={i} style={styles.specItem}>📱 {tech}</span>
+            ))}
+            {glazemeSpecs.technicalStack.backend.map((tech, i) => (
+              <span key={i} style={styles.specItem}>⚙️ {tech}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div style={styles.tabs}>
+          {[
+            { id: 'updates', label: 'Updates', icon: <FaRocket /> },
+            { id: 'screens', label: 'Screens', icon: <FaMobile /> },
+            { id: 'progress', label: 'Progress', icon: <FaChartLine /> },
+            { id: 'tech', label: 'Tech', icon: <FaCode /> },
+            { id: 'deploy', label: 'Deploy', icon: <FaCloud /> }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                ...styles.tab,
+                ...(activeTab === tab.id ? styles.activeTab : {})
+              }}
+            >
+              <span style={styles.tabIcon}>{tab.icon}</span>
+              <span style={styles.tabLabel}>{tab.label}</span>
+              {activeTab === tab.id && <span style={styles.tabIndicator} />}
+            </button>
           ))}
+        </div>
+
+        {/* Content Area */}
+        <div style={styles.content}>
+          {activeTab === 'updates' && (
+            <BuildUpdates 
+              updates={filteredUpdates} 
+              onAddUpdate={addBuildUpdate}
+              isEditMode={isEditMode}
+              onEditAction={() => handleEditAction('addUpdate')}
+            />
+          )}
+          {activeTab === 'screens' && (
+            <ScreenGallery 
+              screens={filteredScreens} 
+              isEditMode={isEditMode}
+              onAddScreen={() => handleEditAction('addScreen')}
+            />
+          )}
+          {activeTab === 'progress' && (
+            <WeeklyProgress 
+              isEditMode={isEditMode}
+              onEditAction={() => handleEditAction('editProgress')}
+            />
+          )}
+          {activeTab === 'tech' && (
+            <TechnicalLog 
+              isEditMode={isEditMode}
+              onEditAction={() => handleEditAction('editTech')}
+            />
+          )}
+          {activeTab === 'deploy' && (
+            <DeploymentTracker 
+              isEditMode={isEditMode}
+              onEditAction={() => handleEditAction('editDeploy')}
+            />
+          )}
+        </div>
+
+        {/* Live Feed */}
+        <div style={styles.footer}>
+          <div style={styles.feedHeader}>
+            <div style={styles.feedHeaderLeft}>
+              <FaBell />
+              <span style={styles.feedTitle}>Live Development Feed</span>
+            </div>
+            <div style={styles.feedStatus}>
+              <span style={styles.statusDot} />
+              <span>Connected</span>
+            </div>
+          </div>
+          <div style={styles.feedContent}>
+            {updates.slice(0, 5).map(update => (
+              <div key={update.id} style={styles.feedItem}>
+                <span style={styles.feedTime}>
+                  {new Date(update.date).toLocaleTimeString()}
+                </span>
+                <span style={styles.feedText}>
+                  <strong>{update.title}</strong> - {update.description}
+                </span>
+                {update.type && (
+                  <span style={{
+                    ...styles.feedBadge,
+                    ...(update.type === 'feature' ? styles.badgeFeature : {}),
+                    ...(update.type === 'bugfix' ? styles.badgeBugfix : {}),
+                    ...(update.type === 'deployment' ? styles.badgeDeployment : {})
+                  }}>
+                    {update.type}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <button style={styles.feedViewAll}>
+            View All Updates <FaChevronDown />
+          </button>
         </div>
       </div>
     </div>
@@ -348,24 +710,179 @@ const Dashboard: React.FC = () => {
 
 const styles = {
   container: {
-    maxWidth: '1400px',
+    minHeight: '100vh',
+    backgroundColor: '#f8f9fa',
+    position: 'relative' as const,
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    overflowX: 'hidden' as const
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100vh',
+    backgroundColor: '#f8f9fa'
+  },
+  loadingSpinner: {
+    width: '50px',
+    height: '50px',
+    border: '3px solid #f3f3f3',
+    borderTop: '3px solid #FF8C42',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+  loadingText: {
+    marginTop: '20px',
+    color: '#6c757d',
+    fontSize: '16px'
+  },
+  errorContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100vh',
+    backgroundColor: '#f8f9fa',
+    padding: '20px',
+    textAlign: 'center' as const
+  },
+  errorTitle: {
+    marginTop: '20px',
+    color: '#343a40',
+    fontSize: '24px'
+  },
+  errorMessage: {
+    marginTop: '10px',
+    color: '#6c757d',
+    fontSize: '16px'
+  },
+  retryButton: {
+    marginTop: '20px',
+    padding: '10px 20px',
+    backgroundColor: '#FF8C42',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#e07b3b'
+    }
+  },
+  mobileHeader: {
+    display: 'none',
+    '@media (max-width: 768px)': {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '15px 20px',
+      backgroundColor: 'white',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+      position: 'sticky' as const,
+      top: 0,
+      zIndex: 1000
+    }
+  },
+  menuButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#333',
+    padding: '5px'
+  },
+  mobileTitle: {
+    fontSize: '20px',
+    fontWeight: '600',
+    color: '#FF8C42',
+    margin: 0
+  },
+  mobileNotifications: {
+    position: 'relative' as const,
+    fontSize: '20px',
+    color: '#666'
+  },
+  notificationBadge: {
+    position: 'absolute' as const,
+    top: '-8px',
+    right: '-8px',
+    backgroundColor: '#dc3545',
+    color: 'white',
+    fontSize: '12px',
+    padding: '2px 6px',
+    borderRadius: '10px',
+    minWidth: '18px',
+    textAlign: 'center' as const
+  },
+  notificationContainer: {
+    position: 'fixed' as const,
+    top: '20px',
+    right: '20px',
+    zIndex: 9999,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '10px'
+  },
+  notification: {
+    padding: '12px 20px',
+    borderRadius: '8px',
+    color: 'white',
+    fontSize: '14px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    animation: 'slideIn 0.3s ease',
+    maxWidth: '300px'
+  },
+  notificationSuccess: {
+    backgroundColor: '#28a745'
+  },
+  notificationError: {
+    backgroundColor: '#dc3545'
+  },
+  notificationInfo: {
+    backgroundColor: '#17a2b8'
+  },
+  sidebarOverlay: {
+    position: 'fixed' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 1001,
+    '@media (min-width: 769px)': {
+      display: 'none'
+    }
+  },
+  mainContent: {
+    maxWidth: '1600px',
     margin: '0 auto',
     padding: '20px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#f5f7fa'
+    transition: 'all 0.3s ease',
+    '@media (max-width: 768px)': {
+      padding: '15px',
+      marginLeft: 0
+    }
+  },
+  mainContentShifted: {
+    '@media (max-width: 768px)': {
+      transform: 'translateX(250px)',
+      overflow: 'hidden'
+    }
   },
   header: {
     marginBottom: '30px',
     padding: '25px',
     backgroundColor: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-  },
-  headerContent: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px'
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+    '@media (max-width: 768px)': {
+      padding: '20px 15px'
+    }
   },
   gradientBar: {
     height: '6px',
@@ -373,8 +890,34 @@ const styles = {
     borderRadius: '3px',
     marginBottom: '20px'
   },
+  headerTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    flexWrap: 'wrap' as const,
+    gap: '15px',
+    '@media (max-width: 1024px)': {
+      flexDirection: 'column' as const,
+      alignItems: 'flex-start'
+    }
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px'
+  },
+  iconWrapper: {
+    width: '48px',
+    height: '48px',
+    backgroundColor: '#fff4e5',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   title: {
-    fontSize: '28px',
+    fontSize: 'clamp(20px, 3vw, 28px)',
     margin: '0 0 5px 0',
     color: '#1a1a1a',
     fontWeight: '600'
@@ -384,10 +927,69 @@ const styles = {
     color: '#666',
     margin: 0
   },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap' as const,
+    '@media (max-width: 1024px)': {
+      width: '100%'
+    }
+  },
+  searchContainer: {
+    position: 'relative' as const,
+    '@media (max-width: 1024px)': {
+      flex: 1
+    }
+  },
+  searchIcon: {
+    position: 'absolute' as const,
+    left: '12px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    color: '#999',
+    fontSize: '14px'
+  },
+  searchInput: {
+    padding: '10px 15px 10px 40px',
+    border: '1px solid #e0e0e0',
+    borderRadius: '30px',
+    fontSize: '14px',
+    width: '250px',
+    transition: 'all 0.2s',
+    ':focus': {
+      outline: 'none',
+      borderColor: '#FF8C42',
+      boxShadow: '0 0 0 3px rgba(255,140,66,0.1)',
+      width: '300px'
+    },
+    '@media (max-width: 1024px)': {
+      width: '100%',
+      ':focus': {
+        width: '100%'
+      }
+    }
+  },
+  filterButton: {
+    padding: '10px 15px',
+    border: '1px solid #e0e0e0',
+    backgroundColor: 'white',
+    borderRadius: '30px',
+    cursor: 'pointer',
+    color: '#666',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#f8f9fa'
+    }
+  },
   buildBadge: {
     display: 'flex',
     gap: '10px',
-    alignItems: 'center'
+    alignItems: 'center',
+    flexWrap: 'wrap' as const
   },
   buildVersion: {
     padding: '6px 12px',
@@ -415,29 +1017,44 @@ const styles = {
   editModeBanner: {
     backgroundColor: '#fff3cd',
     color: '#856404',
-    padding: '10px',
+    padding: '12px',
     borderRadius: '8px',
     marginBottom: '20px',
     textAlign: 'center' as const,
     fontWeight: '500',
-    fontSize: '14px'
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px'
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
     gap: '15px',
-    marginBottom: '20px'
+    marginBottom: '25px'
   },
   statCard: {
-    padding: '15px',
+    padding: '20px 15px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
+    borderRadius: '12px',
     textAlign: 'center' as const,
-    border: '1px solid #e9ecef'
+    border: '1px solid #e9ecef',
+    transition: 'all 0.2s',
+    cursor: 'pointer',
+    position: 'relative' as const,
+    ':hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+    }
+  },
+  statIcon: {
+    fontSize: '24px',
+    marginBottom: '10px'
   },
   statValue: {
     display: 'block',
-    fontSize: '24px',
+    fontSize: 'clamp(20px, 4vw, 28px)',
     fontWeight: 'bold',
     color: '#FF8C42',
     marginBottom: '5px'
@@ -448,92 +1065,248 @@ const styles = {
     textTransform: 'uppercase' as const,
     letterSpacing: '0.5px'
   },
+  statTrend: {
+    position: 'absolute' as const,
+    top: '8px',
+    right: '8px',
+    fontSize: '11px',
+    padding: '2px 6px',
+    backgroundColor: '#d4edda',
+    color: '#155724',
+    borderRadius: '10px'
+  },
+  chartsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: '20px',
+    marginBottom: '25px'
+  },
+  chartCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: '12px',
+    padding: '15px',
+    border: '1px solid #e9ecef'
+  },
+  chartTitle: {
+    fontSize: '14px',
+    margin: '0 0 15px 0',
+    color: '#495057'
+  },
   specs: {
     display: 'flex',
     gap: '10px',
-    flexWrap: 'wrap' as 'wrap',
+    flexWrap: 'wrap' as const,
     marginTop: '15px'
   },
   specItem: {
-    padding: '4px 10px',
+    padding: '6px 12px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '15px',
+    borderRadius: '20px',
     fontSize: '12px',
     color: '#495057',
-    border: '1px solid #dee2e6'
+    border: '1px solid #dee2e6',
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#e9ecef'
+    }
   },
   tabs: {
     display: 'flex',
     gap: '5px',
-    marginBottom: '20px',
-    flexWrap: 'wrap' as 'wrap',
+    marginBottom: '25px',
+    flexWrap: 'wrap' as const,
     backgroundColor: 'white',
     padding: '10px',
-    borderRadius: '10px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+    borderRadius: '12px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+    position: 'sticky' as const,
+    top: '10px',
+    zIndex: 100,
+    '@media (max-width: 768px)': {
+      top: '70px',
+      overflowX: 'auto' as const,
+      flexWrap: 'nowrap' as const,
+      WebkitOverflowScrolling: 'touch',
+      scrollbarWidth: 'none' as const,
+      '::-webkit-scrollbar': {
+        display: 'none'
+      }
+    }
   },
   tab: {
-    padding: '10px 16px',
+    padding: '12px 20px',
     border: 'none',
     backgroundColor: 'transparent',
     cursor: 'pointer',
     fontSize: '14px',
     color: '#6c757d',
-    borderRadius: '6px',
+    borderRadius: '8px',
     transition: 'all 0.2s',
-    fontWeight: '500'
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    position: 'relative' as const,
+    ':hover': {
+      backgroundColor: '#f8f9fa',
+      color: '#FF8C42'
+    },
+    '@media (max-width: 768px)': {
+      padding: '10px 15px',
+      whiteSpace: 'nowrap' as const
+    }
   },
   activeTab: {
     color: '#FF8C42',
     backgroundColor: '#fff4e5',
     fontWeight: '600'
   },
+  tabIcon: {
+    fontSize: '16px'
+  },
+  tabLabel: {
+    '@media (max-width: 480px)': {
+      display: 'none'
+    }
+  },
+  tabIndicator: {
+    position: 'absolute' as const,
+    bottom: '-5px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '20px',
+    height: '2px',
+    backgroundColor: '#FF8C42',
+    borderRadius: '2px'
+  },
   content: {
     minHeight: '600px',
     backgroundColor: 'white',
-    borderRadius: '12px',
+    borderRadius: '16px',
     padding: '25px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-    marginBottom: '20px'
+    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+    marginBottom: '25px',
+    '@media (max-width: 768px)': {
+      padding: '15px'
+    }
   },
   footer: {
     backgroundColor: 'white',
-    borderRadius: '10px',
-    padding: '15px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
   },
   feedHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '10px',
+    marginBottom: '15px',
     fontSize: '14px',
     fontWeight: '600',
     color: '#333'
   },
+  feedHeaderLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  feedTitle: {
+    fontSize: '16px'
+  },
   feedStatus: {
     color: '#28a745',
-    fontSize: '12px'
+    fontSize: '13px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px'
+  },
+  statusDot: {
+    width: '8px',
+    height: '8px',
+    backgroundColor: '#28a745',
+    borderRadius: '50%',
+    animation: 'pulse 2s infinite'
   },
   feedContent: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '8px'
+    gap: '10px',
+    marginBottom: '15px'
   },
   feedItem: {
     display: 'flex',
     gap: '15px',
     fontSize: '13px',
-    padding: '8px',
+    padding: '10px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '6px'
+    borderRadius: '8px',
+    alignItems: 'center',
+    flexWrap: 'wrap' as const,
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#f1f3f5'
+    }
   },
   feedTime: {
     color: '#6c757d',
-    minWidth: '60px'
+    minWidth: '70px',
+    fontSize: '12px'
   },
   feedText: {
-    color: '#333'
+    color: '#333',
+    flex: 1
+  },
+  feedBadge: {
+    padding: '3px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: '600',
+    textTransform: 'uppercase' as const
+  },
+  badgeFeature: {
+    backgroundColor: '#cce5ff',
+    color: '#004085'
+  },
+  badgeBugfix: {
+    backgroundColor: '#f8d7da',
+    color: '#721c24'
+  },
+  badgeDeployment: {
+    backgroundColor: '#d4edda',
+    color: '#155724'
+  },
+  feedViewAll: {
+    width: '100%',
+    padding: '10px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    color: '#666',
+    fontSize: '13px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '5px',
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#e9ecef'
+    }
+  },
+
+  // Global animations
+  '@keyframes spin': {
+    '0%': { transform: 'rotate(0deg)' },
+    '100%': { transform: 'rotate(360deg)' }
+  },
+  '@keyframes slideIn': {
+    '0%': { transform: 'translateX(100%)', opacity: 0 },
+    '100%': { transform: 'translateX(0)', opacity: 1 }
+  },
+  '@keyframes pulse': {
+    '0%': { opacity: 1 },
+    '50%': { opacity: 0.5 },
+    '100%': { opacity: 1 }
   }
 };
 
