@@ -924,7 +924,6 @@ const Dashboard: React.FC = () => {
         <div style={styles.content}>
           {activeTab === 'updates' && (
             <BuildUpdates 
-        updates={buildUpdates}
         onAddUpdate={handleAddUpdate}
         onEditUpdate={handleEditUpdate}
         onDeleteUpdate={handleDeleteUpdate}
