@@ -1528,7 +1528,7 @@ const styles = {
     backgroundColor: '#000',
     padding: '10px',
     borderRadius: '32px',
-    border: '2px solid '#444''
+    border: '2px solid'
   },
   fullScreenPlaceholder: {
     width: '80vw',
