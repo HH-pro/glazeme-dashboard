@@ -429,7 +429,114 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
         </div>
       </div>
 
-     
+      <div style={styles.timeline}>
+        <h3 style={styles.subTitle}>📅 Deployment History</h3>
+        {deployments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(deploy => (
+          <div 
+            key={deploy.id} 
+            style={styles.deployCard}
+            onClick={() => setSelectedDeployment(deploy)}
+          >
+            <div style={{
+              ...styles.deployHeader,
+              ...(isMobile ? mobileStyles.deployHeader : {})
+            }}>
+              <div style={{
+                ...styles.deployHeaderLeft,
+                ...(isMobile ? mobileStyles.deployHeaderLeft : {})
+              }}>
+                <span style={styles.version}>{deploy.version}</span>
+                <span style={styles.environmentBadge}>{deploy.environment}</span>
+              </div>
+              <div style={{
+                ...styles.deployActions,
+                ...(isMobile ? mobileStyles.deployActions : {})
+              }}>
+                {isEditMode && (
+                  <>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditClick(deploy);
+                      }}
+                      style={styles.editButton}
+                      title="Edit deployment"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(deploy.id);
+                      }}
+                      style={styles.deleteButton}
+                      title="Delete deployment"
+                    >
+                      🗑️
+                    </button>
+                  </>
+                )}
+                <span style={{
+                  ...styles.status,
+                  backgroundColor: deploy.status === 'live' ? '#d4edda' : 
+                                 deploy.status === 'in-progress' ? '#fff3cd' :
+                                 deploy.status === 'failed' ? '#f8d7da' : '#e9ecef',
+                  color: deploy.status === 'live' ? '#155724' : 
+                         deploy.status === 'in-progress' ? '#856404' :
+                         deploy.status === 'failed' ? '#721c24' : '#495057'
+                }}>
+                  {deploy.status}
+                </span>
+              </div>
+            </div>
+            
+            <p style={styles.date}>📅 {new Date(deploy.date).toLocaleDateString()}</p>
+            
+            {deploy.buildTime && (
+              <p style={styles.buildTime}>⏱️ Build Time: {deploy.buildTime}</p>
+            )}
+            
+            {deploy.testCoverage !== undefined && (
+              <div style={{
+                ...styles.coverageContainer,
+                ...(isMobile ? mobileStyles.coverageContainer : {})
+              }}>
+                <span style={{
+                  ...styles.coverageLabel,
+                  ...(isMobile ? mobileStyles.coverageLabel : {})
+                }}>Test Coverage:</span>
+                <div style={styles.coverageBar}>
+                  <div style={{
+                    ...styles.coverageFill,
+                    width: `${deploy.testCoverage}%`,
+                    backgroundColor: deploy.testCoverage >= 80 ? '#28a745' :
+                                    deploy.testCoverage >= 60 ? '#ffc107' : '#dc3545'
+                  }} />
+                  <span style={styles.coverageText}>{deploy.testCoverage}%</span>
+                </div>
+              </div>
+            )}
+            
+            <div style={{
+              ...styles.features,
+              ...(isMobile ? mobileStyles.features : {})
+            }}>
+              {deploy.features.map(feature => (
+                <span key={feature} style={styles.feature}>✓ {feature}</span>
+              ))}
+            </div>
+
+            {deploy.issues && deploy.issues.length > 0 && (
+              <div style={styles.issues}>
+                <span style={styles.issuesLabel}>⚠️ Known Issues:</span>
+                {deploy.issues.map(issue => (
+                  <span key={issue} style={styles.issue}>• {issue}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* Deployment Detail Modal */}
       {selectedDeployment && (
