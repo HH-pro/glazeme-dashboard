@@ -86,31 +86,22 @@ const Dashboard: React.FC = () => {
     limit(50)
   );
 
-  const unsubscribeUpdates = onSnapshot(
-    updatesQuery,
-    (snapshot) => {
-      const updatesData: BuildUpdate[] = snapshot.docs.map((doc: any) => {
-        const data = doc.data();
+  const updatesData: BuildUpdate[] = snapshot.docs.map((doc: any) => {
+  const data = doc.data();
 
-        return {
-          id: Number(data.id ?? 0), // ⚠️ must exist in Firestore
-          weekNumber: data.weekNumber ?? 0,
-          title: data.title ?? "",
-          description: data.description ?? "",
-          category: data.category ?? "",
-          status: data.status ?? "",
-          author: data.author ?? "",
-          priority: data.priority ?? "low",
-          timeSpent: data.timeSpent ?? 0,
-          date: data.date?.toDate?.() ?? new Date()
-        };
-      });
-
-      setUpdates(updatesData);
-    },
-    () => setError('Failed to load updates')
-  );
-
+  return {
+    id: doc.id, // ✅ FIX (string)
+    weekNumber: data.weekNumber ?? 0,
+    title: data.title ?? "",
+    description: data.description ?? "",
+    category: data.category ?? "",
+    status: data.status ?? "",
+    author: data.author ?? "",
+    priority: data.priority ?? "low",
+    timeSpent: data.timeSpent ?? 0,
+    date: data.date?.toDate?.() ?? new Date()
+  };
+});
   // 🔹 Screenshots listener
   const screensQuery = query(
     collection(db, 'screenshots'),
