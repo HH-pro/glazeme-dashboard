@@ -86,22 +86,33 @@ const Dashboard: React.FC = () => {
     limit(50)
   );
 
-  const updatesData: BuildUpdate[] = snapshot.docs.map((doc: any) => {
-  const data = doc.data();
+  const unsubscribeUpdates = onSnapshot(
+  updatesQuery,
+  (snapshot) => {
+    const updatesData: BuildUpdate[] = snapshot.docs.map((doc) => {
+      const data = doc.data();
 
-  return {
-    id: doc.id, // ✅ FIX (string)
-    weekNumber: data.weekNumber ?? 0,
-    title: data.title ?? "",
-    description: data.description ?? "",
-    category: data.category ?? "",
-    status: data.status ?? "",
-    author: data.author ?? "",
-    priority: data.priority ?? "low",
-    timeSpent: data.timeSpent ?? 0,
-    date: data.date?.toDate?.() ?? new Date()
-  };
-});
+      return {
+        id: doc.id, // ✅ string (fixes TS error)
+        weekNumber: data.weekNumber ?? 0,
+        title: data.title ?? "",
+        description: data.description ?? "",
+        category: data.category ?? "",
+        status: data.status ?? "",
+        author: data.author ?? "",
+        priority: data.priority ?? "low",
+        timeSpent: data.timeSpent ?? 0,
+        date: data.date?.toDate?.() ?? new Date()
+      };
+    });
+
+    setUpdates(updatesData);
+  },
+  (error) => {
+    console.error("Updates fetch error:", error);
+    setError("Failed to load updates");
+  }
+);
   // 🔹 Screenshots listener
   const screensQuery = query(
     collection(db, 'screenshots'),
