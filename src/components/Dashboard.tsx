@@ -3,12 +3,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../services/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
+import ClientReview from './ClientReview';
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
 import TechnicalLog from './TechnicalLog';
 import DeploymentTracker from './DeploymentTracker';
 import PasswordModal from './PasswordModal';
-import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit } from '../types';
+import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, ClientReview as ClientReviewType } from '../types';
 
 // Use simple emoji/icons instead of react-icons to avoid compatibility issues
 const Icons = {
@@ -25,7 +26,9 @@ const Icons = {
   Redo: () => <span>↻</span>,
   Menu: () => <span>☰</span>,
   Close: () => <span>✕</span>,
-  ChevronDown: () => <span>▼</span>
+  ChevronDown: () => <span>▼</span>,
+  Star: () => <span>⭐</span>,
+  Review: () => <span>📝</span>
 };
 
 // Define types for the component
@@ -39,7 +42,8 @@ const Dashboard: React.FC = () => {
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [screens, setScreens] = useState<ScreenCapture[]>([]);
   const [commits, setCommits] = useState<CodeCommit[]>([]);
-  const [activeTab, setActiveTab] = useState<'updates' | 'screens' | 'progress' | 'tech' | 'deploy'>('updates');
+  const [reviews, setReviews] = useState<ClientReviewType[]>([]);
+  const [activeTab, setActiveTab] = useState<'updates' | 'reviews' | 'screens' | 'progress' | 'tech' | 'deploy'>('updates');
   const [isEditMode, setIsEditMode] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ type: string; data?: any } | null>(null);
@@ -48,6 +52,7 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [reviewFilterStatus, setReviewFilterStatus] = useState<string>('all');
 
   const glazemeSpecs: GlazeMeSpecs = {
     name: "GlazeMe",
@@ -155,6 +160,29 @@ const Dashboard: React.FC = () => {
       }
     );
 
+    // 🔹 Reviews listener
+    const reviewsQuery = query(
+      collection(db, 'clientReviews'),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+
+    const unsubscribeReviews = onSnapshot(
+      reviewsQuery,
+      (snapshot) => {
+        const reviewsData: ClientReviewType[] = snapshot.docs.map((doc: any) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate?.() ?? new Date(),
+            reviewedAt: data.reviewedAt?.toDate?.()
+          };
+        });
+        setReviews(reviewsData);
+      }
+    );
+
     setIsLoading(false);
     addNotification('Welcome to GlazeMe Dashboard', 'success');
 
@@ -163,6 +191,7 @@ const Dashboard: React.FC = () => {
       unsubscribeUpdates();
       unsubscribeScreens();
       unsubscribeCommits();
+      unsubscribeReviews();
     };
   }, []);
 
@@ -224,6 +253,31 @@ const Dashboard: React.FC = () => {
       (screen.screenName?.toLowerCase() || '').includes(searchQuery.toLowerCase())
     );
   }, [screens, searchQuery]);
+
+  const filteredReviews = useMemo(() => {
+    return reviews.filter(review => {
+      const matchesSearch = searchQuery === '' || 
+        review.feedback?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        review.clientName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        review.updateTitle?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = reviewFilterStatus === 'all' || review.status === reviewFilterStatus;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [reviews, searchQuery, reviewFilterStatus]);
+
+  const reviewStats = useMemo(() => {
+    const total = reviews.length;
+    const pending = reviews.filter(r => r.status === 'pending').length;
+    const approved = reviews.filter(r => r.status === 'approved').length;
+    const changesRequested = reviews.filter(r => r.status === 'changes-requested').length;
+    const inReview = reviews.filter(r => r.status === 'in-review').length;
+    const averageRating = reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / (reviews.length || 1);
+    const criticalIssues = reviews.filter(r => r.priority === 'critical' || r.priority === 'high').length;
+    
+    return { total, pending, approved, changesRequested, inReview, averageRating, criticalIssues };
+  }, [reviews]);
 
   // Styles
   const styles = {
@@ -662,6 +716,43 @@ const Dashboard: React.FC = () => {
       justifyContent: 'center',
       gap: '5px',
       transition: 'all 0.2s'
+    },
+    statsGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '15px',
+      marginBottom: '20px'
+    },
+    statCard: {
+      backgroundColor: '#f8f9fa',
+      padding: '15px',
+      borderRadius: '12px',
+      textAlign: 'center' as const
+    },
+    statValue: {
+      fontSize: '28px',
+      fontWeight: 'bold' as const,
+      color: '#FF8C42',
+      marginBottom: '5px'
+    },
+    statLabel: {
+      fontSize: '13px',
+      color: '#666'
+    },
+    reviewFilters: {
+      display: 'flex',
+      gap: '10px',
+      marginBottom: '20px',
+      flexWrap: 'wrap' as const
+    },
+    reviewFilterSelect: {
+      padding: '8px 16px',
+      border: '1px solid #dee2e6',
+      borderRadius: '8px',
+      fontSize: '14px',
+      backgroundColor: 'white',
+      cursor: 'pointer',
+      outline: 'none'
     }
   };
 
@@ -769,7 +860,7 @@ const Dashboard: React.FC = () => {
                 <span style={styles.searchIcon}><Icons.Search /></span>
                 <input
                   type="text"
-                  placeholder="Search updates, screens..."
+                  placeholder="Search updates, reviews..."
                   style={styles.searchInput}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -822,6 +913,7 @@ const Dashboard: React.FC = () => {
         <div style={styles.tabs}>
           {[
             { id: 'updates', label: 'Updates', icon: <Icons.Rocket /> },
+            { id: 'reviews', label: 'Reviews', icon: <Icons.Review /> },
             { id: 'screens', label: 'Screens', icon: <Icons.Mobile /> },
             { id: 'progress', label: 'Progress', icon: <Icons.Chart /> },
             { id: 'tech', label: 'Tech', icon: <Icons.Code /> },
@@ -837,7 +929,9 @@ const Dashboard: React.FC = () => {
             >
               <span style={styles.tabIcon}>{tab.icon}</span>
               <span style={styles.tabLabel}>{tab.label}</span>
-              {activeTab === tab.id && <span style={styles.tabIndicator} />}
+              {activeTab === tab.id && (
+                <span style={styles.tabIndicator} />
+              )}
             </button>
           ))}
         </div>
@@ -847,6 +941,58 @@ const Dashboard: React.FC = () => {
           {activeTab === 'updates' && (
             <BuildUpdates initialEditMode={isEditMode} />
           )}
+          
+          {activeTab === 'reviews' && (
+            <>
+              {/* Review Stats */}
+              <div style={styles.statsGrid}>
+                <div style={styles.statCard}>
+                  <div style={styles.statValue}>{reviewStats.total}</div>
+                  <div style={styles.statLabel}>Total Reviews</div>
+                </div>
+                <div style={styles.statCard}>
+                  <div style={styles.statValue}>{reviewStats.pending}</div>
+                  <div style={styles.statLabel}>Pending</div>
+                </div>
+                <div style={styles.statCard}>
+                  <div style={styles.statValue}>{reviewStats.approved}</div>
+                  <div style={styles.statLabel}>Approved</div>
+                </div>
+                <div style={styles.statCard}>
+                  <div style={styles.statValue}>{reviewStats.changesRequested}</div>
+                  <div style={styles.statLabel}>Changes Requested</div>
+                </div>
+                <div style={styles.statCard}>
+                  <div style={styles.statValue}>{reviewStats.averageRating.toFixed(1)}</div>
+                  <div style={styles.statLabel}>Avg Rating</div>
+                </div>
+                <div style={styles.statCard}>
+                  <div style={styles.statValue}>{reviewStats.criticalIssues}</div>
+                  <div style={styles.statLabel}>Critical Issues</div>
+                </div>
+              </div>
+
+              {/* Review Filters */}
+              <div style={styles.reviewFilters}>
+                <select 
+                  style={styles.reviewFilterSelect}
+                  value={reviewFilterStatus}
+                  onChange={(e) => setReviewFilterStatus(e.target.value)}
+                >
+                  <option value="all">All Reviews</option>
+                  <option value="pending">Pending</option>
+                  <option value="in-review">In Review</option>
+                  <option value="approved">Approved</option>
+                  <option value="changes-requested">Changes Requested</option>
+                </select>
+              </div>
+
+              <ClientReview 
+                showFilters={false}
+              />
+            </>
+          )}
+          
           {activeTab === 'screens' && (
             <ScreenGallery 
               screens={filteredScreens} 
@@ -854,18 +1000,21 @@ const Dashboard: React.FC = () => {
               onAddScreen={() => handleEditAction('addScreen')}
             />
           )}
+          
           {activeTab === 'progress' && (
             <WeeklyProgress 
               isEditMode={isEditMode}
               onEditAction={() => handleEditAction('editProgress')}
             />
           )}
+          
           {activeTab === 'tech' && (
             <TechnicalLog 
               isEditMode={isEditMode}
               onEditAction={() => handleEditAction('editTech')}
             />
           )}
+          
           {activeTab === 'deploy' && (
             <DeploymentTracker 
               isEditMode={isEditMode}
@@ -887,19 +1036,31 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           <div style={styles.feedContent}>
-            {updates.slice(0, 5).map(update => (
+            {/* Show recent reviews in feed */}
+            {reviews.slice(0, 3).map(review => (
+              <div key={review.id} style={styles.feedItem}>
+                <span style={styles.feedTime}>
+                  {new Date(review.createdAt).toLocaleTimeString()}
+                </span>
+                <span style={styles.feedText}>
+                  <Icons.Review /> <strong>{review.clientName}</strong> left a review: "{review.feedback.substring(0, 50)}..."
+                </span>
+              </div>
+            ))}
+            {/* Show recent updates in feed */}
+            {updates.slice(0, 2).map(update => (
               <div key={update.id} style={styles.feedItem}>
                 <span style={styles.feedTime}>
                   {new Date(update.date).toLocaleTimeString()}
                 </span>
                 <span style={styles.feedText}>
-                  <strong>{update.title}</strong> - {update.description}
+                  <strong>{update.title}</strong> - {update.description.substring(0, 50)}...
                 </span>
               </div>
             ))}
           </div>
           <button style={styles.feedViewAll}>
-            View All Updates <Icons.ChevronDown />
+            View All Activity <Icons.ChevronDown />
           </button>
         </div>
       </div>
