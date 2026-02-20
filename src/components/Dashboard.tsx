@@ -1,7 +1,7 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../services/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, limit, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
@@ -48,6 +48,30 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+ const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([]);
+
+  const handleAddUpdate = (update: Omit<BuildUpdate, 'id'>) => {
+    const newUpdate: BuildUpdate = {
+      ...update,
+      id: Date.now().toString() // Generate unique ID
+    };
+    setBuildUpdates([...buildUpdates, newUpdate]);
+    console.log('Added update:', newUpdate);
+  };
+
+  const handleEditUpdate = (id: string, updatedUpdate: Omit<BuildUpdate, 'id'>) => {
+    setBuildUpdates(buildUpdates.map(update => 
+      update.id === id 
+        ? { ...updatedUpdate, id } 
+        : update
+    ));
+    console.log('Edited update with id:', id);
+  };
+
+  const handleDeleteUpdate = (id: string) => {
+    setBuildUpdates(buildUpdates.filter(update => update.id !== id));
+    console.log('Deleted update with id:', id);
+  };
 
   const glazemeSpecs: GlazeMeSpecs = {
     name: "GlazeMe",
@@ -75,114 +99,102 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Fetch data from Firebase
-  useEffect(() => {
-    setIsLoading(true);
-    setError(null);
+ useEffect(() => {
+  setIsLoading(true);
+  setError(null);
 
-    // 🔹 Updates listener
-    const updatesQuery = query(
-      collection(db, 'buildUpdates'),
-      orderBy('date', 'desc'),
-      limit(50)
-    );
+  // 🔹 Updates listener
+  const updatesQuery = query(
+    collection(db, 'buildUpdates'),
+    orderBy('date', 'desc'),
+    limit(50)
+  );
 
-    const unsubscribeUpdates = onSnapshot(
-      updatesQuery,
-      (snapshot) => {
-        const updatesData: BuildUpdate[] = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            weekNumber: data.weekNumber ?? 0,
-            title: data.title ?? "",
-            description: data.description ?? "",
-            category: data.category ?? "development",
-            status: data.status ?? "planned",
-            priority: data.priority ?? "medium",
-            timeSpent: data.timeSpent ?? 0,
-            date: data.date?.toDate?.() ?? new Date(),
-            commitHash: data.commitHash || '',
-            branch: data.branch || '',
-            completedBy: data.completedBy || '',
-            author: data.author || ''
-          };
-        });
-        setUpdates(updatesData);
-        setIsLoading(false);
-      },
-      (error) => {
-        console.error("Updates fetch error:", error);
-        setError("Failed to load updates");
-        setIsLoading(false);
-      }
-    );
+  const unsubscribeUpdates = onSnapshot(
+  updatesQuery,
+  (snapshot) => {
+    const updatesData: BuildUpdate[] = snapshot.docs.map((doc) => {
+      const data = doc.data();
 
-    // 🔹 Screenshots listener
-    const screensQuery = query(
-      collection(db, 'screenshots'),
-      orderBy('date', 'desc'),
-      limit(50)
-    );
+      return {
+        id: doc.id, // ✅ string (fixes TS error)
+        weekNumber: data.weekNumber ?? 0,
+        title: data.title ?? "",
+        description: data.description ?? "",
+        category: data.category ?? "",
+        status: data.status ?? "",
+        author: data.author ?? "",
+        priority: data.priority ?? "low",
+        timeSpent: data.timeSpent ?? 0,
+        date: data.date?.toDate?.() ?? new Date()
+      };
+    });
 
-    const unsubscribeScreens = onSnapshot(
-      screensQuery,
-      (snapshot) => {
-        const screensData: ScreenCapture[] = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            screenName: data.screenName || '',
-            description: data.description || '',
-            imageUrl: data.imageUrl || '',
-            date: data.date?.toDate?.() ?? new Date(),
-            tags: data.tags || []
-          };
-        });
-        setScreens(screensData);
-      },
-      (error) => {
-        console.error("Screenshots fetch error:", error);
-      }
-    );
+    setUpdates(updatesData);
+  },
+  (error) => {
+    console.error("Updates fetch error:", error);
+    setError("Failed to load updates");
+  }
+);
+  // 🔹 Screenshots listener
+  const screensQuery = query(
+    collection(db, 'screenshots'),
+    orderBy('date', 'desc'),
+    limit(50)
+  );
 
-    // 🔹 Commits listener
-    const commitsQuery = query(
-      collection(db, 'commits'),
-      orderBy('timestamp', 'desc'),
-      limit(100)
-    );
+  const unsubscribeScreens = onSnapshot(
+    screensQuery,
+    (snapshot) => {
+      const screensData: ScreenCapture[] = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
 
-    const unsubscribeCommits = onSnapshot(
-      commitsQuery,
-      (snapshot) => {
-        const commitsData: CodeCommit[] = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            message: data.message || '',
-            author: data.author || '',
-            timestamp: data.timestamp?.toDate?.() ?? new Date(),
-            hash: data.hash || '',
-            branch: data.branch || ''
-          };
-        });
-        setCommits(commitsData);
-      },
-      (error) => {
-        console.error("Commits fetch error:", error);
-      }
-    );
+        return {
+          id: doc.id, // string id
+          ...data,
+          date: data.date?.toDate?.() ?? new Date()
+        };
+      });
 
-    addNotification('Welcome to GlazeMe Dashboard', 'success');
+      setScreens(screensData);
+    }
+  );
 
-    // ✅ Proper cleanup
-    return () => {
-      unsubscribeUpdates();
-      unsubscribeScreens();
-      unsubscribeCommits();
-    };
-  }, []);
+  // 🔹 Commits listener
+  const commitsQuery = query(
+    collection(db, 'commits'),
+    orderBy('timestamp', 'desc'),
+    limit(100)
+  );
+
+  const unsubscribeCommits = onSnapshot(
+    commitsQuery,
+    (snapshot) => {
+      const commitsData: CodeCommit[] = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
+
+        return {
+          id: doc.id,
+          ...data,
+          timestamp: data.timestamp?.toDate?.() ?? new Date()
+        };
+      });
+
+      setCommits(commitsData);
+    }
+  );
+
+  setIsLoading(false);
+  addNotification('Welcome to GlazeMe Dashboard', 'success');
+
+  // ✅ Proper cleanup
+  return () => {
+    unsubscribeUpdates();
+    unsubscribeScreens();
+    unsubscribeCommits();
+  };
+}, []);
 
   const addNotification = useCallback((message: string, type: Notification['type'] = 'info') => {
     const id = Date.now().toString();
@@ -205,7 +217,7 @@ const Dashboard: React.FC = () => {
     if (pendingAction) {
       switch (pendingAction.type) {
         case 'addUpdate':
-          // Will be handled by the component's own form
+          addBuildUpdate(pendingAction.data);
           break;
         case 'addScreen':
           addScreenCapture(pendingAction.data);
@@ -220,64 +232,19 @@ const Dashboard: React.FC = () => {
     }
   }, [pendingAction, addNotification]);
 
-  // Build Update CRUD Operations
-  const handleAddUpdate = useCallback(async (update: Omit<BuildUpdate, 'id'>) => {
+  const addBuildUpdate = useCallback(async (update: Omit<BuildUpdate, 'id'>) => {
     if (!isEditMode) {
       handleEditAction('addUpdate', update);
       return;
     }
     try {
-      const updateWithTimestamp = {
+      await addDoc(collection(db, 'buildUpdates'), {
         ...update,
-        date: new Date(),
-        category: update.category || 'development',
-        status: update.status || 'planned',
-        priority: update.priority || 'medium'
-      };
-      
-      await addDoc(collection(db, 'buildUpdates'), updateWithTimestamp);
+        date: new Date()
+      });
       addNotification('Build update added successfully', 'success');
-    } catch (error) {
-      console.error('Error adding update:', error);
+    } catch {
       addNotification('Failed to add build update', 'error');
-    }
-  }, [isEditMode, handleEditAction, addNotification]);
-
-  const handleEditUpdate = useCallback(async (id: string, updatedUpdate: Omit<BuildUpdate, 'id'>) => {
-    if (!isEditMode) {
-      handleEditAction('editUpdate', { id, ...updatedUpdate });
-      return;
-    }
-    try {
-      const updateRef = doc(db, 'buildUpdates', id);
-      const updateWithTimestamp = {
-        ...updatedUpdate,
-        date: updatedUpdate.date || new Date()
-      };
-      
-      await updateDoc(updateRef, updateWithTimestamp);
-      addNotification('Build update updated successfully', 'success');
-    } catch (error) {
-      console.error('Error updating update:', error);
-      addNotification('Failed to update build update', 'error');
-    }
-  }, [isEditMode, handleEditAction, addNotification]);
-
-  const handleDeleteUpdate = useCallback(async (id: string) => {
-    if (!isEditMode) {
-      handleEditAction('deleteUpdate', id);
-      return;
-    }
-    
-    if (window.confirm('Are you sure you want to delete this update?')) {
-      try {
-        const updateRef = doc(db, 'buildUpdates', id);
-        await deleteDoc(updateRef);
-        addNotification('Build update deleted successfully', 'success');
-      } catch (error) {
-        console.error('Error deleting update:', error);
-        addNotification('Failed to delete build update', 'error');
-      }
     }
   }, [isEditMode, handleEditAction, addNotification]);
 
@@ -336,7 +303,7 @@ const Dashboard: React.FC = () => {
     );
   }, [screens, searchQuery]);
 
-  // Styles object (keeping your existing styles exactly as they were)
+  // Styles
   const styles = {
     container: {
       minHeight: '100vh',
@@ -858,7 +825,7 @@ const Dashboard: React.FC = () => {
         ...styles.mainContent,
         ...(isSidebarOpen ? styles.mainContentShifted : {})
       }}>
-        {/* Header */}
+        {/* Header - Removed stats and charts sections */}
         <div style={styles.header}>
           <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
           
@@ -910,11 +877,11 @@ const Dashboard: React.FC = () => {
           {/* Edit Mode Banner */}
           {isEditMode && (
             <div style={styles.editModeBanner}>
-              <Icons.Check /> <span>Edit Mode Active - Changes will be saved to Firebase</span>
+              <Icons.Check /> <span>Edit Mode Active - Changes will be saved</span>
             </div>
           )}
 
-          {/* Tech Stack */}
+          {/* Tech Stack - Kept only the tech stack section */}
           <div style={styles.specs}>
             <span style={styles.specItem}>🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}</span>
             {glazemeSpecs.technicalStack.ai.map((tech, i) => (
@@ -957,20 +924,18 @@ const Dashboard: React.FC = () => {
         <div style={styles.content}>
           {activeTab === 'updates' && (
             <BuildUpdates 
-              updates={filteredUpdates}
-              onAddUpdate={handleAddUpdate}
-              onEditUpdate={handleEditUpdate}
-              onDeleteUpdate={handleDeleteUpdate}
-              isEditMode={isEditMode}
-              onEditAction={() => handleEditAction('addUpdate')}
-            />
+        updates={buildUpdates}
+        onAddUpdate={handleAddUpdate}
+        onEditUpdate={handleEditUpdate}
+        onDeleteUpdate={handleDeleteUpdate}
+        isEditMode={isEditMode}
+      />
           )}
           {activeTab === 'screens' && (
             <ScreenGallery 
               screens={filteredScreens} 
               isEditMode={isEditMode}
               onAddScreen={() => handleEditAction('addScreen')}
-              onEditAction={() => handleEditAction('editScreen')}
             />
           )}
           {activeTab === 'progress' && (
