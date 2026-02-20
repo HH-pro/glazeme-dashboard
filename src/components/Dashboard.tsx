@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import {
   FaRocket, FaMobile, FaCode, FaBrain, FaChartLine,
-  FaGithub, FaCloud, FaShield, FaBell, FaSearch,
+  FaGithub, FaCloud, FaBell, FaSearch,
   FaFilter, FaDownload, FaShare, FaStar, FaClock,
   FaCheckCircle, FaExclamationTriangle, FaPlayCircle,
   FaPauseCircle, FaStopCircle, FaRedo, FaPlus,
@@ -520,7 +520,7 @@ const Dashboard: React.FC = () => {
               <small style={styles.statTrend}>+5%</small>
             </div>
             <div style={styles.statCard}>
-              <FaShield style={styles.statIcon} color="#17a2b8" />
+              <FaCloud style={styles.statIcon} color="#17a2b8" />
               <span style={styles.statValue}>{buildStats.securityScore}%</span>
               <span style={styles.statLabel}>Security</span>
               <small style={styles.statTrend}>+2%</small>
