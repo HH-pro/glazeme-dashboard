@@ -75,78 +75,100 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    const setupListeners = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+ useEffect(() => {
+  setIsLoading(true);
+  setError(null);
 
-        // Real-time updates listener
-       const updatesData: BuildUpdate[] = snapshot.docs.map((doc) => {
-  const data = doc.data();
+  // 🔹 Updates listener
+  const updatesQuery = query(
+    collection(db, 'buildUpdates'),
+    orderBy('date', 'desc'),
+    limit(50)
+  );
 
-  return {
-    id: doc.id, // ✅ now matches type
-    weekNumber: data.weekNumber ?? 0,
-    title: data.title ?? "",
-    description: data.description ?? "",
-    category: data.category ?? "",
-    status: data.status ?? "",
-    author: data.author ?? "",
-    priority: data.priority ?? "low",
-    timeSpent: data.timeSpent ?? 0,
-    date: data.date?.toDate?.() ?? new Date()
-  };
-});
+  const unsubscribeUpdates = onSnapshot(
+    updatesQuery,
+    (snapshot) => {
+      const updatesData: BuildUpdate[] = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
 
-        // Screenshots listener
-        const screensQuery = query(collection(db, 'screenshots'), orderBy('date', 'desc'), limit(50));
-        const unsubscribeScreens = onSnapshot(screensQuery,
-          (snapshot) => {
-            const screensData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-              date: doc.data().date.toDate()
-            })) as ScreenCapture[];
-            setScreens(screensData);
-          },
-          () => {
-            // Error handled silently
-          }
-        );
-
-        // Commits listener
-        const commitsQuery = query(collection(db, 'commits'), orderBy('timestamp', 'desc'), limit(100));
-        const unsubscribeCommits = onSnapshot(commitsQuery,
-          (snapshot) => {
-            const commitsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-              timestamp: doc.data().timestamp.toDate()
-            })) as CodeCommit[];
-            setCommits(commitsData);
-          },
-          () => {
-            // Error handled silently
-          }
-        );
-
-        setIsLoading(false);
-        addNotification('Welcome to GlazeMe Dashboard', 'success');
-
-        return () => {
-          unsubscribeUpdates();
-          unsubscribeScreens();
-          unsubscribeCommits();
+        return {
+          id: Number(data.id ?? 0), // ⚠️ must exist in Firestore
+          weekNumber: data.weekNumber ?? 0,
+          title: data.title ?? "",
+          description: data.description ?? "",
+          category: data.category ?? "",
+          status: data.status ?? "",
+          author: data.author ?? "",
+          priority: data.priority ?? "low",
+          timeSpent: data.timeSpent ?? 0,
+          date: data.date?.toDate?.() ?? new Date()
         };
-      } catch {
-        setError('Failed to initialize dashboard');
-        setIsLoading(false);
-      }
-    };
+      });
 
-    setupListeners();
-  }, []);
+      setUpdates(updatesData);
+    },
+    () => setError('Failed to load updates')
+  );
+
+  // 🔹 Screenshots listener
+  const screensQuery = query(
+    collection(db, 'screenshots'),
+    orderBy('date', 'desc'),
+    limit(50)
+  );
+
+  const unsubscribeScreens = onSnapshot(
+    screensQuery,
+    (snapshot) => {
+      const screensData: ScreenCapture[] = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
+
+        return {
+          id: doc.id, // string id
+          ...data,
+          date: data.date?.toDate?.() ?? new Date()
+        };
+      });
+
+      setScreens(screensData);
+    }
+  );
+
+  // 🔹 Commits listener
+  const commitsQuery = query(
+    collection(db, 'commits'),
+    orderBy('timestamp', 'desc'),
+    limit(100)
+  );
+
+  const unsubscribeCommits = onSnapshot(
+    commitsQuery,
+    (snapshot) => {
+      const commitsData: CodeCommit[] = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
+
+        return {
+          id: doc.id,
+          ...data,
+          timestamp: data.timestamp?.toDate?.() ?? new Date()
+        };
+      });
+
+      setCommits(commitsData);
+    }
+  );
+
+  setIsLoading(false);
+  addNotification('Welcome to GlazeMe Dashboard', 'success');
+
+  // ✅ Proper cleanup
+  return () => {
+    unsubscribeUpdates();
+    unsubscribeScreens();
+    unsubscribeCommits();
+  };
+}, []);
 
   const addNotification = useCallback((message: string, type: Notification['type'] = 'info') => {
     const id = Date.now().toString();
