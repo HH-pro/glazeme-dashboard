@@ -1,5 +1,5 @@
 // src/components/DeploymentTracker.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface Deployment {
   id: number;
@@ -20,7 +20,49 @@ interface Props {
 
 const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }) => {
   const [deployments, setDeployments] = useState<Deployment[]>([
-   
+    {
+      id: 1,
+      version: 'v1.0.0',
+      date: '2024-03-15',
+      status: 'live',
+      environment: 'production',
+      features: ['User Authentication', 'Basic Profile', 'Home Feed'],
+      buildTime: '5m 23s',
+      testCoverage: 95,
+      issues: []
+    },
+    {
+      id: 2,
+      version: 'v1.1.0',
+      date: '2024-03-10',
+      status: 'live',
+      environment: 'staging',
+      features: ['Push Notifications', 'Comments', 'Share Feature'],
+      buildTime: '4m 45s',
+      testCoverage: 92,
+      issues: ['Notification delay on iOS']
+    },
+    {
+      id: 3,
+      version: 'v1.2.0',
+      date: '2024-03-05',
+      status: 'in-progress',
+      environment: 'development',
+      features: ['Offline Mode', 'Cache System', 'Sync Feature'],
+      buildTime: '6m 12s',
+      testCoverage: 78,
+      issues: ['Sync conflicts', 'Memory leak']
+    },
+    {
+      id: 4,
+      version: 'v2.0.0',
+      date: '2024-03-20',
+      status: 'planned',
+      environment: 'development',
+      features: ['AI Recommendations', 'Advanced Analytics', 'Premium Features'],
+      testCoverage: 0,
+      issues: []
+    }
   ]);
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -34,6 +76,18 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
     features: [],
     issues: []
   });
+
+  // Add resize listener for mobile responsiveness
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Calculate environment status
   const getEnvironmentStatus = (env: string) => {
@@ -58,6 +112,14 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
     }
     setShowAddForm(true);
     setEditingDeployment(null);
+    setNewDeployment({
+      version: '',
+      date: new Date().toISOString().split('T')[0],
+      status: 'planned',
+      environment: 'development',
+      features: [],
+      issues: []
+    });
   };
 
   const handleEditClick = (deployment: Deployment) => {
@@ -139,16 +201,57 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
   const stagingStatus = getEnvironmentStatus('staging');
   const prodStatus = getEnvironmentStatus('production');
 
+  // Mobile-specific styles
+  const mobileStyles = {
+    header: {
+      flexDirection: 'column' as const,
+      alignItems: 'flex-start',
+      gap: '10px',
+    },
+    formRow: {
+      flexDirection: 'column' as const,
+      gap: '10px',
+    },
+    deployHeader: {
+      flexDirection: 'column' as const,
+      alignItems: 'flex-start',
+      gap: '10px',
+    },
+    deployHeaderLeft: {
+      width: '100%',
+      justifyContent: 'space-between',
+    },
+    deployActions: {
+      width: '100%',
+      justifyContent: 'space-between',
+    },
+    coverageContainer: {
+      flexDirection: 'column' as const,
+      alignItems: 'flex-start',
+      gap: '5px',
+    },
+    coverageLabel: {
+      minWidth: 'auto',
+    },
+    features: {
+      flexDirection: 'column' as const,
+    },
+  };
+
   return (
-    <div>
-      <div style={styles.header}>
+    <div style={styles.container}>
+      <div style={{
+        ...styles.header,
+        ...(isMobile ? mobileStyles.header : {})
+      }}>
         <h2 style={styles.sectionTitle}>🚀 Deployment Pipeline</h2>
         <button 
           onClick={handleAddClick}
           style={{
             ...styles.addButton,
             backgroundColor: isEditMode ? '#FF8C42' : '#6c757d',
-            cursor: isEditMode ? 'pointer' : 'not-allowed'
+            cursor: isEditMode ? 'pointer' : 'not-allowed',
+            width: isMobile ? '100%' : 'auto'
           }}
         >
           {isEditMode ? '+ Add Deployment' : '🔒 Edit Mode Required'}
@@ -169,7 +272,10 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
             {editingDeployment ? '✏️ Edit Deployment' : '➕ Add New Deployment'}
           </h4>
           
-          <div style={styles.formRow}>
+          <div style={{
+            ...styles.formRow,
+            ...(isMobile ? mobileStyles.formRow : {})
+          }}>
             <input
               type="text"
               placeholder="Version (e.g., v1.0.0)"
@@ -182,12 +288,15 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
               type="date"
               value={newDeployment.date || ''}
               onChange={(e) => setNewDeployment({...newDeployment, date: e.target.value})}
-              style={{...styles.input, width: 'auto'}}
+              style={{...styles.input, width: isMobile ? '100%' : 'auto'}}
               required
             />
           </div>
 
-          <div style={styles.formRow}>
+          <div style={{
+            ...styles.formRow,
+            ...(isMobile ? mobileStyles.formRow : {})
+          }}>
             <select
               value={newDeployment.environment || 'development'}
               onChange={(e) => setNewDeployment({...newDeployment, environment: e.target.value as any})}
@@ -226,7 +335,10 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
             style={styles.input}
           />
 
-          <div style={styles.formRow}>
+          <div style={{
+            ...styles.formRow,
+            ...(isMobile ? mobileStyles.formRow : {})
+          }}>
             <input
               type="text"
               placeholder="Build Time (e.g., 5m 23s)"
@@ -239,7 +351,7 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
               placeholder="Test Coverage %"
               value={newDeployment.testCoverage || ''}
               onChange={(e) => setNewDeployment({...newDeployment, testCoverage: parseInt(e.target.value)})}
-              style={{...styles.input, width: '120px'}}
+              style={{...styles.input, width: isMobile ? '100%' : '120px'}}
               min="0"
               max="100"
             />
@@ -291,12 +403,21 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
             style={styles.deployCard}
             onClick={() => setSelectedDeployment(deploy)}
           >
-            <div style={styles.deployHeader}>
-              <div style={styles.deployHeaderLeft}>
+            <div style={{
+              ...styles.deployHeader,
+              ...(isMobile ? mobileStyles.deployHeader : {})
+            }}>
+              <div style={{
+                ...styles.deployHeaderLeft,
+                ...(isMobile ? mobileStyles.deployHeaderLeft : {})
+              }}>
                 <span style={styles.version}>{deploy.version}</span>
                 <span style={styles.environmentBadge}>{deploy.environment}</span>
               </div>
-              <div style={styles.deployActions}>
+              <div style={{
+                ...styles.deployActions,
+                ...(isMobile ? mobileStyles.deployActions : {})
+              }}>
                 {isEditMode && (
                   <>
                     <button 
@@ -342,8 +463,14 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
             )}
             
             {deploy.testCoverage !== undefined && (
-              <div style={styles.coverageContainer}>
-                <span style={styles.coverageLabel}>Test Coverage:</span>
+              <div style={{
+                ...styles.coverageContainer,
+                ...(isMobile ? mobileStyles.coverageContainer : {})
+              }}>
+                <span style={{
+                  ...styles.coverageLabel,
+                  ...(isMobile ? mobileStyles.coverageLabel : {})
+                }}>Test Coverage:</span>
                 <div style={styles.coverageBar}>
                   <div style={{
                     ...styles.coverageFill,
@@ -356,7 +483,10 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
               </div>
             )}
             
-            <div style={styles.features}>
+            <div style={{
+              ...styles.features,
+              ...(isMobile ? mobileStyles.features : {})
+            }}>
               {deploy.features.map(feature => (
                 <span key={feature} style={styles.feature}>✓ {feature}</span>
               ))}
@@ -373,8 +503,6 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
           </div>
         ))}
       </div>
-
-      
 
       {/* Deployment Detail Modal */}
       {selectedDeployment && (
@@ -439,143 +567,172 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
 };
 
 const styles = {
+  container: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '20px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    flexWrap: 'wrap' as const,
+    gap: '15px',
   },
   sectionTitle: {
-    fontSize: '22px',
+    fontSize: 'clamp(20px, 5vw, 22px)',
     margin: '0 0 20px 0',
     color: '#333'
   },
   addButton: {
-    padding: '8px 16px',
+    padding: '10px 20px',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '14px',
-    transition: 'background-color 0.2s'
+    fontSize: 'clamp(14px, 4vw, 16px)',
+    transition: 'background-color 0.2s',
+    fontWeight: '500',
   },
   editModeIndicator: {
     backgroundColor: '#fff3cd',
     color: '#856404',
-    padding: '8px 12px',
-    borderRadius: '6px',
+    padding: '12px 16px',
+    borderRadius: '8px',
     marginBottom: '20px',
-    fontSize: '14px',
-    fontWeight: '500'
+    fontSize: 'clamp(13px, 4vw, 14px)',
+    fontWeight: '500',
+    textAlign: 'center' as const,
   },
   form: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '10px',
+    gap: '15px',
     padding: '20px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
+    borderRadius: '16px',
     marginBottom: '20px',
-    border: '2px solid #FF8C42'
+    border: '2px solid #FF8C42',
   },
   formTitle: {
     margin: '0 0 10px 0',
-    fontSize: '16px',
+    fontSize: 'clamp(16px, 4vw, 18px)',
     color: '#333'
   },
   formRow: {
     display: 'flex',
-    gap: '10px',
+    gap: '15px',
     flexWrap: 'wrap' as const
   },
   input: {
-    padding: '8px',
+    padding: '12px',
     border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    flex: 1
+    borderRadius: '8px',
+    fontSize: 'clamp(14px, 4vw, 16px)',
+    flex: 1,
+    width: '100%',
+    boxSizing: 'border-box' as const,
   },
   select: {
-    padding: '8px',
+    padding: '12px',
     border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    flex: 1
+    borderRadius: '8px',
+    fontSize: 'clamp(14px, 4vw, 16px)',
+    flex: 1,
+    width: '100%',
+    backgroundColor: 'white',
   },
   formButtons: {
     display: 'flex',
-    gap: '10px',
+    gap: '12px',
     justifyContent: 'flex-end',
-    marginTop: '10px'
+    marginTop: '10px',
+    flexWrap: 'wrap' as const,
   },
   submitButton: {
-    padding: '10px 20px',
+    padding: '12px 24px',
     backgroundColor: '#28a745',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer'
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: 'clamp(14px, 4vw, 16px)',
+    flex: isMobile ? '1' : 'auto',
   },
   cancelButton: {
-    padding: '10px 20px',
+    padding: '12px 24px',
     backgroundColor: '#6c757d',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer'
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: 'clamp(14px, 4vw, 16px)',
+    flex: isMobile ? '1' : 'auto',
   },
   environments: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '15px',
     marginBottom: '30px'
   },
   environment: {
     padding: '20px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    border: '1px solid #e9ecef'
+    borderRadius: '12px',
+    border: '1px solid #e9ecef',
+    '@media (max-width: 768px)': {
+      padding: '16px',
+    },
   },
   envTitle: {
     margin: '0 0 10px 0',
-    fontSize: '16px',
+    fontSize: 'clamp(16px, 4vw, 18px)',
     color: '#333'
   },
   envVersion: {
-    fontSize: '14px',
+    fontSize: 'clamp(13px, 4vw, 14px)',
     color: '#666',
     margin: '0 0 5px 0'
   },
   envStatus: {
-    fontSize: '14px',
+    fontSize: 'clamp(13px, 4vw, 14px)',
     color: '#666',
     margin: '0 0 10px 0'
   },
   envAction: {
-    padding: '6px 12px',
+    padding: '8px 16px',
     backgroundColor: '#FF8C42',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '12px'
+    fontSize: 'clamp(12px, 3vw, 14px)',
+    width: isMobile ? '100%' : 'auto',
   },
   timeline: {
     marginBottom: '30px'
   },
   subTitle: {
-    fontSize: '18px',
+    fontSize: 'clamp(18px, 5vw, 20px)',
     margin: '0 0 15px 0',
     color: '#333'
   },
   deployCard: {
-    padding: '15px',
+    padding: '20px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    marginBottom: '10px',
+    borderRadius: '12px',
+    marginBottom: '15px',
     border: '1px solid #e9ecef',
     cursor: 'pointer',
-    transition: 'transform 0.2s, boxShadow 0.2s'
+    transition: 'transform 0.2s, boxShadow 0.2s',
+    ':active': {
+      transform: 'scale(0.99)',
+    },
+    '@media (max-width: 768px)': {
+      padding: '16px',
+    },
   },
   deployHeader: {
     display: 'flex',
@@ -585,76 +742,83 @@ const styles = {
   },
   deployHeaderLeft: {
     display: 'flex',
-    gap: '8px',
-    alignItems: 'center'
+    gap: '10px',
+    alignItems: 'center',
+    flexWrap: 'wrap' as const,
   },
   version: {
-    fontSize: '16px',
+    fontSize: 'clamp(16px, 4vw, 18px)',
     fontWeight: 'bold',
     color: '#333'
   },
   environmentBadge: {
-    padding: '2px 6px',
+    padding: '4px 8px',
     backgroundColor: '#e9ecef',
-    borderRadius: '4px',
-    fontSize: '11px',
+    borderRadius: '6px',
+    fontSize: 'clamp(11px, 3vw, 12px)',
     color: '#495057'
   },
   deployActions: {
     display: 'flex',
     gap: '8px',
-    alignItems: 'center'
+    alignItems: 'center',
+    flexWrap: 'wrap' as const,
   },
   editButton: {
-    padding: '4px 8px',
+    padding: '8px 12px',
     backgroundColor: '#f8f9fa',
     border: '1px solid #dee2e6',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: '14px',
+    transition: 'all 0.2s',
   },
   deleteButton: {
-    padding: '4px 8px',
+    padding: '8px 12px',
     backgroundColor: '#f8d7da',
     border: '1px solid #f5c6cb',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: '14px',
+    transition: 'all 0.2s',
   },
   status: {
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    textTransform: 'capitalize' as const
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: 'clamp(12px, 3vw, 13px)',
+    textTransform: 'capitalize' as const,
+    fontWeight: '500',
   },
   date: {
-    fontSize: '13px',
+    fontSize: 'clamp(13px, 3vw, 14px)',
     color: '#666',
-    marginBottom: '5px'
+    marginBottom: '8px'
   },
   buildTime: {
-    fontSize: '13px',
+    fontSize: 'clamp(13px, 3vw, 14px)',
     color: '#666',
-    marginBottom: '5px'
+    marginBottom: '8px'
   },
   coverageContainer: {
-    marginBottom: '10px',
+    marginBottom: '12px',
     display: 'flex',
     alignItems: 'center',
-    gap: '10px'
+    gap: '15px',
+    flexWrap: 'wrap' as const,
   },
   coverageLabel: {
-    fontSize: '13px',
+    fontSize: 'clamp(13px, 3vw, 14px)',
     color: '#666',
     minWidth: '90px'
   },
   coverageBar: {
     flex: 1,
-    height: '20px',
+    height: '24px',
     backgroundColor: '#e9ecef',
-    borderRadius: '10px',
+    borderRadius: '12px',
     overflow: 'hidden',
-    position: 'relative' as const
+    position: 'relative' as const,
+    minWidth: '150px',
   },
   coverageFill: {
     height: '100%',
@@ -665,9 +829,10 @@ const styles = {
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    fontSize: '11px',
+    fontSize: '12px',
     color: '#fff',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    textShadow: '0 1px 2px rgba(0,0,0,0.2)',
   },
   features: {
     display: 'flex',
@@ -676,74 +841,31 @@ const styles = {
     marginBottom: '10px'
   },
   feature: {
-    fontSize: '12px',
+    fontSize: 'clamp(12px, 3vw, 13px)',
     color: '#28a745',
-    padding: '2px 8px',
+    padding: '4px 10px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '4px'
+    borderRadius: '6px',
+    border: '1px solid #d4edda',
   },
   issues: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '4px',
-    marginTop: '10px',
-    padding: '8px',
+    gap: '6px',
+    marginTop: '12px',
+    padding: '12px',
     backgroundColor: '#f8d7da',
-    borderRadius: '4px'
+    borderRadius: '8px'
   },
   issuesLabel: {
-    fontSize: '12px',
+    fontSize: 'clamp(12px, 3vw, 13px)',
     color: '#721c24',
     fontWeight: 'bold'
   },
   issue: {
-    fontSize: '12px',
+    fontSize: 'clamp(12px, 3vw, 13px)',
     color: '#721c24',
-    marginLeft: '12px'
-  },
-  nextSteps: {
-    padding: '20px',
-    backgroundColor: '#fff3cd',
-    borderRadius: '8px',
-    border: '1px solid #ffeeba'
-  },
-  nextStepsTitle: {
-    margin: '0 0 15px 0',
-    fontSize: '16px',
-    color: '#856404'
-  },
-  stepsList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: '0 0 15px 0'
-  },
-  completedStep: {
-    padding: '5px 0',
-    color: '#28a745'
-  },
-  inProgressStep: {
-    padding: '5px 0',
-    color: '#ffc107'
-  },
-  plannedStep: {
-    padding: '5px 0',
-    color: '#6c757d'
-  },
-  releaseNotes: {
-    marginTop: '15px',
-    padding: '15px',
-    backgroundColor: '#fff',
-    borderRadius: '8px'
-  },
-  releaseNotesTitle: {
-    margin: '0 0 10px 0',
-    fontSize: '14px',
-    color: '#333'
-  },
-  releaseNoteItem: {
-    fontSize: '13px',
-    color: '#666',
-    margin: '5px 0'
+    marginLeft: '16px'
   },
   modal: {
     position: 'fixed' as const,
@@ -755,38 +877,40 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 1000,
+    padding: '20px',
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '20px',
+    borderRadius: '20px',
+    padding: '24px',
     maxWidth: '500px',
-    width: '90%',
+    width: '100%',
     maxHeight: '80vh',
     overflow: 'auto',
-    position: 'relative' as const
+    position: 'relative' as const,
   },
   modalClose: {
     position: 'absolute' as const,
-    top: '10px',
-    right: '10px',
-    width: '30px',
-    height: '30px',
+    top: '15px',
+    right: '15px',
+    width: '36px',
+    height: '36px',
     borderRadius: '50%',
     border: 'none',
     backgroundColor: '#ff4444',
     color: 'white',
-    fontSize: '20px',
+    fontSize: '24px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   modalTitle: {
-    fontSize: '20px',
+    fontSize: 'clamp(18px, 5vw, 20px)',
     margin: '0 0 20px 0',
-    color: '#333'
+    color: '#333',
+    paddingRight: '30px',
   },
   modalDetails: {
     display: 'flex',
@@ -799,12 +923,12 @@ const styles = {
     gap: '5px'
   },
   modalLabel: {
-    fontSize: '12px',
+    fontSize: 'clamp(12px, 3vw, 13px)',
     color: '#6c757d',
     textTransform: 'uppercase' as const
   },
   modalValue: {
-    fontSize: '14px',
+    fontSize: 'clamp(14px, 4vw, 16px)',
     color: '#333'
   },
   modalFeatures: {
@@ -813,23 +937,23 @@ const styles = {
     gap: '8px'
   },
   modalFeature: {
-    fontSize: '12px',
+    fontSize: 'clamp(12px, 3vw, 13px)',
     color: '#28a745',
-    padding: '2px 8px',
+    padding: '4px 10px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '4px'
+    borderRadius: '6px'
   },
   modalIssues: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '4px'
+    gap: '6px'
   },
   modalIssue: {
-    fontSize: '12px',
+    fontSize: 'clamp(12px, 3vw, 13px)',
     color: '#dc3545',
-    padding: '2px 8px',
+    padding: '4px 10px',
     backgroundColor: '#f8d7da',
-    borderRadius: '4px'
+    borderRadius: '6px'
   }
 };
 
