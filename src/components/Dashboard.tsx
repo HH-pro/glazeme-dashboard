@@ -492,17 +492,19 @@ const Dashboard: React.FC = () => {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      {isMobile && (
-        <BottomNav activeTab={activeTab} onTabChange={(tab) => {
-          if (tab === 'more') {
-            setShowMobileMenu(true);
-          } else {
-            setActiveTab(tab);
-            setShowMobileMenu(false);
-          }
-        }} />
-      )}
-
+     {isMobile && (
+  <BottomNav
+    activeTab={activeTab}
+    onTabChange={(tab: TabType) => {
+      if (tab === 'more') {
+        setShowMobileMenu(true);
+      } else {
+        setActiveTab(tab);
+        setShowMobileMenu(false);
+      }
+    }}
+  />
+)}
       {/* Global Responsive Styles */}
       <style>{`
         :root {
