@@ -17,58 +17,7 @@ interface Props {
 
 const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) => {
   const [weeks, setWeeks] = useState<Week[]>([
-    {
-      number: 1,
-      focus: "User Onboarding & Authentication",
-      screens: ["Splash Screen", "Login Screen", "Sign Up Screen", "Profile Setup"],
-      tasks: [
-        "Design splash screen with app logo",
-        "Implement email/password login",
-        "Create sign up flow with validation",
-        "Build profile setup with photo upload"
-      ],
-      completed: true,
-      progress: 100
-    },
-    {
-      number: 2,
-      focus: "Main Feed & Content Discovery",
-      screens: ["Home Feed", "Search Screen", "Categories", "Content Details"],
-      tasks: [
-        "Build infinite scroll feed",
-        "Implement search with filters",
-        "Create category browsing",
-        "Design content detail view"
-      ],
-      completed: false,
-      progress: 65
-    },
-    {
-      number: 3,
-      focus: "User Engagement Features",
-      screens: ["Notifications", "Messages", "Comments", "Share Sheet"],
-      tasks: [
-        "Implement push notifications",
-        "Build messaging interface",
-        "Create comment system",
-        "Add share functionality"
-      ],
-      completed: false,
-      progress: 30
-    },
-    {
-      number: 4,
-      focus: "Profile & Settings",
-      screens: ["User Profile", "Settings", "Edit Profile", "Privacy Settings"],
-      tasks: [
-        "Design profile page with stats",
-        "Build settings options",
-        "Implement edit profile",
-        "Add privacy controls"
-      ],
-      completed: false,
-      progress: 10
-    }
+   
   ]);
 
   const [editingWeek, setEditingWeek] = useState<number | null>(null);
