@@ -101,23 +101,34 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
   };
 
   // Fetch all updates
-  const fetchUpdates = async () => {
-    try {
-      const updatesRef = collection(db, 'buildUpdates');
-      const q = query(updatesRef, orderBy('date', 'desc'));
-      const querySnapshot = await getDocs(q);
-      
-      const fetchedUpdates = querySnapshot.docs.map(doc => ({
+const fetchUpdates = async () => {
+  try {
+    const updatesRef = collection(db, 'buildUpdates');
+    const q = query(updatesRef, orderBy('date', 'desc'));
+    const querySnapshot = await getDocs(q);
+
+    const fetchedUpdates: BuildUpdate[] = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+
+      return {
         id: doc.id,
-        ...doc.data(),
-        date: doc.data().date?.toDate()
-      })) as BuildUpdate[];
-      
-      setUpdates(fetchedUpdates);
-    } catch (err) {
-      console.error('Error fetching updates:', err);
-    }
-  };
+        weekNumber: data.weekNumber,
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        status: data.status,
+        author: data.author,
+        priority: data.priority,
+        timeSpent: data.timeSpent,
+        date: data.date?.toDate() || null, // Fallback in case date is missing
+      };
+    });
+
+    setUpdates(fetchedUpdates);
+  } catch (err) {
+    console.error('Error fetching updates:', err);
+  }
+};
 
   // Fetch reviews
   const fetchReviews = async () => {
