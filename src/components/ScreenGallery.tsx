@@ -24,6 +24,7 @@ const ScreenGallery: React.FC<Props> = ({
 }) => {
   const [uploading, setUploading] = useState(false);
   const [selectedScreen, setSelectedScreen] = useState<ScreenCapture | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<ScreenCapture | null>(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [cloudinaryReady, setCloudinaryReady] = useState(true);
@@ -73,6 +74,17 @@ const ScreenGallery: React.FC<Props> = ({
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Handle escape key for full screen mode
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFullScreenImage(null);
+      }
+    };
+    window.addEventListener('keydown', handleEscKey);
+    return () => window.removeEventListener('keydown', handleEscKey);
   }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -201,6 +213,7 @@ const ScreenGallery: React.FC<Props> = ({
 
       setShowDeleteConfirm(null);
       if (selectedScreen?.id === screenId) setSelectedScreen(null);
+      if (fullScreenImage?.id === screenId) setFullScreenImage(null);
       if (onScreensUpdate) onScreensUpdate();
     } catch (error) {
       console.error('Delete failed:', error);
@@ -234,8 +247,17 @@ const ScreenGallery: React.FC<Props> = ({
     setMenuOpen(menuOpen === screenId ? null : screenId);
   };
 
+  const handleImageClick = (screen: ScreenCapture, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFullScreenImage(screen);
+  };
+
+  const handleCloseFullScreen = () => {
+    setFullScreenImage(null);
+  };
+
   // Helper function to get image element with error handling
-  const getImageElement = (screen: ScreenCapture) => {
+  const getImageElement = (screen: ScreenCapture, onClick?: (e: React.MouseEvent) => void) => {
     // Check if image previously failed or Cloudinary not ready
     if (imageErrors.has(screen.id) || !cld || !screen.cloudinaryId) {
       return (
@@ -256,6 +278,7 @@ const ScreenGallery: React.FC<Props> = ({
         <AdvancedImage 
           cldImg={myImage} 
           style={styles.image}
+          onClick={onClick}
           onError={() => handleImageError(screen.id)}
         />
       );
@@ -266,6 +289,43 @@ const ScreenGallery: React.FC<Props> = ({
         <div style={styles.placeholderImage}>
           <span style={styles.placeholderIcon}>⚠️</span>
           <span style={styles.placeholderText}>Failed to load image</span>
+        </div>
+      );
+    }
+  };
+
+  const getFullScreenImageElement = (screen: ScreenCapture) => {
+    if (imageErrors.has(screen.id) || !cld || !screen.cloudinaryId) {
+      return (
+        <div style={styles.fullScreenPlaceholder}>
+          <span style={styles.fullScreenPlaceholderIcon}>
+            {!cld ? '☁️' : '📸'}
+          </span>
+          <span>
+            {!cld ? 'Cloudinary not configured' : 'Image not available'}
+          </span>
+        </div>
+      );
+    }
+
+    try {
+      // Create a high-quality image for full screen
+      const fullScreenImage = cld.image(screen.cloudinaryId);
+      fullScreenImage.resize(fill().width(1920).height(1080));
+
+      return (
+        <AdvancedImage 
+          cldImg={fullScreenImage} 
+          style={styles.fullScreenImage}
+          onError={() => handleImageError(screen.id)}
+        />
+      );
+    } catch (error) {
+      console.error('Error creating full screen image:', error);
+      return (
+        <div style={styles.fullScreenPlaceholder}>
+          <span style={styles.fullScreenPlaceholderIcon}>⚠️</span>
+          <span>Failed to load image</span>
         </div>
       );
     }
@@ -291,6 +351,7 @@ const ScreenGallery: React.FC<Props> = ({
         <AdvancedImage 
           cldImg={modalImage} 
           style={styles.modalImage}
+          onClick={(e) => handleImageClick(screen, e)}
           onError={() => handleImageError(screen.id)}
         />
       );
@@ -427,9 +488,9 @@ const ScreenGallery: React.FC<Props> = ({
             }}
           >
             <div style={styles.imageContainer}>
-              {getImageElement(screen)}
+              {getImageElement(screen, (e) => handleImageClick(screen, e))}
               <div className="image-overlay" style={styles.imageOverlay}>
-                <span style={styles.viewDetails}>Click to view details</span>
+                <span style={styles.viewDetails}>Click to view full screen</span>
               </div>
             </div>
             <div style={styles.cardContent}>
@@ -639,7 +700,7 @@ const ScreenGallery: React.FC<Props> = ({
       )}
 
       {/* Screen Detail Modal */}
-      {selectedScreen && !editingScreen && (
+      {selectedScreen && !editingScreen && !fullScreenImage && (
         <div style={styles.modal} onClick={() => setSelectedScreen(null)}>
           <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
             <button style={styles.modalClose} onClick={() => setSelectedScreen(null)}>×</button>
@@ -691,6 +752,28 @@ const ScreenGallery: React.FC<Props> = ({
 // Cloudinary ID: ${selectedScreen.cloudinaryId || 'Not available'}
 // Tags: ${selectedScreen.tags?.join(', ') || 'None'}`}
               </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Screen Image Modal */}
+      {fullScreenImage && (
+        <div style={styles.fullScreenModal} onClick={handleCloseFullScreen}>
+          <button style={styles.fullScreenClose} onClick={handleCloseFullScreen}>×</button>
+          <button style={styles.fullScreenDownload} onClick={(e) => {
+            e.stopPropagation();
+            if (fullScreenImage.imageUrl) {
+              window.open(fullScreenImage.imageUrl, '_blank');
+            }
+          }}>
+            ⬇️ Download
+          </button>
+          <div style={styles.fullScreenContent} onClick={e => e.stopPropagation()}>
+            {getFullScreenImageElement(fullScreenImage)}
+            <div style={styles.fullScreenInfo}>
+              <h3 style={styles.fullScreenTitle}>{fullScreenImage.screenName}</h3>
+              <p style={styles.fullScreenDesc}>{fullScreenImage.description}</p>
             </div>
           </div>
         </div>
@@ -913,7 +996,8 @@ const styles = {
   image: {
     width: '100%',
     height: '100%',
-    objectFit: 'cover' as const
+    objectFit: 'cover' as const,
+    cursor: 'zoom-in'
   },
   placeholderImage: {
     width: '100%',
@@ -1153,7 +1237,8 @@ const styles = {
     width: '100%',
     maxHeight: '500px',
     objectFit: 'contain' as const,
-    backgroundColor: '#f8f9fa'
+    backgroundColor: '#f8f9fa',
+    cursor: 'zoom-in'
   },
   modalPlaceholder: {
     width: '100%',
@@ -1323,6 +1408,112 @@ const styles = {
     borderRadius: '6px',
     fontSize: '14px',
     cursor: 'pointer'
+  },
+  // Full Screen Modal Styles
+  fullScreenModal: {
+    position: 'fixed' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000,
+    padding: '20px'
+  },
+  fullScreenContent: {
+    position: 'relative' as const,
+    maxWidth: '95vw',
+    maxHeight: '95vh',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  fullScreenImage: {
+    maxWidth: '100%',
+    maxHeight: '85vh',
+    objectFit: 'contain' as const,
+    borderRadius: '4px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+  },
+  fullScreenPlaceholder: {
+    width: '80vw',
+    height: '60vh',
+    backgroundColor: '#1e1e1e',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '16px',
+    color: '#fff',
+    fontSize: '18px',
+    borderRadius: '8px'
+  },
+  fullScreenPlaceholderIcon: {
+    fontSize: '64px'
+  },
+  fullScreenClose: {
+    position: 'absolute' as const,
+    top: '20px',
+    right: '20px',
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    border: 'none',
+    backgroundColor: '#ff4444',
+    color: 'white',
+    fontSize: '24px',
+    cursor: 'pointer',
+    zIndex: 2001,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    '&:hover': {
+      backgroundColor: '#ff6666'
+    }
+  },
+  fullScreenDownload: {
+    position: 'absolute' as const,
+    top: '20px',
+    right: '70px',
+    padding: '8px 16px',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '20px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    zIndex: 2001,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    '&:hover': {
+      backgroundColor: '#34ce57'
+    }
+  },
+  fullScreenInfo: {
+    position: 'absolute' as const,
+    bottom: '20px',
+    left: '20px',
+    right: '20px',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    color: 'white',
+    padding: '15px',
+    borderRadius: '8px',
+    backdropFilter: 'blur(5px)',
+    textAlign: 'center' as const
+  },
+  fullScreenTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '18px'
+  },
+  fullScreenDesc: {
+    margin: 0,
+    fontSize: '14px',
+    opacity: 0.9
   }
 };
 
