@@ -16,54 +16,25 @@ interface Deployment {
 interface Props {
   isEditMode?: boolean;
   onEditAction?: () => void;
+  deployments?: Deployment[]; // Add prop for real data
+  onDeploymentsChange?: (deployments: Deployment[]) => void; // Callback for changes
+  isLoading?: boolean; // Loading state
+  error?: string | null; // Error state
 }
 
-const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }) => {
-  const [deployments, setDeployments] = useState<Deployment[]>([
-    {
-      id: 1,
-      version: 'v1.0.0',
-      date: '2024-03-15',
-      status: 'live',
-      environment: 'production',
-      features: ['User Authentication', 'Basic Profile', 'Home Feed'],
-      buildTime: '5m 23s',
-      testCoverage: 95,
-      issues: []
-    },
-    {
-      id: 2,
-      version: 'v1.1.0',
-      date: '2024-03-10',
-      status: 'live',
-      environment: 'staging',
-      features: ['Push Notifications', 'Comments', 'Share Feature'],
-      buildTime: '4m 45s',
-      testCoverage: 92,
-      issues: ['Notification delay on iOS']
-    },
-    {
-      id: 3,
-      version: 'v1.2.0',
-      date: '2024-03-05',
-      status: 'in-progress',
-      environment: 'development',
-      features: ['Offline Mode', 'Cache System', 'Sync Feature'],
-      buildTime: '6m 12s',
-      testCoverage: 78,
-      issues: ['Sync conflicts', 'Memory leak']
-    },
-    {
-      id: 4,
-      version: 'v2.0.0',
-      date: '2024-03-20',
-      status: 'planned',
-      environment: 'development',
-      features: ['AI Recommendations', 'Advanced Analytics', 'Premium Features'],
-      testCoverage: 0,
-      issues: []
-    }
-  ]);
+const DeploymentTracker: React.FC<Props> = ({ 
+  isEditMode = false, 
+  onEditAction,
+  deployments: externalDeployments = [], // Accept external deployments
+  onDeploymentsChange,
+  isLoading = false,
+  error = null
+}) => {
+  // Use external deployments if provided, otherwise use internal state
+  const [internalDeployments, setInternalDeployments] = useState<Deployment[]>([]);
+  
+  // Determine which deployments to use
+  const deployments = externalDeployments.length > 0 ? externalDeployments : internalDeployments;
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingDeployment, setEditingDeployment] = useState<Deployment | null>(null);
@@ -139,7 +110,17 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
     }
     
     if (window.confirm('Are you sure you want to delete this deployment?')) {
-      setDeployments(deployments.filter(d => d.id !== id));
+      const updatedDeployments = deployments.filter(d => d.id !== id);
+      
+      // If using internal state, update it
+      if (externalDeployments.length === 0) {
+        setInternalDeployments(updatedDeployments);
+      }
+      
+      // Call the callback if provided
+      if (onDeploymentsChange) {
+        onDeploymentsChange(updatedDeployments);
+      }
     }
   };
 
@@ -151,15 +132,29 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
       return;
     }
 
+    let updatedDeployments: Deployment[];
+
     if (editingDeployment) {
       // Update existing deployment
-      setDeployments(deployments.map(d => 
+      updatedDeployments = deployments.map(d => 
         d.id === editingDeployment.id ? { ...d, ...newDeployment, id: d.id } : d
-      ));
+      );
     } else {
       // Add new deployment
-      const newId = Math.max(...deployments.map(d => d.id), 0) + 1;
-      setDeployments([...deployments, { ...newDeployment, id: newId } as Deployment]);
+      const newId = deployments.length > 0 
+        ? Math.max(...deployments.map(d => d.id), 0) + 1 
+        : 1;
+      updatedDeployments = [...deployments, { ...newDeployment, id: newId } as Deployment];
+    }
+    
+    // If using internal state, update it
+    if (externalDeployments.length === 0) {
+      setInternalDeployments(updatedDeployments);
+    }
+    
+    // Call the callback if provided
+    if (onDeploymentsChange) {
+      onDeploymentsChange(updatedDeployments);
     }
     
     setShowAddForm(false);
@@ -237,6 +232,35 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
       flexDirection: 'column' as const,
     },
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loadingContainer}>
+          <div style={styles.loadingSpinner}></div>
+          <p style={styles.loadingText}>Loading deployments...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.errorContainer}>
+          <p style={styles.errorText}>Error: {error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            style={styles.retryButton}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -431,6 +455,22 @@ const DeploymentTracker: React.FC<Props> = ({ isEditMode = false, onEditAction }
 
       <div style={styles.timeline}>
         <h3 style={styles.subTitle}>📅 Deployment History</h3>
+        
+        {/* Empty state */}
+        {deployments.length === 0 && (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyStateText}>No deployments found</p>
+            {isEditMode && (
+              <button 
+                onClick={handleAddClick}
+                style={styles.emptyStateButton}
+              >
+                Add your first deployment
+              </button>
+            )}
+          </div>
+        )}
+        
         {deployments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(deploy => (
           <div 
             key={deploy.id} 
@@ -640,6 +680,49 @@ const styles = {
     fontWeight: '500',
     textAlign: 'center' as const,
   },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '300px',
+  },
+  loadingSpinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #FF8C42',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+  },
+  loadingText: {
+    marginTop: '10px',
+    fontSize: '16px',
+    color: '#666',
+  },
+  errorContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '300px',
+    backgroundColor: '#f8d7da',
+    borderRadius: '8px',
+    padding: '20px',
+  },
+  errorText: {
+    color: '#721c24',
+    fontSize: '16px',
+    marginBottom: '10px',
+  },
+  retryButton: {
+    padding: '8px 16px',
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
   form: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -714,9 +797,6 @@ const styles = {
     backgroundColor: '#f8f9fa',
     borderRadius: '12px',
     border: '1px solid #e9ecef',
-    '@media (max-width: 768px)': {
-      padding: '16px',
-    },
   },
   envTitle: {
     margin: '0 0 10px 0',
@@ -750,6 +830,25 @@ const styles = {
     margin: '0 0 15px 0',
     color: '#333'
   },
+  emptyState: {
+    padding: '40px',
+    textAlign: 'center' as const,
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px',
+  },
+  emptyStateText: {
+    fontSize: '16px',
+    color: '#666',
+    marginBottom: '15px',
+  },
+  emptyStateButton: {
+    padding: '10px 20px',
+    backgroundColor: '#FF8C42',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
   deployCard: {
     padding: '20px',
     backgroundColor: '#f8f9fa',
@@ -758,12 +857,6 @@ const styles = {
     border: '1px solid #e9ecef',
     cursor: 'pointer',
     transition: 'transform 0.2s, boxShadow 0.2s',
-    ':active': {
-      transform: 'scale(0.99)',
-    },
-    '@media (max-width: 768px)': {
-      padding: '16px',
-    },
   },
   deployHeader: {
     display: 'flex',
@@ -987,5 +1080,15 @@ const styles = {
     borderRadius: '6px'
   }
 };
+
+// Add keyframes animation for spinner
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(styleSheet);
 
 export default DeploymentTracker;
