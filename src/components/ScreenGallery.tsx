@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { AdvancedImage } from '@cloudinary/react';
 import { Cloudinary } from '@cloudinary/url-gen';
-import { fill } from '@cloudinary/url-gen/actions/resize';
+import { fill, scale } from '@cloudinary/url-gen/actions/resize';
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary';
@@ -35,7 +35,6 @@ const ScreenGallery: React.FC<Props> = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
 
   // Get Cloudinary cloud name from environment
   const cloudName = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME;
@@ -82,20 +81,12 @@ const ScreenGallery: React.FC<Props> = ({
     const handleEscKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setFullScreenImage(null);
+        setSelectedScreen(null);
       }
     };
     window.addEventListener('keydown', handleEscKey);
     return () => window.removeEventListener('keydown', handleEscKey);
   }, []);
-
-  // Detect image orientation
-  const detectOrientation = (img: HTMLImageElement) => {
-    if (img.width > img.height) {
-      setOrientation('landscape');
-    } else {
-      setOrientation('portrait');
-    }
-  };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!isEditMode && onAddScreen) {
@@ -128,10 +119,6 @@ const ScreenGallery: React.FC<Props> = ({
         
         const description = prompt('Enter description for this screen:', '');
         
-        // Detect orientation from file name or ask user
-        const isLandscape = file.name.toLowerCase().includes('landscape');
-        const screenOrientation = isLandscape ? 'landscape' : 'portrait';
-        
         // Save to Firestore with Cloudinary data
         await addDoc(collection(db, 'screenshots'), {
           date: new Date(),
@@ -142,8 +129,7 @@ const ScreenGallery: React.FC<Props> = ({
           buildVersion: 'v1.0.0',
           componentName: file.name.replace(/\.[^/.]+$/, ''),
           filePath: `src/components/${file.name}`,
-          orientation: screenOrientation, // Add orientation to Firestore
-          tags: ['ios', 'swiftui', 'imessage', 'screen', screenOrientation]
+          tags: ['ios', 'swiftui', 'imessage', 'mobile']
         });
 
         // Clear progress for this file
@@ -271,73 +257,104 @@ const ScreenGallery: React.FC<Props> = ({
     setFullScreenImage(null);
   };
 
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>, screenId: string) => {
-    const img = e.currentTarget;
-    detectOrientation(img);
-  };
-
-  // Helper function to get image element with error handling
-  const getImageElement = (screen: ScreenCapture, onClick?: (e: React.MouseEvent) => void) => {
-    // Check if image previously failed or Cloudinary not ready
+  // Helper function to get thumbnail image (perfect size for gallery)
+  const getThumbnailImage = (screen: ScreenCapture) => {
     if (imageErrors.has(screen.id) || !cld || !screen.cloudinaryId) {
       return (
-        <div style={styles.placeholderImage}>
-          <span style={styles.placeholderIcon}>📸</span>
-          <span style={styles.placeholderText}>
-            {!cld ? 'Cloudinary not configured' : 'Image not available'}
-          </span>
+        <div style={styles.thumbnailPlaceholder}>
+          <span style={styles.placeholderIcon}>📱</span>
+          <span style={styles.placeholderText}>Image not available</span>
         </div>
       );
     }
 
     try {
-      // Mobile-optimized image dimensions
-      const myImage = cld.image(screen.cloudinaryId);
-      myImage.resize(fill().width(400).height(800)); // Mobile-friendly dimensions
+      // Perfect thumbnail size: 240px width, auto height for mobile screens
+      const thumbnail = cld.image(screen.cloudinaryId);
+      thumbnail.resize(scale().width(240)); // Scale to fit width
 
       return (
         <AdvancedImage 
-          cldImg={myImage} 
-          style={styles.mobileOptimizedImage}
-          onClick={onClick}
+          cldImg={thumbnail} 
+          style={styles.thumbnailImage}
           onError={() => handleImageError(screen.id)}
         />
       );
     } catch (error) {
-      console.error('Error creating Cloudinary image:', error);
+      console.error('Error creating thumbnail:', error);
       handleImageError(screen.id);
       return (
-        <div style={styles.placeholderImage}>
+        <div style={styles.thumbnailPlaceholder}>
           <span style={styles.placeholderIcon}>⚠️</span>
-          <span style={styles.placeholderText}>Failed to load image</span>
+          <span style={styles.placeholderText}>Failed to load</span>
         </div>
       );
     }
   };
 
-  const getFullScreenImageElement = (screen: ScreenCapture) => {
+  // Helper function for modal image (medium size for popup)
+  const getModalImage = (screen: ScreenCapture) => {
     if (imageErrors.has(screen.id) || !cld || !screen.cloudinaryId) {
       return (
-        <div style={styles.fullScreenPlaceholder}>
-          <span style={styles.fullScreenPlaceholderIcon}>
-            {!cld ? '☁️' : '📸'}
-          </span>
-          <span>
-            {!cld ? 'Cloudinary not configured' : 'Image not available'}
-          </span>
+        <div style={styles.modalPlaceholder}>
+          <span style={styles.modalPlaceholderIcon}>📱</span>
+          <span>Image not available</span>
         </div>
       );
     }
 
     try {
-      // High-quality image for full screen - optimized for mobile
-      const fullScreenImage = cld.image(screen.cloudinaryId);
-      fullScreenImage.resize(fill().width(1080).height(1920)); // Full HD mobile dimensions
+      // Medium size for popup: 600px width, maintains aspect ratio
+      const modalImage = cld.image(screen.cloudinaryId);
+      modalImage.resize(scale().width(600));
 
       return (
         <AdvancedImage 
-          cldImg={fullScreenImage} 
-          style={styles.fullScreenMobileImage}
+          cldImg={modalImage} 
+          style={styles.modalImage}
+          onClick={(e) => handleImageClick(screen, e)}
+          onError={() => handleImageError(screen.id)}
+        />
+      );
+    } catch (error) {
+      console.error('Error creating modal image:', error);
+      return (
+        <div style={styles.modalPlaceholder}>
+          <span style={styles.modalPlaceholderIcon}>⚠️</span>
+          <span>Failed to load</span>
+        </div>
+      );
+    }
+  };
+
+  // Helper function for full screen image (perfect fit for screen)
+  const getFullScreenImage = (screen: ScreenCapture) => {
+    if (imageErrors.has(screen.id) || !cld || !screen.cloudinaryId) {
+      return (
+        <div style={styles.fullScreenPlaceholder}>
+          <span style={styles.fullScreenPlaceholderIcon}>📱</span>
+          <span>Image not available</span>
+        </div>
+      );
+    }
+
+    try {
+      // Full screen: fit to viewport while maintaining aspect ratio
+      const fullImage = cld.image(screen.cloudinaryId);
+      
+      // Get viewport dimensions
+      const viewportWidth = window.innerWidth - 100;
+      const viewportHeight = window.innerHeight - 150;
+      
+      fullImage.resize(scale()
+        .width(viewportWidth)
+        .height(viewportHeight)
+      );
+
+      return (
+        <AdvancedImage 
+          cldImg={fullImage} 
+          style={styles.fullScreenImage}
           onError={() => handleImageError(screen.id)}
         />
       );
@@ -346,42 +363,7 @@ const ScreenGallery: React.FC<Props> = ({
       return (
         <div style={styles.fullScreenPlaceholder}>
           <span style={styles.fullScreenPlaceholderIcon}>⚠️</span>
-          <span>Failed to load image</span>
-        </div>
-      );
-    }
-  };
-
-  const getModalImage = (screen: ScreenCapture) => {
-    if (imageErrors.has(screen.id) || !cld || !screen.cloudinaryId) {
-      return (
-        <div style={styles.modalPlaceholder}>
-          <span style={styles.modalPlaceholderIcon}>
-            {!cld ? '☁️' : '📸'}
-          </span>
-          <span>
-            {!cld ? 'Cloudinary not configured' : 'Image not available'}
-          </span>
-        </div>
-      );
-    }
-
-    try {
-      const modalImage = cld.image(screen.cloudinaryId).resize(fill().width(600).height(1200));
-      return (
-        <AdvancedImage 
-  cldImg={modalImage} 
-  style={styles.modalImage}
-  onClick={(e: React.MouseEvent<HTMLImageElement>) => handleImageClick(screen, e)}
-  onError={() => handleImageError(screen.id)}
-/>
-      );
-    } catch (error) {
-      console.error('Error creating modal image:', error);
-      return (
-        <div style={styles.modalPlaceholder}>
-          <span style={styles.modalPlaceholderIcon}>⚠️</span>
-          <span>Failed to load image</span>
+          <span>Failed to load</span>
         </div>
       );
     }
@@ -391,9 +373,9 @@ const ScreenGallery: React.FC<Props> = ({
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h2 style={styles.sectionTitle}>📱 Mobile Screen Development</h2>
+          <h2 style={styles.sectionTitle}>📱 Mobile Screen Gallery</h2>
           <p style={styles.subtitle}>
-            {screens.length} mobile screens built • Last update: {screens[0]?.date ? new Date(screens[0].date).toLocaleString() : 'Never'}
+            {screens.length} mobile screens • Last update: {screens[0]?.date ? new Date(screens[0].date).toLocaleString() : 'Never'}
           </p>
         </div>
         <button 
@@ -416,7 +398,7 @@ const ScreenGallery: React.FC<Props> = ({
         <div style={styles.warningMessage}>
           <strong>⚠️ Cloudinary Configuration Required</strong>
           <p style={styles.warningText}>
-            Please add REACT_APP_CLOUDINARY_CLOUD_NAME to your .env file to enable image uploads and viewing.
+            Please add REACT_APP_CLOUDINARY_CLOUD_NAME to your .env file to enable image uploads.
           </p>
           <pre style={styles.envExample}>
             REACT_APP_CLOUDINARY_CLOUD_NAME=your-cloud-name-here
@@ -427,7 +409,7 @@ const ScreenGallery: React.FC<Props> = ({
       {/* Edit Mode Indicator */}
       {isEditMode && !showUploadForm && cloudinaryReady && (
         <div style={styles.editModeIndicator}>
-          ✏️ Edit Mode Active - Long press on mobile or click ⋮ on desktop to edit/delete
+          ✏️ Edit Mode Active • Long press on mobile or click ⋮ to edit/delete
         </div>
       )}
 
@@ -472,16 +454,10 @@ const ScreenGallery: React.FC<Props> = ({
             ) : (
               <div style={styles.dropzoneContent}>
                 <span style={styles.dropzoneIcon}>📱</span>
-                <span>Drag & drop mobile screenshots, or click to select</span>
-                <span style={styles.dropzoneHint}>Supports: PNG, JPG, GIF, WebP (Portrait recommended)</span>
+                <span>Drag & drop or click to select</span>
+                <span style={styles.dropzoneHint}>PNG, JPG, GIF (Mobile screenshots)</span>
               </div>
             )}
-          </div>
-          
-          <div style={styles.uploadFooter}>
-            <p style={styles.uploadNote}>
-              ⚡ Images optimized for mobile display (9:16 aspect ratio recommended)
-            </p>
           </div>
         </div>
       )}
@@ -491,29 +467,15 @@ const ScreenGallery: React.FC<Props> = ({
         {screens.map((screen) => (
           <div 
             key={screen.id} 
-            style={styles.mobileCard}
+            style={styles.card}
             onClick={() => setSelectedScreen(screen)}
             onTouchStart={(e) => handleTouchStart(e, screen.id)}
             onTouchEnd={(e) => handleTouchEnd(e, screen.id)}
-            onMouseEnter={(e) => {
-              if (window.innerWidth > 768) {
-                const overlay = e.currentTarget.querySelector('.image-overlay') as HTMLElement;
-                if (overlay) overlay.style.opacity = '1';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (window.innerWidth > 768) {
-                const overlay = e.currentTarget.querySelector('.image-overlay') as HTMLElement;
-                if (overlay) overlay.style.opacity = '0';
-              }
-            }}
           >
-            <div style={styles.mobileFrame}>
-              <div style={styles.mobileScreenContainer}>
-                {getImageElement(screen, (e) => handleImageClick(screen, e))}
-                <div className="image-overlay" style={styles.imageOverlay}>
-                  <span style={styles.viewDetails}>View Full Screen</span>
-                </div>
+            <div style={styles.thumbnailContainer}>
+              {getThumbnailImage(screen)}
+              <div style={styles.imageOverlay}>
+                <span style={styles.viewDetails}>Click to view</span>
               </div>
             </div>
             <div style={styles.cardContent}>
@@ -563,11 +525,6 @@ const ScreenGallery: React.FC<Props> = ({
                   {new Date(screen.date).toLocaleDateString()}
                 </span>
               </div>
-              <div style={styles.tags}>
-                {screen.tags?.map(tag => (
-                  <span key={tag} style={styles.tag}>{tag}</span>
-                ))}
-              </div>
             </div>
           </div>
         ))}
@@ -580,8 +537,8 @@ const ScreenGallery: React.FC<Props> = ({
           <h3 style={styles.emptyStateTitle}>No Mobile Screens Yet</h3>
           <p style={styles.emptyStateText}>
             {isEditMode 
-              ? 'Click the "Add Mobile Screens" button to upload your first mobile screen capture.'
-              : 'No mobile screens have been added yet. Enable edit mode to add screens.'}
+              ? 'Click "Add Mobile Screens" to upload your first screenshot.'
+              : 'No screens added yet. Enable edit mode to add screens.'}
           </p>
         </div>
       )}
@@ -651,7 +608,7 @@ const ScreenGallery: React.FC<Props> = ({
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>Tags (comma separated)</label>
+                  <label style={styles.formLabel}>Tags</label>
                   <input
                     type="text"
                     value={editingScreen.tags?.join(', ')}
@@ -660,7 +617,7 @@ const ScreenGallery: React.FC<Props> = ({
                       tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
                     })}
                     style={styles.formInput}
-                    placeholder="ios, swiftui, mobile, portrait"
+                    placeholder="ios, mobile, screen"
                   />
                 </div>
 
@@ -693,7 +650,7 @@ const ScreenGallery: React.FC<Props> = ({
             <div style={styles.modalInfo}>
               <h2 style={styles.modalTitle}>Confirm Delete</h2>
               <p style={styles.deleteConfirmText}>
-                Are you sure you want to delete this mobile screen? This action cannot be undone.
+                Are you sure you want to delete this screen?
               </p>
               
               <div style={styles.editFormActions}>
@@ -714,7 +671,7 @@ const ScreenGallery: React.FC<Props> = ({
                   style={styles.deleteConfirmButton}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                  {isDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
@@ -722,37 +679,19 @@ const ScreenGallery: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Screen Detail Modal */}
+      {/* Popup Modal (Medium Size) */}
       {selectedScreen && !editingScreen && !fullScreenImage && (
         <div style={styles.modal} onClick={() => setSelectedScreen(null)}>
           <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
             <button style={styles.modalClose} onClick={() => setSelectedScreen(null)}>×</button>
-            <div style={styles.mobilePreviewContainer}>
+            <div style={styles.modalImageContainer}>
               {getModalImage(selectedScreen)}
+              <div style={styles.modalImageOverlay} onClick={(e) => handleImageClick(selectedScreen, e)}>
+                <span style={styles.fullScreenHint}>Click for full screen</span>
+              </div>
             </div>
             <div style={styles.modalInfo}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>{selectedScreen.screenName}</h2>
-                {isEditMode && (
-                  <div style={styles.modalActions}>
-                    <button 
-                      onClick={() => handleEdit(selectedScreen)}
-                      style={styles.modalEditButton}
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setShowDeleteConfirm(selectedScreen.id);
-                        setSelectedScreen(null);
-                      }}
-                      style={styles.modalDeleteButton}
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
-                )}
-              </div>
+              <h2 style={styles.modalTitle}>{selectedScreen.screenName}</h2>
               <p style={styles.modalDescription}>{selectedScreen.description}</p>
               
               <div style={styles.modalDetails}>
@@ -764,32 +703,13 @@ const ScreenGallery: React.FC<Props> = ({
                   <span style={styles.detailLabel}>Version:</span>
                   <span style={styles.detailValue}>{selectedScreen.buildVersion}</span>
                 </div>
-                <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>File Path:</span>
-                  <span style={styles.detailValue}>{selectedScreen.filePath}</span>
-                </div>
-                <div style={styles.detailItem}>
-                  <span style={styles.detailLabel}>Orientation:</span>
-                  <span style={styles.detailValue}>
-                    {selectedScreen.tags?.includes('landscape') ? '🌄 Landscape' : '📱 Portrait'}
-                  </span>
-                </div>
               </div>
-              
-              <pre style={styles.codeBlock}>
-                {`// File: ${selectedScreen.filePath}
-// Built: ${new Date(selectedScreen.date).toLocaleString()}
-// Version: ${selectedScreen.buildVersion}
-// Cloudinary ID: ${selectedScreen.cloudinaryId || 'Not available'}
-// Tags: ${selectedScreen.tags?.join(', ') || 'None'}
-// Dimensions: Optimized for mobile display (9:16 aspect ratio)`}
-              </pre>
             </div>
           </div>
         </div>
       )}
 
-      {/* Full Screen Image Modal - Mobile Optimized */}
+      {/* Full Screen Modal (Perfect Fit) */}
       {fullScreenImage && (
         <div style={styles.fullScreenModal} onClick={handleCloseFullScreen}>
           <button style={styles.fullScreenClose} onClick={handleCloseFullScreen}>×</button>
@@ -802,12 +722,10 @@ const ScreenGallery: React.FC<Props> = ({
             ⬇️ Download
           </button>
           <div style={styles.fullScreenContent} onClick={e => e.stopPropagation()}>
-            <div style={styles.fullScreenMobileFrame}>
-              {getFullScreenImageElement(fullScreenImage)}
-            </div>
+            {getFullScreenImage(fullScreenImage)}
             <div style={styles.fullScreenInfo}>
-              <h3 style={styles.fullScreenTitle}>{fullScreenImage.screenName}</h3>
-              <p style={styles.fullScreenDesc}>{fullScreenImage.description}</p>
+              <h3>{fullScreenImage.screenName}</h3>
+              <p>{fullScreenImage.description}</p>
             </div>
           </div>
         </div>
@@ -819,7 +737,7 @@ const ScreenGallery: React.FC<Props> = ({
 const styles = {
   container: {
     width: '100%',
-    maxWidth: '1400px',
+    maxWidth: '1200px',
     margin: '0 auto',
     padding: '20px',
     boxSizing: 'border-box' as const
@@ -878,13 +796,14 @@ const styles = {
     overflowX: 'auto' as const
   },
   editModeIndicator: {
-    backgroundColor: '#fff3cd',
-    color: '#856404',
+    backgroundColor: '#e2f3ff',
+    color: '#0066cc',
     padding: '8px 12px',
     borderRadius: '6px',
     marginBottom: '20px',
     fontSize: 'clamp(12px, 3vw, 14px)',
-    fontWeight: '500'
+    fontWeight: '500',
+    border: '1px solid #b8daff'
   },
   uploadSection: {
     backgroundColor: '#f8f9fa',
@@ -990,138 +909,65 @@ const styles = {
     color: '#fff',
     fontWeight: 'bold'
   },
-  uploadFooter: {
-    marginTop: '15px'
-  },
-  uploadNote: {
-    fontSize: '12px',
-    color: '#666',
-    margin: 0,
-    textAlign: 'center' as const
-  },
-  // Mobile-optimized gallery
+  // Gallery Styles
   gallery: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '25px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+    gap: '20px',
     '@media (max-width: 768px)': {
-      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-      gap: '20px'
+      gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+      gap: '15px'
     },
     '@media (max-width: 480px)': {
       gridTemplateColumns: '1fr',
       gap: '20px'
     }
   },
-  // Mobile-optimized card
-  mobileCard: {
+  card: {
     backgroundColor: 'white',
-    borderRadius: '16px',
+    borderRadius: '12px',
     overflow: 'hidden',
-    boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
     cursor: 'pointer',
     transition: 'transform 0.2s, boxShadow 0.2s',
     border: '1px solid #eee',
-    maxWidth: '360px',
-    margin: '0 auto',
-    width: '100%',
-    '@media (max-width: 768px)': {
-      maxWidth: '320px',
-      '&:active': {
-        transform: 'scale(0.98)'
-      }
+    '&:hover': {
+      transform: 'translateY(-4px)',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
     }
   },
-  // Mobile frame effect
-  mobileFrame: {
-    background: 'linear-gradient(145deg, #2c3e50, #1a1a1a)',
-    padding: '12px',
-    borderTopLeftRadius: '16px',
-    borderTopRightRadius: '16px',
-    borderBottom: 'none'
-  },
-  // Mobile screen container
-  mobileScreenContainer: {
+  thumbnailContainer: {
     position: 'relative' as const,
-    height: 'auto',
-    minHeight: '500px',
-    maxHeight: '700px',
+    height: '320px', // Fixed height for consistency
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: '#f8f9fa',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: '24px',
-    border: '2px solid #444',
-    '@media (max-width: 768px)': {
-      minHeight: '400px',
-      maxHeight: '600px'
-    }
+    alignItems: 'center'
   },
-  // Mobile-optimized image
-  mobileOptimizedImage: {
-    width: '100%',
-    height: 'auto',
-    maxWidth: '100%',
-    objectFit: 'contain' as const,
-    cursor: 'zoom-in',
-    backgroundColor: '#000'
-  },modalImage: {
-    width: "800px",
-    height: "600px",
-    objectFit: "cover",
-    cursor: "pointer",
-  },
-  // Modal mobile image
-  modalMobileImage: {
-    width: '100%',
-    maxWidth: '100%',
-    height: 'auto',
-    maxHeight: '70vh',
-    objectFit: 'contain' as const,
-    backgroundColor: '#000',
-    cursor: 'zoom-in'
-  },
-  // Full screen mobile image
-  fullScreenMobileImage: {
-    maxWidth: '100%',
-    maxHeight: '85vh',
+  thumbnailImage: {
     width: 'auto',
-    height: 'auto',
-    objectFit: 'contain' as const,
-    borderRadius: '24px',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-    border: '2px solid #444'
+    height: '100%',
+    maxWidth: '100%',
+    objectFit: 'contain' as const
   },
-  // Mobile preview container
-  mobilePreviewContainer: {
-    backgroundColor: '#000',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '20px',
-    borderBottom: '1px solid #333'
-  },
-  placeholderImage: {
+  thumbnailPlaceholder: {
     width: '100%',
     height: '100%',
-    minHeight: '400px',
     backgroundColor: '#f8f9fa',
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '8px',
+    gap: '12px',
     color: '#6c757d'
   },
   placeholderIcon: {
-    fontSize: '32px'
+    fontSize: '48px'
   },
   placeholderText: {
-    fontSize: '12px',
-    color: '#999',
-    textAlign: 'center' as const,
-    padding: '0 10px'
+    fontSize: '14px',
+    color: '#999'
   },
   imageOverlay: {
     position: 'absolute' as const,
@@ -1129,22 +975,23 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0,
     transition: 'opacity 0.2s',
-    color: 'white',
-    fontSize: '14px',
-    '@media (max-width: 768px)': {
-      display: 'none'
+    '&:hover': {
+      opacity: 1
     }
   },
   viewDetails: {
     padding: '8px 16px',
     backgroundColor: '#FF8C42',
-    borderRadius: '20px'
+    color: 'white',
+    borderRadius: '20px',
+    fontSize: '14px',
+    fontWeight: '500'
   },
   cardContent: {
     padding: '15px'
@@ -1247,48 +1094,29 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '8px',
-    fontSize: '12px',
-    flexWrap: 'wrap' as const,
-    gap: '5px'
+    fontSize: '12px'
   },
   componentName: {
     color: '#007bff',
-    fontFamily: 'monospace',
-    wordBreak: 'break-word' as const
+    fontFamily: 'monospace'
   },
   date: {
-    color: '#999',
-    whiteSpace: 'nowrap' as const
-  },
-  tags: {
-    display: 'flex',
-    gap: '6px',
-    flexWrap: 'wrap' as const
-  },
-  tag: {
-    padding: '2px 8px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '12px',
-    fontSize: '11px',
-    color: '#495057',
-    border: '1px solid #dee2e6',
-    wordBreak: 'break-word' as const
+    color: '#999'
   },
   emptyState: {
     textAlign: 'center' as const,
-    padding: 'clamp(40px, 10vw, 60px) clamp(20px, 5vw, 40px)',
+    padding: '60px 20px',
     backgroundColor: '#f8f9fa',
     borderRadius: '12px',
     border: '2px dashed #dee2e6'
   },
   emptyStateIcon: {
-    fontSize: '48px',
+    fontSize: '64px',
     display: 'block',
     marginBottom: '16px'
   },
   emptyStateTitle: {
-    fontSize: 'clamp(18px, 5vw, 20px)',
+    fontSize: '20px',
     color: '#333',
     marginBottom: '8px'
   },
@@ -1298,6 +1126,7 @@ const styles = {
     maxWidth: '400px',
     margin: '0 auto'
   },
+  // Modal Styles
   modal: {
     position: 'fixed' as const,
     top: 0,
@@ -1313,29 +1142,72 @@ const styles = {
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: '12px',
-    maxWidth: '1000px',
+    borderRadius: '16px',
+    maxWidth: '800px',
     width: '100%',
     maxHeight: '90vh',
-    overflow: 'auto',
-    position: 'relative' as const
+    overflow: 'hidden',
+    position: 'relative' as const,
+    display: 'flex',
+    flexDirection: 'column' as const
   },
   modalClose: {
     position: 'absolute' as const,
-    top: '10px',
-    right: '10px',
-    width: '30px',
-    height: '30px',
+    top: '15px',
+    right: '15px',
+    width: '36px',
+    height: '36px',
     borderRadius: '50%',
     border: 'none',
     backgroundColor: '#ff4444',
     color: 'white',
-    fontSize: '20px',
+    fontSize: '24px',
     cursor: 'pointer',
-    zIndex: 1,
+    zIndex: 10,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    '&:hover': {
+      backgroundColor: '#ff6666'
+    }
+  },
+  modalImageContainer: {
+    position: 'relative' as const,
+    backgroundColor: '#000',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '300px',
+    maxHeight: '500px',
+    overflow: 'hidden'
+  },
+  modalImage: {
+    width: 'auto',
+    height: 'auto',
+    maxWidth: '100%',
+    maxHeight: '500px',
+    objectFit: 'contain' as const,
+    cursor: 'pointer'
+  },
+  modalImageOverlay: {
+    position: 'absolute' as const,
+    bottom: '20px',
+    right: '20px',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    color: 'white',
+    padding: '8px 16px',
+    borderRadius: '20px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    '&:hover': {
+      backgroundColor: 'rgba(0,0,0,0.8)'
+    }
+  },
+  fullScreenHint: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
   },
   modalPlaceholder: {
     width: '100%',
@@ -1355,40 +1227,10 @@ const styles = {
   modalInfo: {
     padding: '20px'
   },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '10px',
-    flexWrap: 'wrap' as const,
-    gap: '10px'
-  },
   modalTitle: {
-    fontSize: 'clamp(20px, 5vw, 24px)',
-    margin: 0,
+    fontSize: '20px',
+    margin: '0 0 10px 0',
     color: '#333'
-  },
-  modalActions: {
-    display: 'flex',
-    gap: '8px'
-  },
-  modalEditButton: {
-    padding: '6px 12px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer'
-  },
-  modalDeleteButton: {
-    padding: '6px 12px',
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer'
   },
   modalDescription: {
     fontSize: '14px',
@@ -1399,8 +1241,7 @@ const styles = {
   modalDetails: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '10px',
-    marginBottom: '20px',
+    gap: '15px',
     padding: '15px',
     backgroundColor: '#f8f9fa',
     borderRadius: '8px'
@@ -1418,20 +1259,9 @@ const styles = {
   detailValue: {
     fontSize: '14px',
     color: '#333',
-    fontWeight: '500',
-    wordBreak: 'break-word' as const
+    fontWeight: '500'
   },
-  codeBlock: {
-    backgroundColor: '#1e1e1e',
-    color: '#d4d4d4',
-    padding: '15px',
-    borderRadius: '8px',
-    fontFamily: 'monospace',
-    fontSize: '13px',
-    lineHeight: '1.5',
-    overflowX: 'auto' as const,
-    margin: 0
-  },
+  // Edit Form Styles
   editForm: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -1506,7 +1336,7 @@ const styles = {
     fontSize: '14px',
     cursor: 'pointer'
   },
-  // Full Screen Modal Styles - Mobile Optimized
+  // Full Screen Styles
   fullScreenModal: {
     position: 'fixed' as const,
     top: 0,
@@ -1518,22 +1348,25 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2000,
-    padding: '10px'
+    padding: '20px'
   },
   fullScreenContent: {
     position: 'relative' as const,
     maxWidth: '100%',
-    maxHeight: '100vh',
+    maxHeight: '100%',
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  fullScreenMobileFrame: {
-    backgroundColor: '#000',
-    padding: '10px',
-    borderRadius: '32px',
-    border: '2px solid'
+  fullScreenImage: {
+    maxWidth: '100%',
+    maxHeight: 'calc(100vh - 120px)',
+    width: 'auto',
+    height: 'auto',
+    objectFit: 'contain' as const,
+    borderRadius: '8px',
+    boxShadow: '0 4px 30px rgba(0,0,0,0.5)'
   },
   fullScreenPlaceholder: {
     width: '80vw',
@@ -1553,8 +1386,8 @@ const styles = {
   },
   fullScreenClose: {
     position: 'absolute' as const,
-    top: '15px',
-    right: '15px',
+    top: '20px',
+    right: '20px',
     width: '44px',
     height: '44px',
     borderRadius: '50%',
@@ -1574,8 +1407,8 @@ const styles = {
   },
   fullScreenDownload: {
     position: 'absolute' as const,
-    top: '15px',
-    right: '70px',
+    top: '20px',
+    right: '80px',
     padding: '10px 20px',
     backgroundColor: '#28a745',
     color: 'white',
@@ -1597,24 +1430,14 @@ const styles = {
     bottom: '20px',
     left: '20px',
     right: '20px',
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     color: 'white',
-    padding: '15px 20px',
+    padding: '15px 25px',
     borderRadius: '12px',
     backdropFilter: 'blur(5px)',
     textAlign: 'center' as const,
-    maxWidth: '500px',
+    maxWidth: '600px',
     margin: '0 auto'
-  },
-  fullScreenTitle: {
-    margin: '0 0 8px 0',
-    fontSize: '18px',
-    fontWeight: '600'
-  },
-  fullScreenDesc: {
-    margin: 0,
-    fontSize: '14px',
-    opacity: 0.9
   }
 };
 
