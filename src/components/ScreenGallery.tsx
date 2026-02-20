@@ -1066,6 +1066,11 @@ const styles = {
     objectFit: 'contain' as const,
     cursor: 'zoom-in',
     backgroundColor: '#000'
+  },modalImage: {
+    width: "800px",
+    height: "600px",
+    objectFit: "cover",
+    cursor: "pointer",
   },
   // Modal mobile image
   modalMobileImage: {
