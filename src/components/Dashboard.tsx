@@ -258,7 +258,6 @@ const Dashboard: React.FC = () => {
     return reviews.filter(review => {
       const matchesSearch = searchQuery === '' || 
         review.feedback?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        review.clientName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         review.updateTitle?.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesStatus = reviewFilterStatus === 'all' || review.status === reviewFilterStatus;
@@ -1036,14 +1035,14 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           <div style={styles.feedContent}>
-            {/* Show recent reviews in feed */}
+            {/* Show recent reviews in feed - without client name */}
             {reviews.slice(0, 3).map(review => (
               <div key={review.id} style={styles.feedItem}>
                 <span style={styles.feedTime}>
                   {new Date(review.createdAt).toLocaleTimeString()}
                 </span>
                 <span style={styles.feedText}>
-                  <Icons.Review /> <strong>{review.clientName}</strong> left a review: "{review.feedback.substring(0, 50)}..."
+                  <Icons.Review /> New review: "{review.feedback.substring(0, 50)}..."
                 </span>
               </div>
             ))}
