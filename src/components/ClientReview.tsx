@@ -77,6 +77,7 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [activeFilterTab, setActiveFilterTab] = useState<'filters' | 'sort'>('filters');
 
   // Mobile responsiveness
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -444,22 +445,25 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     return '★'.repeat(rating) + '☆'.repeat(5 - rating);
   };
 
-  // Professional mobile styles
+  // Professional mobile styles - Optimized for full width
   const mobileStyles = {
     container: {
-      padding: '12px',
+      padding: '0',
+      width: '100%',
+      maxWidth: '100%',
     },
     header: {
       flexDirection: 'column' as const,
       alignItems: 'stretch',
-      gap: '12px',
+      gap: '16px',
       marginBottom: '20px',
+      padding: '0 16px',
     },
     headerTitle: {
       textAlign: 'left' as const,
     },
     sectionTitle: {
-      fontSize: '22px',
+      fontSize: '24px',
       marginBottom: '4px',
     },
     subtitle: {
@@ -467,71 +471,98 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     },
     addButton: {
       width: '100%',
-      padding: '14px',
-      fontSize: '15px',
-      borderRadius: '10px',
+      padding: '16px',
+      fontSize: '16px',
+      borderRadius: '12px',
       backgroundColor: '#f97316',
     },
     statsGrid: {
       display: 'grid',
       gridTemplateColumns: 'repeat(2, 1fr)',
-      gap: '10px',
+      gap: '12px',
       marginBottom: '20px',
+      padding: '0 16px',
     },
     statCard: {
-      padding: '14px',
-      borderRadius: '12px',
+      padding: '16px',
+      borderRadius: '14px',
       backgroundColor: 'white',
       boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
     },
     statValue: {
-      fontSize: '22px',
-      fontWeight: '600',
+      fontSize: '24px',
+      fontWeight: '700',
     },
     statLabel: {
       fontSize: '12px',
       color: '#6b7280',
       marginTop: '4px',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.3px',
     },
     mobileFilterToggle: {
-      width: '100%',
-      padding: '14px',
+      width: 'calc(100% - 32px)',
+      margin: '0 16px 16px 16px',
+      padding: '16px',
+      backgroundColor: '#f9fafb',
+      border: '1px solid #e5e7eb',
+      borderRadius: '12px',
+      fontSize: '15px',
+      fontWeight: '500',
+      color: '#374151',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+    },
+    filterTabs: {
+      display: 'flex',
+      gap: '8px',
+      marginBottom: '16px',
+      padding: '0 16px',
+    },
+    filterTab: {
+      flex: 1,
+      padding: '12px',
       backgroundColor: '#f9fafb',
       border: '1px solid #e5e7eb',
       borderRadius: '10px',
       fontSize: '14px',
       fontWeight: '500',
-      color: '#374151',
-      marginBottom: '12px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '6px',
+      color: '#6b7280',
+      cursor: 'pointer',
+      textAlign: 'center' as const,
+    },
+    activeFilterTab: {
+      backgroundColor: '#f97316',
+      color: 'white',
+      borderColor: '#f97316',
     },
     filters: {
       display: 'flex',
       flexDirection: 'column' as const,
-      gap: '10px',
-      marginBottom: '20px',
-      padding: '16px',
+      gap: '12px',
+      margin: '0 16px 20px 16px',
+      padding: '20px',
       backgroundColor: '#f9fafb',
-      borderRadius: '12px',
+      borderRadius: '16px',
     },
     searchBox: {
       width: '100%',
     },
     searchInput: {
       width: '100%',
-      padding: '14px 16px',
-      fontSize: '15px',
-      borderRadius: '10px',
+      padding: '16px',
+      fontSize: '16px',
+      borderRadius: '12px',
       border: '1px solid #e5e7eb',
+      backgroundColor: 'white',
     },
     filterSelect: {
       width: '100%',
-      padding: '14px 16px',
-      fontSize: '15px',
-      borderRadius: '10px',
+      padding: '16px',
+      fontSize: '16px',
+      borderRadius: '12px',
       border: '1px solid #e5e7eb',
       backgroundColor: 'white',
     },
@@ -542,91 +573,99 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     },
     viewButton: {
       flex: 1,
-      padding: '12px',
-      fontSize: '14px',
-      borderRadius: '8px',
+      padding: '14px',
+      fontSize: '15px',
+      borderRadius: '10px',
       border: '1px solid #e5e7eb',
       backgroundColor: 'white',
     },
     form: {
+      margin: '0 16px 24px 16px',
       padding: '20px',
-      marginBottom: '24px',
-      borderRadius: '16px',
+      borderRadius: '20px',
       backgroundColor: '#f9fafb',
       border: '2px solid #f97316',
     },
     formTitle: {
-      fontSize: '20px',
+      fontSize: '22px',
       marginBottom: '20px',
       fontWeight: '600',
     },
     formGrid: {
       gridTemplateColumns: '1fr',
-      gap: '12px',
+      gap: '16px',
     },
     formGroup: {
       marginBottom: '16px',
     },
     label: {
       fontSize: '14px',
-      fontWeight: '500',
-      marginBottom: '6px',
+      fontWeight: '600',
+      marginBottom: '8px',
       color: '#374151',
     },
     input: {
       width: '100%',
-      padding: '14px',
-      fontSize: '15px',
-      borderRadius: '10px',
+      padding: '16px',
+      fontSize: '16px',
+      borderRadius: '12px',
       border: '1px solid #e5e7eb',
+      backgroundColor: 'white',
     },
     select: {
       width: '100%',
-      padding: '14px',
-      fontSize: '15px',
-      borderRadius: '10px',
+      padding: '16px',
+      fontSize: '16px',
+      borderRadius: '12px',
       border: '1px solid #e5e7eb',
+      backgroundColor: 'white',
     },
     formRow: {
       flexDirection: 'column' as const,
-      gap: '12px',
+      gap: '16px',
     },
     ratingContainer: {
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       padding: '8px 0',
+      gap: '12px',
     },
     starButton: {
-      fontSize: '28px',
+      fontSize: '32px',
     },
     pointsBuilder: {
       padding: '16px',
-      borderRadius: '12px',
+      borderRadius: '14px',
     },
     pointsTitle: {
       fontSize: '16px',
-      marginBottom: '12px',
+      marginBottom: '16px',
+      fontWeight: '600',
     },
     pointInputGroup: {
       flexDirection: 'column' as const,
-      gap: '10px',
+      gap: '12px',
     },
     pointTypeSelect: {
       width: '100%',
-      padding: '14px',
+      padding: '16px',
+      fontSize: '15px',
     },
     pointPrioritySelect: {
       width: '100%',
-      padding: '14px',
+      padding: '16px',
+      fontSize: '15px',
     },
     pointInput: {
       width: '100%',
-      padding: '14px',
+      padding: '16px',
+      fontSize: '15px',
     },
     addPointButton: {
       width: '100%',
-      padding: '14px',
-      fontSize: '15px',
+      padding: '16px',
+      fontSize: '16px',
       backgroundColor: '#10b981',
+      borderRadius: '12px',
     },
     pointsList: {
       marginTop: '16px',
@@ -634,8 +673,8 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     pointItem: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
-      padding: '12px',
-      gap: '8px',
+      padding: '14px',
+      gap: '10px',
     },
     pointText: {
       width: 'calc(100% - 100px)',
@@ -643,21 +682,24 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     },
     formButtons: {
       flexDirection: 'column' as const,
-      gap: '10px',
+      gap: '12px',
     },
     submitButton: {
       width: '100%',
-      padding: '16px',
+      padding: '18px',
       fontSize: '16px',
+      borderRadius: '12px',
     },
     cancelButton: {
       width: '100%',
-      padding: '16px',
+      padding: '18px',
       fontSize: '16px',
+      borderRadius: '12px',
       backgroundColor: '#6b7280',
     },
     reviewsContainer: {
       gap: '12px',
+      padding: '0 16px',
     },
     reviewsGrid: {
       gridTemplateColumns: '1fr',
@@ -665,8 +707,9 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     },
     reviewCard: {
       padding: '20px',
-      borderRadius: '16px',
+      borderRadius: '18px',
       border: '1px solid #f0f0f0',
+      marginBottom: '0',
     },
     reviewHeader: {
       flexDirection: 'column' as const,
@@ -674,12 +717,13 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
       gap: '12px',
     },
     reviewTitle: {
-      fontSize: '17px',
+      fontSize: '18px',
       fontWeight: '600',
-      marginBottom: '8px',
+      marginBottom: '10px',
+      lineHeight: '1.4',
     },
     badgeContainer: {
-      gap: '6px',
+      gap: '8px',
     },
     statusBadge: {
       padding: '6px 12px',
@@ -694,92 +738,100 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     typeBadge: {
       padding: '6px 12px',
       fontSize: '12px',
+      borderRadius: '20px',
     },
     urgentBadge: {
       padding: '6px 12px',
       fontSize: '12px',
+      borderRadius: '20px',
     },
     reviewActions: {
       width: '100%',
       justifyContent: 'space-between',
-      marginTop: '4px',
+      marginTop: '8px',
     },
     expandButton: {
-      padding: '8px 16px',
-      fontSize: '13px',
-      borderRadius: '8px',
+      padding: '10px 18px',
+      fontSize: '14px',
+      borderRadius: '10px',
     },
     deleteButton: {
-      padding: '8px 16px',
-      fontSize: '13px',
-      borderRadius: '8px',
+      padding: '10px 18px',
+      fontSize: '14px',
+      borderRadius: '10px',
     },
     reviewDate: {
-      fontSize: '12px',
+      fontSize: '13px',
       color: '#9ca3af',
+      marginTop: '8px',
     },
     summary: {
       fontSize: '14px',
-      padding: '12px',
-      borderRadius: '10px',
+      padding: '14px',
+      borderRadius: '12px',
+      marginTop: '12px',
     },
     stars: {
-      fontSize: '16px',
+      fontSize: '18px',
     },
     pointsDisplay: {
-      marginTop: '16px',
+      marginTop: '20px',
     },
     pointsDisplayTitle: {
-      fontSize: '15px',
+      fontSize: '16px',
       marginBottom: '12px',
+      fontWeight: '600',
     },
     pointsGrid: {
       gridTemplateColumns: '1fr',
-      gap: '8px',
+      gap: '10px',
     },
     displayPoint: {
-      padding: '14px',
-      borderRadius: '10px',
+      padding: '16px',
+      borderRadius: '12px',
     },
     pointHeader: {
-      marginBottom: '8px',
+      marginBottom: '10px',
     },
     pointPriorityBadge: {
-      padding: '4px 8px',
-      fontSize: '10px',
+      padding: '4px 10px',
+      fontSize: '11px',
     },
     resolveButton: {
       width: '100%',
-      padding: '10px',
-      fontSize: '13px',
-      marginTop: '10px',
+      padding: '12px',
+      fontSize: '14px',
+      marginTop: '12px',
+      borderRadius: '10px',
     },
     showMoreButton: {
-      padding: '12px',
-      fontSize: '13px',
+      padding: '14px',
+      fontSize: '14px',
+      borderRadius: '12px',
     },
     adminActions: {
       flexDirection: 'column' as const,
-      gap: '8px',
-      marginTop: '16px',
-      paddingTop: '16px',
+      gap: '10px',
+      marginTop: '20px',
+      paddingTop: '20px',
     },
     actionButton: {
       width: '100%',
-      padding: '14px',
-      fontSize: '14px',
-      borderRadius: '10px',
+      padding: '16px',
+      fontSize: '15px',
+      borderRadius: '12px',
     },
     emptyState: {
-      padding: '40px 20px',
-      fontSize: '15px',
+      padding: '60px 20px',
+      fontSize: '16px',
+      margin: '0 16px',
     },
     loadingContainer: {
-      padding: '40px 20px',
+      padding: '60px 20px',
     },
     loadingSpinner: {
-      width: '40px',
-      height: '40px',
+      width: '44px',
+      height: '44px',
     },
   };
 
@@ -809,8 +861,9 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             left: '16px',
             right: '16px',
             top: '16px',
-            padding: '14px',
-            fontSize: '14px',
+            padding: '16px',
+            fontSize: '15px',
+            borderRadius: '12px',
           } : {}),
           backgroundColor: notification.type === 'success' ? '#d1fae5' : '#fee2e2',
           color: notification.type === 'success' ? '#065f46' : '#991b1b',
@@ -822,7 +875,10 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
 
       {/* Error Banner */}
       {error && (
-        <div style={styles.errorBanner}>
+        <div style={{
+          ...styles.errorBanner,
+          ...(isMobile ? { margin: '0 16px 20px 16px', width: 'auto' } : {})
+        }}>
           <span>{error}</span>
           <button onClick={fetchReviews} style={styles.retryButton}>
             Retry
@@ -895,12 +951,36 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
           style={mobileStyles.mobileFilterToggle}
         >
           <span>{showMobileFilters ? '▲' : '▼'}</span>
-          {showMobileFilters ? 'Hide Filters' : 'Show Filters'}
+          {showMobileFilters ? 'Hide Filters' : 'Filter & Sort Reviews'}
         </button>
       )}
 
+      {/* Filter Tabs for Mobile */}
+      {isMobile && showMobileFilters && (
+        <div style={mobileStyles.filterTabs}>
+          <button
+            onClick={() => setActiveFilterTab('filters')}
+            style={{
+              ...mobileStyles.filterTab,
+              ...(activeFilterTab === 'filters' ? mobileStyles.activeFilterTab : {})
+            }}
+          >
+            🔍 Filters
+          </button>
+          <button
+            onClick={() => setActiveFilterTab('sort')}
+            style={{
+              ...mobileStyles.filterTab,
+              ...(activeFilterTab === 'sort' ? mobileStyles.activeFilterTab : {})
+            }}
+          >
+            📊 Sort
+          </button>
+        </div>
+      )}
+
       {/* Advanced Filters */}
-      {showFilters && (!isMobile || showMobileFilters) && (
+      {showFilters && (!isMobile || (showMobileFilters && activeFilterTab === 'filters')) && (
         <div style={{
           ...styles.filters,
           ...(isMobile ? mobileStyles.filters : {})
@@ -951,33 +1031,77 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             <option value="ux">UX</option>
             <option value="performance">Performance</option>
           </select>
+        </div>
+      )}
 
-          <div style={isMobile ? mobileStyles.viewToggle : styles.viewToggle}>
+      {/* Sort Options for Mobile */}
+      {isMobile && showMobileFilters && activeFilterTab === 'sort' && (
+        <div style={mobileStyles.filters}>
+          <div style={mobileStyles.viewToggle}>
             <button
               onClick={() => setViewMode('list')}
               style={{
-                ...styles.viewButton,
-                ...(isMobile ? mobileStyles.viewButton : {}),
+                ...mobileStyles.viewButton,
                 backgroundColor: viewMode === 'list' ? '#f97316' : '#ffffff',
                 color: viewMode === 'list' ? '#ffffff' : '#374151',
                 borderColor: viewMode === 'list' ? '#f97316' : '#e5e7eb',
               }}
             >
-              📋 List
+              📋 List View
             </button>
             <button
               onClick={() => setViewMode('grid')}
               style={{
-                ...styles.viewButton,
-                ...(isMobile ? mobileStyles.viewButton : {}),
+                ...mobileStyles.viewButton,
                 backgroundColor: viewMode === 'grid' ? '#f97316' : '#ffffff',
                 color: viewMode === 'grid' ? '#ffffff' : '#374151',
                 borderColor: viewMode === 'grid' ? '#f97316' : '#e5e7eb',
               }}
             >
-              📊 Grid
+              📊 Grid View
             </button>
           </div>
+          
+          <select
+            onChange={(e) => {
+              const [sortBy, order] = e.target.value.split('-');
+              // Implement sorting logic here
+            }}
+            style={mobileStyles.filterSelect}
+          >
+            <option value="date-desc">Newest First</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="priority-desc">Highest Priority</option>
+            <option value="rating-desc">Highest Rated</option>
+          </select>
+        </div>
+      )}
+
+      {/* Desktop View Toggle */}
+      {!isMobile && (
+        <div style={styles.viewToggle}>
+          <button
+            onClick={() => setViewMode('list')}
+            style={{
+              ...styles.viewButton,
+              backgroundColor: viewMode === 'list' ? '#f97316' : '#ffffff',
+              color: viewMode === 'list' ? '#ffffff' : '#374151',
+              borderColor: viewMode === 'list' ? '#f97316' : '#e5e7eb',
+            }}
+          >
+            📋 List
+          </button>
+          <button
+            onClick={() => setViewMode('grid')}
+            style={{
+              ...styles.viewButton,
+              backgroundColor: viewMode === 'grid' ? '#f97316' : '#ffffff',
+              color: viewMode === 'grid' ? '#ffffff' : '#374151',
+              borderColor: viewMode === 'grid' ? '#f97316' : '#e5e7eb',
+            }}
+          >
+            📊 Grid
+          </button>
         </div>
       )}
 
@@ -1312,7 +1436,7 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                     onClick={() => setExpandedReview(expandedReview === review.id ? null : review.id)}
                     style={isMobile ? mobileStyles.expandButton : styles.expandButton}
                   >
-                    {expandedReview === review.id ? '▼ Show Less' : '▶ Read More'}
+                    {expandedReview === review.id ? '▼' : '▶'} {!isMobile && (expandedReview === review.id ? 'Show Less' : 'Read More')}
                   </button>
                   <button
                     onClick={() => handleDeleteReview(review.id)}
@@ -1325,7 +1449,11 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
               </div>
 
               <div style={isMobile ? mobileStyles.reviewDate : styles.reviewDate}>
-                {review.createdAt.toLocaleDateString()}
+                {review.createdAt.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
               </div>
 
               {review.summary && (
@@ -1489,7 +1617,14 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
           [role="button"],
           input[type="submit"],
           input[type="button"] {
-            min-height: 44px;
+            min-height: 48px;
+          }
+          
+          /* Full width containers */
+          .review-card {
+            width: 100%;
+            margin-left: 0;
+            margin-right: 0;
           }
         }
       `}</style>
@@ -1610,6 +1745,7 @@ const styles = {
   viewToggle: {
     display: 'flex',
     gap: '8px',
+    marginBottom: '24px',
   },
   viewButton: {
     padding: '12px 24px',
