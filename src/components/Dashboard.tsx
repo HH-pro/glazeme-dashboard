@@ -49,32 +49,7 @@ const Dashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
  const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([
-    {
-      id: '1',
-      weekNumber: 1,
-      title: 'Initial Setup',
-      description: 'Set up project structure and dependencies',
-      category: 'development',
-      status: 'completed',
-      priority: 'high',
-      timeSpent: 4,
-      date: new Date('2024-03-01'),
-      branch: 'main',
-      completedBy: 'Hamza'
-    },
-    {
-      id: '2',
-      weekNumber: 2,
-      title: 'Authentication System',
-      description: 'Implement user authentication with JWT',
-      category: 'backend',
-      status: 'in-progress',
-      priority: 'high',
-      timeSpent: 6,
-      date: new Date('2024-03-08'),
-      branch: 'feature/auth',
-      commitHash: 'abc123def456'
-    }
+   
   ]);
 
   const handleAddUpdate = (update: Omit<BuildUpdate, 'id'>) => {
