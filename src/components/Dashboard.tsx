@@ -8,21 +8,18 @@ import WeeklyProgress from './WeeklyProgress';
 import TechnicalLog from './TechnicalLog';
 import DeploymentTracker from './DeploymentTracker';
 import PasswordModal from './PasswordModal';
-import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, AIPromptMetric } from '../types';
+import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit } from '../types';
 
 // Use simple emoji/icons instead of react-icons to avoid compatibility issues
 const Icons = {
   Rocket: () => <span style={{ fontSize: '24px' }}>🚀</span>,
   Mobile: () => <span style={{ fontSize: '24px' }}>📱</span>,
   Code: () => <span style={{ fontSize: '24px' }}>💻</span>,
-  Brain: () => <span style={{ fontSize: '24px' }}>🧠</span>,
   Chart: () => <span style={{ fontSize: '24px' }}>📊</span>,
   Cloud: () => <span style={{ fontSize: '24px' }}>☁️</span>,
-  Shield: () => <span style={{ fontSize: '24px' }}>🛡️</span>,
   Bell: () => <span style={{ fontSize: '20px' }}>🔔</span>,
   Search: () => <span style={{ fontSize: '16px' }}>🔍</span>,
   Filter: () => <span style={{ fontSize: '16px' }}>⚙️</span>,
-  Clock: () => <span style={{ fontSize: '24px' }}>⏰</span>,
   Check: () => <span>✓</span>,
   Warning: () => <span style={{ fontSize: '48px' }}>⚠️</span>,
   Redo: () => <span>↻</span>,
@@ -31,22 +28,11 @@ const Icons = {
   ChevronDown: () => <span>▼</span>
 };
 
-import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  ComposedChart, Line
-} from 'recharts';
-
 // Define types for the component
 interface Notification {
   id: string;
   message: string;
   type: 'success' | 'error' | 'info';
-}
-
-interface ChartData {
-  commitsOverTime: Array<{ date: string; commits: number }>;
-  screenProgress: Array<{ name: string; value: number }>;
 }
 
 const Dashboard: React.FC = () => {
@@ -62,17 +48,6 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [buildStats, setBuildStats] = useState({
-    totalCommits: 0,
-    screensCompleted: 0,
-    activeBuilds: 3,
-    testCoverage: 78
-  });
-
-  const [chartData, setChartData] = useState<ChartData>({
-    commitsOverTime: [],
-    screenProgress: []
-  });
 
   const glazemeSpecs: GlazeMeSpecs = {
     name: "GlazeMe",
@@ -132,15 +107,6 @@ const Dashboard: React.FC = () => {
               date: doc.data().date.toDate()
             })) as ScreenCapture[];
             setScreens(screensData);
-            setBuildStats(prev => ({ ...prev, screensCompleted: screensData.length }));
-            
-            // Update screen progress chart
-            const progressData = [
-              { name: 'Completed', value: screensData.length },
-              { name: 'In Progress', value: Math.floor(screensData.length * 0.3) },
-              { name: 'Planned', value: Math.max(0, 20 - screensData.length) }
-            ];
-            setChartData(prev => ({ ...prev, screenProgress: progressData }));
           },
           () => {
             // Error handled silently
@@ -157,27 +123,6 @@ const Dashboard: React.FC = () => {
               timestamp: doc.data().timestamp.toDate()
             })) as CodeCommit[];
             setCommits(commitsData);
-            
-            setBuildStats(prev => ({ 
-              ...prev, 
-              totalCommits: commitsData.length
-            }));
-
-            // Update commits over time chart
-            const last7Days = Array.from({ length: 7 }, (_, i) => {
-              const date = new Date();
-              date.setDate(date.getDate() - i);
-              return date.toISOString().split('T')[0];
-            }).reverse();
-
-            const commitsByDay = last7Days.map(date => ({
-              date,
-              commits: commitsData.filter(c => 
-                c.timestamp.toISOString().split('T')[0] === date
-              ).length
-            }));
-
-            setChartData(prev => ({ ...prev, commitsOverTime: commitsByDay }));
           },
           () => {
             // Error handled silently
@@ -594,66 +539,6 @@ const Dashboard: React.FC = () => {
       justifyContent: 'center',
       gap: '8px'
     },
-    statsGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: '15px',
-      marginBottom: '25px'
-    },
-    statCard: {
-      padding: '20px 15px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '12px',
-      textAlign: 'center' as const,
-      border: '1px solid #e9ecef',
-      transition: 'all 0.2s',
-      cursor: 'pointer',
-      position: 'relative' as const
-    },
-    statIcon: {
-      fontSize: '24px',
-      marginBottom: '10px'
-    },
-    statValue: {
-      display: 'block',
-      fontSize: 'clamp(20px, 4vw, 28px)',
-      fontWeight: 'bold',
-      color: '#FF8C42',
-      marginBottom: '5px'
-    },
-    statLabel: {
-      fontSize: '12px',
-      color: '#6c757d',
-      textTransform: 'uppercase' as const,
-      letterSpacing: '0.5px'
-    },
-    statTrend: {
-      position: 'absolute' as const,
-      top: '8px',
-      right: '8px',
-      fontSize: '11px',
-      padding: '2px 6px',
-      backgroundColor: '#d4edda',
-      color: '#155724',
-      borderRadius: '10px'
-    },
-    chartsGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-      gap: '20px',
-      marginBottom: '25px'
-    },
-    chartCard: {
-      backgroundColor: '#f8f9fa',
-      borderRadius: '12px',
-      padding: '15px',
-      border: '1px solid #e9ecef'
-    },
-    chartTitle: {
-      fontSize: '14px',
-      margin: '0 0 15px 0',
-      color: '#495057'
-    },
     specs: {
       display: 'flex',
       gap: '10px',
@@ -890,7 +775,7 @@ const Dashboard: React.FC = () => {
         ...styles.mainContent,
         ...(isSidebarOpen ? styles.mainContentShifted : {})
       }}>
-        {/* Header */}
+        {/* Header - Removed stats and charts sections */}
         <div style={styles.header}>
           <div style={{ ...styles.gradientBar, background: glazemeSpecs.colorTheme.gradient }} />
           
@@ -946,63 +831,7 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Stats Grid - Updated with only two metrics */}
-          <div style={styles.statsGrid}>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}><Icons.Code /></div>
-              <span style={styles.statValue}>{buildStats.totalCommits}</span>
-              <span style={styles.statLabel}>Total Commits</span>
-              <small style={styles.statTrend}>+{buildStats.totalCommits > 0 ? Math.floor(buildStats.totalCommits * 0.12) : 0}</small>
-            </div>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}><Icons.Mobile /></div>
-              <span style={styles.statValue}>{buildStats.screensCompleted}</span>
-              <span style={styles.statLabel}>Screens Completed</span>
-              <small style={styles.statTrend}>+{buildStats.screensCompleted > 0 ? Math.floor(buildStats.screensCompleted * 0.15) : 0}</small>
-            </div>
-          </div>
-
-          {/* Charts Grid - Updated with only two charts */}
-          <div style={styles.chartsGrid}>
-            <div style={styles.chartCard}>
-              <h3 style={styles.chartTitle}>Commits Over Time</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={chartData.commitsOverTime}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="commits" stroke="#FF8C42" fill="#FFE55C" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div style={styles.chartCard}>
-              <h3 style={styles.chartTitle}>Screen Progress</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={chartData.screenProgress}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    paddingAngle={5}
-                    dataKey="value"
-                    label
-                  >
-                    {chartData.screenProgress.map((_entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#FF8C42', '#FFE55C', '#FFB347'][index % 3]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Tech Stack */}
+          {/* Tech Stack - Kept only the tech stack section */}
           <div style={styles.specs}>
             <span style={styles.specItem}>🎨 {glazemeSpecs.colorTheme.primary} → {glazemeSpecs.colorTheme.secondary}</span>
             {glazemeSpecs.technicalStack.ai.map((tech, i) => (
