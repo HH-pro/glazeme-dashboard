@@ -17,9 +17,9 @@ interface Notification {
   type: 'success' | 'error' | 'info';
 }
 
-type TabType = 'updates' | 'reviews' | 'screens' | 'progress' | 'tech' | 'deploy' | 'more';
+type TabType = 'updates' | 'reviews' | 'screens' | 'progress' | 'tech' | 'deploy';
 
-// --- Icons (Optimized SVGs with 24x24 touch targets) ---
+// --- Icons (Lucide-style, optimized for light theme) ---
 const Icons = {
   Rocket: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>,
   LayoutGrid: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>,
@@ -40,28 +40,50 @@ const Icons = {
   FileText: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>,
   Lock: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
   Unlock: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>,
-  MoreHorizontal: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+  MoreHorizontal: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>,
+  TrendingUp: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+  Clock: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
 };
 
 // --- Sub-Components ---
 
-const StatCard: React.FC<{ label: string; value: string | number; color?: string; trend?: string }> = ({ label, value, color, trend }) => (
+const StatCard: React.FC<{ 
+  label: string; 
+  value: string | number; 
+  color?: string; 
+  trend?: string;
+  trendUp?: boolean;
+}> = ({ label, value, color, trend, trendUp }) => (
   <div className="stat-card">
     <div className="stat-header">
-      <div className="stat-value" style={{ color: color || 'var(--color-primary)' }}>{value}</div>
-      {trend && <span className="stat-trend">{trend}</span>}
+      <div className="stat-value" style={{ color: color || 'var(--primary-600)' }}>{value}</div>
+      {trend && (
+        <span className={`stat-trend ${trendUp ? 'up' : 'down'}`}>
+          {trendUp ? <Icons.TrendingUp /> : <Icons.TrendingUp />}
+          {trend}
+        </span>
+      )}
     </div>
     <div className="stat-label">{label}</div>
   </div>
 );
 
-const ActivityItem: React.FC<{ icon: React.ReactNode; time: string; text: string; subtext?: string }> = ({ icon, time, text, subtext }) => (
-  <div className="activity-item">
+const ActivityItem: React.FC<{ 
+  icon: React.ReactNode; 
+  time: string; 
+  text: string; 
+  subtext?: string;
+  highlight?: boolean;
+}> = ({ icon, time, text, subtext, highlight }) => (
+  <div className={`activity-item ${highlight ? 'highlight' : ''}`}>
     <div className="activity-icon">{icon}</div>
     <div className="activity-content">
       <div className="activity-text">{text}</div>
       {subtext && <div className="activity-subtext">{subtext}</div>}
-      <div className="activity-time">{time}</div>
+      <div className="activity-meta">
+        <Icons.Clock />
+        <span>{time}</span>
+      </div>
     </div>
   </div>
 );
@@ -108,7 +130,6 @@ const Dashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Specs Data
@@ -137,7 +158,6 @@ const Dashboard: React.FC = () => {
     const checkDevice = () => {
       const width = window.innerWidth;
       setIsMobile(width < 640);
-      setIsTablet(width >= 640 && width < 1024);
     };
     
     checkDevice();
@@ -290,7 +310,7 @@ const Dashboard: React.FC = () => {
     <div className="dashboard-container">
       <PasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} onSuccess={handlePasswordSuccess} />
       
-      {/* Mobile Header - Sticky with safe area support */}
+      {/* Mobile Header */}
       <header className="mobile-header">
         <button 
           className="menu-toggle" 
@@ -309,7 +329,7 @@ const Dashboard: React.FC = () => {
         </button>
       </header>
 
-      {/* Sidebar - Collapsible on mobile, fixed on desktop */}
+      {/* Sidebar */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''} ${isMobile ? 'mobile-sidebar' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">
@@ -368,7 +388,7 @@ const Dashboard: React.FC = () => {
         </div>
       </aside>
 
-      {/* Overlay for mobile sidebar */}
+      {/* Overlay */}
       {isSidebarOpen && isMobile && (
         <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
       )}
@@ -376,7 +396,7 @@ const Dashboard: React.FC = () => {
       {/* Main Content */}
       <main className={`main-content ${isSidebarOpen && !isMobile ? 'shifted' : ''} ${isMobile ? 'mobile-main' : ''}`}>
         
-        {/* Notifications - Adjusted for mobile safe areas */}
+        {/* Notifications */}
         <div className="notification-container">
           {notifications.map(n => (
             <div key={n.id} className={`notification toast ${n.type}`}>
@@ -385,7 +405,7 @@ const Dashboard: React.FC = () => {
           ))}
         </div>
 
-        {/* Search & Actions Bar - Responsive */}
+        {/* Top Bar */}
         <div className="top-bar">
           <div className="search-box">
             <Icons.Search />
@@ -416,32 +436,54 @@ const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Stats Overview - Responsive Grid */}
+        {/* Welcome Card */}
+        <div className="welcome-card">
+          <div className="welcome-content">
+            <h2>Welcome back, Developer</h2>
+            <p>Here's what's happening with your GlazeMe project today.</p>
+          </div>
+          <div className="welcome-stats">
+            <div className="welcome-stat">
+              <span className="welcome-stat-value">{updates.length}</span>
+              <span className="welcome-stat-label">Updates</span>
+            </div>
+            <div className="welcome-stat">
+              <span className="welcome-stat-value">{screens.length}</span>
+              <span className="welcome-stat-label">Screens</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Overview */}
         {activeTab === 'updates' && (
           <div className="stats-grid">
             <StatCard 
               label="Total Reviews" 
               value={reviewStats.total} 
-              trend={isMobile ? undefined : "+12%"} 
+              trend="+12%"
+              trendUp={true}
             />
             <StatCard 
               label="Pending" 
               value={reviewStats.pending} 
-              color="#f59e0b"
-              trend={isMobile ? undefined : "4 new"} 
+              color="#d97706"
+              trend="4 new"
+              trendUp={false}
             />
             <StatCard 
               label="Approved" 
               value={reviewStats.approved} 
-              color="#10b981"
-              trend={isMobile ? undefined : "88%"} 
+              color="#059669"
+              trend="88%"
+              trendUp={true}
             />
             {!isMobile && (
               <StatCard 
                 label="Avg Rating" 
                 value={reviewStats.rating.toFixed(1)} 
-                color="#8b5cf6"
+                color="#7c3aed"
                 trend="4.5/5"
+                trendUp={true}
               />
             )}
           </div>
@@ -463,10 +505,13 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Activity Feed - Collapsible on mobile */}
+        {/* Activity Feed */}
         {!isMobile && (
           <div className="activity-feed">
-            <h3>Live Activity</h3>
+            <div className="activity-feed-header">
+              <h3>Live Activity</h3>
+              <button className="view-all-btn">View All <Icons.ChevronDown /></button>
+            </div>
             <div className="feed-list">
               {updates.slice(0, 3).map(u => (
                 <ActivityItem 
@@ -475,6 +520,7 @@ const Dashboard: React.FC = () => {
                   time={new Date(u.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 
                   text={`Build Update: ${u.title}`}
                   subtext={u.description?.slice(0, 60) + '...'}
+                  highlight={u.priority === 'high'}
                 />
               ))}
               {reviews.slice(0, 2).map(r => (
@@ -484,6 +530,7 @@ const Dashboard: React.FC = () => {
                   time={new Date(r.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 
                   text={`New Review: ${r.updateTitle || 'General'}`}
                   subtext={`Rating: ${r.rating}/5`}
+                  highlight={r.rating >= 4}
                 />
               ))}
             </div>
@@ -492,35 +539,93 @@ const Dashboard: React.FC = () => {
       </main>
 
       {/* Mobile Bottom Navigation */}
-     {isMobile && (
-  <BottomNav
-    activeTab={activeTab}
-    onTabChange={(tab: TabType) => {
-      if (tab === 'more') {
-        setShowMobileMenu(true);
-      } else {
-        setActiveTab(tab);
-        setShowMobileMenu(false);
-      }
-    }}
-  />
-)}
-      {/* Global Responsive Styles */}
+      {isMobile && (
+        <BottomNav activeTab={activeTab} onTabChange={(tab) => {
+          if (tab === 'more') {
+            setShowMobileMenu(true);
+          } else {
+            setActiveTab(tab);
+            setShowMobileMenu(false);
+          }
+        }} />
+      )}
+
+      {/* Light Theme Styles */}
       <style>{`
+        /* ============================================
+           LIGHT THEME DESIGN SYSTEM
+           Professional, Clean, Accessible
+           ============================================ */
+        
         :root {
-          --color-primary: #FF8C42;
-          --color-secondary: #FFE55C;
-          --color-bg: #f8fafc;
-          --color-surface: #ffffff;
-          --color-text: #0f172a;
-          --color-text-muted: #64748b;
-          --color-border: #e2e8f0;
-          --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-          --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-          --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-          --radius: 12px;
-          --radius-sm: 8px;
-          --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          /* Primary Brand Colors - Warm Orange/Gold */
+          --primary-50: #fff7ed;
+          --primary-100: #ffedd5;
+          --primary-200: #fed7aa;
+          --primary-300: #fdba74;
+          --primary-400: #fb923c;
+          --primary-500: #f97316;
+          --primary-600: #ea580c;
+          --primary-700: #c2410c;
+          
+          /* Neutral Scale - Cool Gray for Light Theme */
+          --gray-0: #ffffff;
+          --gray-50: #f8fafc;
+          --gray-100: #f1f5f9;
+          --gray-200: #e2e8f0;
+          --gray-300: #cbd5e1;
+          --gray-400: #94a3b8;
+          --gray-500: #64748b;
+          --gray-600: #475569;
+          --gray-700: #334155;
+          --gray-800: #1e293b;
+          --gray-900: #0f172a;
+          
+          /* Semantic Colors */
+          --success-50: #ecfdf5;
+          --success-500: #10b981;
+          --success-600: #059669;
+          --warning-50: #fffbeb;
+          --warning-500: #f59e0b;
+          --warning-600: #d97706;
+          --error-50: #fef2f2;
+          --error-500: #ef4444;
+          --error-600: #dc2626;
+          --info-50: #eff6ff;
+          --info-500: #3b82f6;
+          --info-600: #2563eb;
+          
+          /* Shadows - Soft and subtle for light theme */
+          --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+          --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+          --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+          --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+          --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+          
+          /* Spacing */
+          --space-1: 0.25rem;
+          --space-2: 0.5rem;
+          --space-3: 0.75rem;
+          --space-4: 1rem;
+          --space-5: 1.25rem;
+          --space-6: 1.5rem;
+          --space-8: 2rem;
+          --space-10: 2.5rem;
+          --space-12: 3rem;
+          
+          /* Border Radius */
+          --radius-sm: 6px;
+          --radius-md: 8px;
+          --radius-lg: 12px;
+          --radius-xl: 16px;
+          --radius-2xl: 24px;
+          
+          /* Transitions */
+          --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+          --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+          --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+          
+          /* Safe Areas */
           --safe-top: env(safe-area-inset-top);
           --safe-bottom: env(safe-area-inset-bottom);
           --safe-left: env(safe-area-inset-left);
@@ -536,16 +641,18 @@ const Dashboard: React.FC = () => {
           margin: 0;
           padding: 0;
           overflow-x: hidden;
+          background-color: var(--gray-50);
+          color: var(--gray-900);
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          line-height: 1.5;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
         }
 
         .dashboard-container {
           display: flex;
           min-height: 100vh;
-          background-color: var(--color-bg);
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-          color: var(--color-text);
-          padding-bottom: constant(safe-area-inset-bottom);
-          padding-bottom: env(safe-area-inset-bottom);
+          background-color: var(--gray-50);
         }
 
         /* Loading & Error States */
@@ -556,20 +663,26 @@ const Dashboard: React.FC = () => {
           justify-content: center;
           min-height: 100vh;
           width: 100%;
-          gap: 1rem;
-          padding: 20px;
+          gap: var(--space-4);
+          padding: var(--space-6);
           text-align: center;
+          background-color: var(--gray-50);
         }
+
         .spinner {
-          width: 40px; height: 40px;
-          border: 3px solid #e2e8f0;
-          border-top-color: var(--color-primary);
+          width: 40px; 
+          height: 40px;
+          border: 3px solid var(--gray-200);
+          border-top-color: var(--primary-500);
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Mobile Header - Sticky with safe area */
+        @keyframes spin { 
+          to { transform: rotate(360deg); } 
+        }
+
+        /* Mobile Header */
         .mobile-header {
           display: none;
           position: fixed;
@@ -579,14 +692,14 @@ const Dashboard: React.FC = () => {
           height: 56px;
           padding-top: var(--safe-top);
           background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(10px);
-          border-bottom: 1px solid var(--color-border);
+          backdrop-filter: blur(12px);
+          border-bottom: 1px solid var(--gray-200);
           align-items: center;
           justify-content: space-between;
-          padding-left: max(16px, var(--safe-left));
-          padding-right: max(16px, var(--safe-right));
+          padding-left: max(var(--space-4), var(--safe-left));
+          padding-right: max(var(--space-4), var(--safe-right));
           z-index: 100;
-          transition: var(--transition);
+          box-shadow: var(--shadow-sm);
         }
 
         .menu-toggle, .notification-btn {
@@ -597,42 +710,42 @@ const Dashboard: React.FC = () => {
           justify-content: center;
           background: transparent;
           border: none;
-          border-radius: 10px;
-          color: var(--color-text);
+          border-radius: var(--radius-md);
+          color: var(--gray-700);
           cursor: pointer;
-          transition: var(--transition);
-          touch-action: manipulation;
+          transition: var(--transition-fast);
         }
 
         .menu-toggle:active, .notification-btn:active {
-          background: var(--color-bg);
+          background: var(--gray-100);
           transform: scale(0.95);
         }
 
         .mobile-brand {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: var(--space-2);
         }
 
         .mobile-logo-icon {
-          color: var(--color-primary);
+          color: var(--primary-500);
           display: flex;
         }
 
         .mobile-title {
           font-size: 18px;
           font-weight: 700;
-          color: var(--color-text);
+          color: var(--gray-900);
+          letter-spacing: -0.025em;
         }
 
         .badge {
           position: absolute;
           top: 6px;
           right: 6px;
-          background: #ef4444;
+          background: var(--error-500);
           color: white;
-          font-size: 10px;
+          font-size: 11px;
           font-weight: 600;
           min-width: 18px;
           height: 18px;
@@ -642,20 +755,21 @@ const Dashboard: React.FC = () => {
           justify-content: center;
           padding: 0 5px;
           border: 2px solid white;
+          box-shadow: var(--shadow-xs);
         }
 
-        /* Sidebar - Responsive */
+        /* Sidebar */
         .sidebar {
-          width: 260px;
-          background: var(--color-surface);
-          border-right: 1px solid var(--color-border);
+          width: 264px;
+          background: var(--gray-0);
+          border-right: 1px solid var(--gray-200);
           display: flex;
           flex-direction: column;
           position: fixed;
           height: 100vh;
           height: 100dvh;
           z-index: 200;
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: transform var(--transition-slow);
           overflow-y: auto;
           overflow-x: hidden;
         }
@@ -663,7 +777,7 @@ const Dashboard: React.FC = () => {
         .sidebar.mobile-sidebar {
           transform: translateX(-100%);
           width: 280px;
-          box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+          box-shadow: var(--shadow-xl);
         }
 
         .sidebar.mobile-sidebar.open {
@@ -673,7 +787,7 @@ const Dashboard: React.FC = () => {
         .sidebar-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,0.5);
+          background: rgba(15, 23, 42, 0.4);
           z-index: 150;
           backdrop-filter: blur(4px);
           animation: fadeIn 0.2s ease;
@@ -685,8 +799,8 @@ const Dashboard: React.FC = () => {
         }
 
         .sidebar-header {
-          padding: 20px;
-          border-bottom: 1px solid var(--color-border);
+          padding: var(--space-6);
+          border-bottom: 1px solid var(--gray-100);
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -695,29 +809,31 @@ const Dashboard: React.FC = () => {
         .logo {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: var(--space-3);
         }
 
         .logo-icon {
-          background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
-          padding: 10px;
-          border-radius: 12px;
-          color: white;
+          background: linear-gradient(135deg, var(--primary-100), var(--primary-300));
+          padding: var(--space-3);
+          border-radius: var(--radius-lg);
+          color: var(--primary-700);
           display: flex;
-          box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
+          box-shadow: var(--shadow-sm);
         }
 
         .logo-text h1 {
           font-size: 20px;
           margin: 0;
           font-weight: 700;
-          color: var(--color-text);
+          color: var(--gray-900);
+          letter-spacing: -0.025em;
         }
 
         .version {
           font-size: 12px;
-          color: var(--color-text-muted);
+          color: var(--gray-500);
           margin: 2px 0 0 0;
+          font-weight: 500;
         }
 
         .close-sidebar {
@@ -726,57 +842,60 @@ const Dashboard: React.FC = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--color-bg);
+          background: var(--gray-100);
           border: none;
-          border-radius: 10px;
-          color: var(--color-text-muted);
+          border-radius: var(--radius-md);
+          color: var(--gray-500);
           cursor: pointer;
+          transition: var(--transition-fast);
+        }
+
+        .close-sidebar:hover {
+          background: var(--gray-200);
+          color: var(--gray-700);
         }
 
         .nav-menu {
           flex: 1;
-          padding: 12px;
+          padding: var(--space-3);
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: var(--space-1);
         }
 
         .nav-item {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 12px 16px;
-          border-radius: 10px;
+          gap: var(--space-3);
+          padding: var(--space-3) var(--space-4);
+          border-radius: var(--radius-md);
           border: none;
           background: transparent;
-          color: var(--color-text-muted);
+          color: var(--gray-600);
           cursor: pointer;
           font-size: 15px;
           font-weight: 500;
-          transition: var(--transition);
+          transition: var(--transition-fast);
           position: relative;
           text-align: left;
           width: 100%;
           min-height: 48px;
         }
 
-        .nav-item:active {
-          transform: scale(0.98);
-        }
-
         .nav-item:hover { 
-          background: #f1f5f9; 
-          color: var(--color-text); 
+          background: var(--gray-50); 
+          color: var(--gray-900); 
         }
 
         .nav-item.active { 
-          background: linear-gradient(135deg, #fff7ed, #ffedd5); 
-          color: var(--color-primary); 
+          background: var(--primary-50); 
+          color: var(--primary-700); 
         }
 
         .nav-icon {
           display: flex;
           flex-shrink: 0;
+          color: currentColor;
         }
 
         .active-indicator {
@@ -784,106 +903,124 @@ const Dashboard: React.FC = () => {
           left: 0;
           top: 50%;
           transform: translateY(-50%);
-          width: 4px;
-          height: 24px;
-          background: var(--color-primary);
-          border-radius: 0 4px 4px 0;
+          width: 3px;
+          height: 20px;
+          background: var(--primary-500);
+          border-radius: 0 3px 3px 0;
         }
 
         .sidebar-footer {
-          padding: 16px;
-          border-top: 1px solid var(--color-border);
+          padding: var(--space-4);
+          border-top: 1px solid var(--gray-100);
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: var(--space-3);
         }
 
         .tech-stack-mini {
           display: flex;
           flex-wrap: wrap;
-          gap: 6px;
+          gap: var(--space-2);
         }
 
         .tech-tag {
           font-size: 11px;
-          background: #f1f5f9;
-          padding: 4px 10px;
+          background: var(--gray-100);
+          padding: var(--space-1) var(--space-3);
           border-radius: 20px;
-          color: var(--color-text-muted);
+          color: var(--gray-600);
           font-weight: 500;
+          border: 1px solid var(--gray-200);
         }
 
         .edit-toggle-sidebar {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
-          padding: 10px;
-          border-radius: 10px;
-          border: 1px solid var(--color-border);
-          background: white;
+          gap: var(--space-2);
+          padding: var(--space-3);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--gray-200);
+          background: var(--gray-0);
           cursor: pointer;
           font-weight: 500;
           font-size: 14px;
-          color: var(--color-text-muted);
-          transition: var(--transition);
+          color: var(--gray-600);
+          transition: var(--transition-fast);
           width: 100%;
         }
 
+        .edit-toggle-sidebar:hover {
+          background: var(--gray-50);
+          border-color: var(--gray-300);
+        }
+
         .edit-toggle-sidebar.active {
-          background: #fee2e2;
-          color: #dc2626;
-          border-color: #fecaca;
+          background: var(--error-50);
+          color: var(--error-600);
+          border-color: var(--error-200);
         }
 
         /* Main Content */
         .main-content {
           flex: 1;
-          margin-left: 260px;
-          padding: 24px 32px;
+          margin-left: 264px;
+          padding: var(--space-8) var(--space-10);
           max-width: 1440px;
-          transition: margin-left 0.3s ease;
+          transition: margin-left var(--transition-slow);
           min-height: 100vh;
         }
 
         .main-content.shifted {
-          margin-left: 260px;
+          margin-left: 264px;
         }
 
         .main-content.mobile-main {
           margin-left: 0;
-          padding: 76px 16px 100px;
-          padding-top: calc(56px + var(--safe-top) + 16px);
+          padding: 76px var(--space-4) 100px;
+          padding-top: calc(56px + var(--safe-top) + var(--space-4));
         }
 
         /* Notifications */
         .notification-container {
           position: fixed;
-          top: 24px;
-          right: 24px;
+          top: var(--space-6);
+          right: var(--space-6);
           z-index: 9999;
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: var(--space-3);
           pointer-events: none;
         }
 
         .toast {
-          padding: 14px 20px;
-          border-radius: 10px;
+          padding: var(--space-4) var(--space-5);
+          border-radius: var(--radius-lg);
           color: white;
           font-weight: 500;
           font-size: 14px;
           box-shadow: var(--shadow-lg);
           animation: slideIn 0.3s ease-out;
           pointer-events: auto;
-          max-width: 360px;
+          max-width: 400px;
           word-wrap: break-word;
+          display: flex;
+          align-items: center;
+          gap: var(--space-3);
         }
 
-        .toast.success { background: #10b981; }
-        .toast.error { background: #ef4444; }
-        .toast.info { background: #3b82f6; }
+        .toast.success { 
+          background: var(--success-600); 
+          border: 1px solid var(--success-500);
+        }
+        .toast.error { 
+          background: var(--error-600); 
+          border: 1px solid var(--error-500);
+        }
+        .toast.info { 
+          background: var(--info-600); 
+          border: 1px solid var(--info-500);
+        }
 
         @keyframes slideIn {
           from { transform: translateX(100%); opacity: 0; }
@@ -895,60 +1032,70 @@ const Dashboard: React.FC = () => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 24px;
-          gap: 16px;
+          margin-bottom: var(--space-6);
+          gap: var(--space-4);
           flex-wrap: wrap;
         }
 
         .search-box {
           display: flex;
           align-items: center;
-          background: var(--color-surface);
-          padding: 10px 16px;
-          border-radius: 12px;
-          border: 1px solid var(--color-border);
+          background: var(--gray-0);
+          padding: var(--space-3) var(--space-4);
+          border-radius: var(--radius-xl);
+          border: 1px solid var(--gray-200);
           flex: 1;
-          min-width: 200px;
-          max-width: 400px;
-          color: var(--color-text-muted);
-          transition: var(--transition);
+          min-width: 280px;
+          max-width: 420px;
+          color: var(--gray-400);
+          transition: var(--transition-fast);
           position: relative;
+          box-shadow: var(--shadow-xs);
         }
 
         .search-box:focus-within {
-          border-color: var(--color-primary);
-          box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.1);
+          border-color: var(--primary-300);
+          box-shadow: 0 0 0 3px var(--primary-100);
+          color: var(--primary-500);
         }
 
         .search-box input {
           border: none;
           outline: none;
-          margin-left: 10px;
+          margin-left: var(--space-3);
           width: 100%;
           background: transparent;
           font-size: 15px;
-          color: var(--color-text);
+          color: var(--gray-900);
+          font-weight: 500;
         }
 
         .search-box input::placeholder {
-          color: var(--color-text-muted);
+          color: var(--gray-400);
+          font-weight: 400;
         }
 
         .clear-search {
           position: absolute;
           right: 12px;
-          background: none;
+          background: var(--gray-100);
           border: none;
           padding: 4px;
           cursor: pointer;
-          color: var(--color-text-muted);
+          color: var(--gray-500);
           display: flex;
           border-radius: 50%;
+          transition: var(--transition-fast);
+        }
+
+        .clear-search:hover {
+          background: var(--gray-200);
+          color: var(--gray-700);
         }
 
         .actions {
           display: flex;
-          gap: 10px;
+          gap: var(--space-3);
           align-items: center;
         }
 
@@ -958,56 +1105,129 @@ const Dashboard: React.FC = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: 12px;
+          background: var(--gray-0);
+          border: 1px solid var(--gray-200);
+          border-radius: var(--radius-lg);
           cursor: pointer;
-          color: var(--color-text-muted);
-          transition: var(--transition);
+          color: var(--gray-600);
+          transition: var(--transition-fast);
+          box-shadow: var(--shadow-xs);
+        }
+
+        .icon-btn:hover {
+          border-color: var(--gray-300);
+          color: var(--gray-900);
+          background: var(--gray-50);
         }
 
         .icon-btn:active {
           transform: scale(0.95);
-          background: var(--color-bg);
         }
 
         .edit-toggle {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 10px 18px;
-          border-radius: 12px;
-          border: 1px solid var(--color-border);
-          background: white;
+          gap: var(--space-2);
+          padding: var(--space-3) var(--space-5);
+          border-radius: var(--radius-xl);
+          border: 1px solid var(--gray-200);
+          background: var(--gray-0);
           cursor: pointer;
           font-weight: 500;
           font-size: 14px;
-          color: var(--color-text-muted);
-          transition: var(--transition);
+          color: var(--gray-600);
+          transition: var(--transition-fast);
           height: 44px;
+          box-shadow: var(--shadow-xs);
+        }
+
+        .edit-toggle:hover {
+          border-color: var(--gray-300);
+          background: var(--gray-50);
         }
 
         .edit-toggle.active {
-          background: #fee2e2;
-          color: #dc2626;
-          border-color: #fecaca;
+          background: var(--error-50);
+          color: var(--error-600);
+          border-color: var(--error-200);
         }
 
-        /* Stats Grid - Responsive */
+        /* Welcome Card */
+        .welcome-card {
+          background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+          border-radius: var(--radius-xl);
+          padding: var(--space-6) var(--space-8);
+          margin-bottom: var(--space-6);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          color: white;
+          box-shadow: var(--shadow-lg);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .welcome-card::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          right: -10%;
+          width: 300px;
+          height: 300px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 50%;
+        }
+
+        .welcome-content h2 {
+          margin: 0 0 var(--space-2) 0;
+          font-size: 24px;
+          font-weight: 700;
+          letter-spacing: -0.025em;
+        }
+
+        .welcome-content p {
+          margin: 0;
+          opacity: 0.9;
+          font-size: 15px;
+        }
+
+        .welcome-stats {
+          display: flex;
+          gap: var(--space-6);
+        }
+
+        .welcome-stat {
+          text-align: center;
+        }
+
+        .welcome-stat-value {
+          display: block;
+          font-size: 32px;
+          font-weight: 700;
+          line-height: 1;
+        }
+
+        .welcome-stat-label {
+          font-size: 13px;
+          opacity: 0.8;
+          font-weight: 500;
+        }
+
+        /* Stats Grid */
         .stats-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-          gap: 16px;
-          margin-bottom: 24px;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: var(--space-5);
+          margin-bottom: var(--space-6);
         }
 
         .stat-card {
-          background: var(--color-surface);
-          padding: 20px;
-          border-radius: var(--radius);
+          background: var(--gray-0);
+          padding: var(--space-5);
+          border-radius: var(--radius-xl);
           box-shadow: var(--shadow-sm);
-          border: 1px solid var(--color-border);
-          transition: var(--transition);
+          border: 1px solid var(--gray-200);
+          transition: var(--transition-fast);
           position: relative;
           overflow: hidden;
         }
@@ -1015,6 +1235,7 @@ const Dashboard: React.FC = () => {
         .stat-card:hover { 
           transform: translateY(-2px); 
           box-shadow: var(--shadow-md); 
+          border-color: var(--gray-300);
         }
 
         .stat-card::before {
@@ -1024,7 +1245,7 @@ const Dashboard: React.FC = () => {
           left: 0;
           right: 0;
           height: 3px;
-          background: var(--color-primary);
+          background: linear-gradient(90deg, var(--primary-400), var(--primary-500));
           opacity: 0;
           transition: opacity 0.2s;
         }
@@ -1037,115 +1258,164 @@ const Dashboard: React.FC = () => {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 8px;
+          margin-bottom: var(--space-3);
         }
 
         .stat-value { 
-          font-size: 28px; 
+          font-size: 32px; 
           font-weight: 700; 
           line-height: 1;
+          letter-spacing: -0.025em;
         }
 
         .stat-trend {
           font-size: 12px;
           font-weight: 600;
-          padding: 4px 8px;
-          background: #dcfce7;
-          color: #166534;
+          padding: var(--space-1) var(--space-3);
           border-radius: 20px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .stat-trend.up {
+          background: var(--success-50);
+          color: var(--success-600);
+        }
+
+        .stat-trend.down {
+          background: var(--warning-50);
+          color: var(--warning-600);
         }
 
         .stat-label { 
-          font-size: 13px; 
-          color: var(--color-text-muted);
+          font-size: 14px; 
+          color: var(--gray-500);
           font-weight: 500;
         }
 
         /* Content Card */
         .content-card {
-          background: var(--color-surface);
-          border-radius: var(--radius);
+          background: var(--gray-0);
+          border-radius: var(--radius-xl);
           box-shadow: var(--shadow-sm);
-          border: 1px solid var(--color-border);
+          border: 1px solid var(--gray-200);
           overflow: hidden;
-          margin-bottom: 24px;
+          margin-bottom: var(--space-6);
         }
 
         .edit-banner {
-          background: linear-gradient(90deg, #fef3c7, #fde68a);
-          color: #92400e;
-          padding: 12px 20px;
+          background: linear-gradient(90deg, var(--warning-50), #fef3c7);
+          color: var(--warning-700);
+          padding: var(--space-4) var(--space-6);
           font-size: 14px;
           font-weight: 500;
           display: flex;
           align-items: center;
-          gap: 10px;
-          border-bottom: 1px solid #fcd34d;
+          gap: var(--space-3);
+          border-bottom: 1px solid var(--warning-200);
           justify-content: space-between;
         }
 
         .exit-edit-btn {
-          padding: 6px 12px;
+          padding: var(--space-2) var(--space-4);
           background: white;
-          border: 1px solid #d97706;
-          border-radius: 6px;
-          font-size: 12px;
+          border: 1px solid var(--warning-300);
+          border-radius: var(--radius-md);
+          font-size: 13px;
           font-weight: 600;
-          color: #92400e;
+          color: var(--warning-700);
           cursor: pointer;
+          transition: var(--transition-fast);
+        }
+
+        .exit-edit-btn:hover {
+          background: var(--warning-50);
         }
 
         .content-body {
-          padding: 24px;
+          padding: var(--space-6);
         }
 
         /* Activity Feed */
         .activity-feed {
-          background: var(--color-surface);
-          padding: 24px;
-          border-radius: var(--radius);
+          background: var(--gray-0);
+          border-radius: var(--radius-xl);
           box-shadow: var(--shadow-sm);
-          border: 1px solid var(--color-border);
+          border: 1px solid var(--gray-200);
+          overflow: hidden;
         }
 
-        .activity-feed h3 {
-          margin: 0 0 16px 0;
-          font-size: 14px;
-          color: var(--color-text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
+        .activity-feed-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--space-5) var(--space-6);
+          border-bottom: 1px solid var(--gray-100);
+        }
+
+        .activity-feed-header h3 {
+          margin: 0;
+          font-size: 16px;
+          color: var(--gray-900);
           font-weight: 600;
+          letter-spacing: -0.025em;
+        }
+
+        .view-all-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          background: none;
+          border: none;
+          color: var(--primary-600);
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: var(--transition-fast);
+        }
+
+        .view-all-btn:hover {
+          color: var(--primary-700);
         }
 
         .feed-list {
           display: flex;
           flex-direction: column;
-          gap: 12px;
         }
 
         .activity-item {
           display: flex;
           align-items: flex-start;
-          gap: 14px;
-          padding: 14px;
-          border-radius: 10px;
-          transition: var(--transition);
+          gap: var(--space-4);
+          padding: var(--space-5) var(--space-6);
+          transition: var(--transition-fast);
           cursor: pointer;
+          border-bottom: 1px solid var(--gray-100);
+        }
+
+        .activity-item:last-child {
+          border-bottom: none;
         }
 
         .activity-item:hover { 
-          background: #f8fafc; 
+          background: var(--gray-50); 
         }
 
-        .activity-item:active {
-          transform: scale(0.99);
+        .activity-item.highlight {
+          background: var(--primary-50);
+          border-left: 3px solid var(--primary-500);
+        }
+
+        .activity-item.highlight:hover {
+          background: #fff7ed;
         }
 
         .activity-icon {
-          color: var(--color-primary);
-          background: linear-gradient(135deg, #fff7ed, #ffedd5);
-          padding: 10px;
-          border-radius: 10px;
+          color: var(--primary-600);
+          background: var(--primary-50);
+          padding: var(--space-3);
+          border-radius: var(--radius-lg);
           display: flex;
           flex-shrink: 0;
         }
@@ -1156,30 +1426,36 @@ const Dashboard: React.FC = () => {
         }
 
         .activity-text { 
-          font-size: 14px; 
+          font-size: 15px; 
           font-weight: 600;
-          color: var(--color-text);
-          margin-bottom: 2px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          color: var(--gray-900);
+          margin-bottom: var(--space-1);
+          letter-spacing: -0.025em;
         }
 
         .activity-subtext {
-          font-size: 13px;
-          color: var(--color-text-muted);
-          margin-bottom: 4px;
-          line-height: 1.4;
+          font-size: 14px;
+          color: var(--gray-600);
+          margin-bottom: var(--space-2);
+          line-height: 1.5;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
         }
 
-        .activity-time { 
-          font-size: 12px; 
-          color: #94a3b8;
+        .activity-meta {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          font-size: 13px;
+          color: var(--gray-400);
           font-weight: 500;
+        }
+
+        .activity-meta svg {
+          width: 14px;
+          height: 14px;
         }
 
         /* Mobile Bottom Navigation */
@@ -1190,15 +1466,16 @@ const Dashboard: React.FC = () => {
           right: 0;
           height: calc(64px + var(--safe-bottom));
           padding-bottom: var(--safe-bottom);
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(20px);
-          border-top: 1px solid var(--color-border);
+          border-top: 1px solid var(--gray-200);
           display: flex;
           justify-content: space-around;
           align-items: center;
           z-index: 100;
           padding-left: var(--safe-left);
           padding-right: var(--safe-right);
+          box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
         }
 
         .bottom-nav-item {
@@ -1210,16 +1487,16 @@ const Dashboard: React.FC = () => {
           gap: 4px;
           background: none;
           border: none;
-          padding: 8px;
-          color: var(--color-text-muted);
+          padding: var(--space-2);
+          color: var(--gray-400);
           cursor: pointer;
-          transition: var(--transition);
+          transition: var(--transition-fast);
           position: relative;
           min-height: 48px;
         }
 
         .bottom-nav-item.active {
-          color: var(--color-primary);
+          color: var(--primary-600);
         }
 
         .bottom-nav-item.active::before {
@@ -1228,7 +1505,7 @@ const Dashboard: React.FC = () => {
           top: 0;
           width: 40px;
           height: 3px;
-          background: var(--color-primary);
+          background: var(--primary-500);
           border-radius: 0 0 3px 3px;
         }
 
@@ -1240,14 +1517,14 @@ const Dashboard: React.FC = () => {
 
         .bottom-nav-label {
           font-size: 11px;
-          font-weight: 500;
+          font-weight: 600;
         }
 
         /* Mobile Menu Overlay */
         .mobile-menu-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,0.5);
+          background: rgba(15, 23, 42, 0.4);
           z-index: 300;
           display: flex;
           align-items: flex-end;
@@ -1257,12 +1534,13 @@ const Dashboard: React.FC = () => {
         .mobile-menu {
           background: white;
           width: 100%;
-          border-radius: 20px 20px 0 0;
-          padding: 20px;
-          padding-bottom: calc(20px + var(--safe-bottom));
+          border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+          padding: var(--space-6);
+          padding-bottom: calc(var(--space-6) + var(--safe-bottom));
           animation: slideUp 0.3s ease;
           max-height: 70vh;
           overflow-y: auto;
+          box-shadow: var(--shadow-xl);
         }
 
         @keyframes slideUp {
@@ -1274,51 +1552,53 @@ const Dashboard: React.FC = () => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 16px;
+          margin-bottom: var(--space-5);
         }
 
         .mobile-menu-header h3 {
           margin: 0;
-          font-size: 18px;
-          font-weight: 600;
+          font-size: 20px;
+          font-weight: 700;
+          color: var(--gray-900);
         }
 
         .mobile-menu-items {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: var(--space-2);
         }
 
         .mobile-menu-item {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 16px;
-          border-radius: 12px;
+          gap: var(--space-4);
+          padding: var(--space-4);
+          border-radius: var(--radius-lg);
           border: none;
           background: transparent;
           font-size: 16px;
           font-weight: 500;
-          color: var(--color-text);
+          color: var(--gray-700);
           cursor: pointer;
           text-align: left;
           width: 100%;
-          transition: var(--transition);
+          transition: var(--transition-fast);
+          min-height: 52px;
         }
 
         .mobile-menu-item:active {
-          background: var(--color-bg);
+          background: var(--gray-100);
         }
 
         .mobile-menu-item.active {
-          color: var(--color-primary);
-          background: #fff7ed;
+          color: var(--primary-700);
+          background: var(--primary-50);
         }
 
         .mobile-menu-divider {
           height: 1px;
-          background: var(--color-border);
-          margin: 8px 0;
+          background: var(--gray-200);
+          margin: var(--space-3) 0;
         }
 
         /* Responsive Breakpoints */
@@ -1333,11 +1613,22 @@ const Dashboard: React.FC = () => {
           
           .main-content {
             margin-left: 0;
-            padding: 20px;
+            padding: var(--space-6);
           }
           
           .main-content.shifted {
             margin-left: 0;
+          }
+
+          .welcome-card {
+            flex-direction: column;
+            text-align: center;
+            gap: var(--space-5);
+          }
+
+          .welcome-stats {
+            width: 100%;
+            justify-content: center;
           }
         }
 
@@ -1348,11 +1639,11 @@ const Dashboard: React.FC = () => {
 
           .stats-grid {
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: var(--space-4);
           }
 
           .stat-card {
-            padding: 16px;
+            padding: var(--space-4);
           }
 
           .stat-value {
@@ -1368,11 +1659,12 @@ const Dashboard: React.FC = () => {
           .top-bar {
             flex-direction: column;
             align-items: stretch;
+            gap: var(--space-4);
           }
 
           .notification-container {
-            left: 16px;
-            right: 16px;
+            left: var(--space-4);
+            right: var(--space-4);
             top: 80px;
           }
 
@@ -1382,13 +1674,30 @@ const Dashboard: React.FC = () => {
           }
 
           .content-body {
-            padding: 16px;
+            padding: var(--space-4);
+          }
+
+          .welcome-card {
+            padding: var(--space-5);
+            margin-bottom: var(--space-5);
+          }
+
+          .welcome-content h2 {
+            font-size: 20px;
+          }
+
+          .welcome-stats {
+            gap: var(--space-5);
           }
         }
 
         @media (min-width: 640px) and (max-width: 1023px) {
           .stats-grid {
             grid-template-columns: repeat(3, 1fr);
+          }
+
+          .welcome-card {
+            padding: var(--space-6);
           }
         }
 
@@ -1422,14 +1731,28 @@ const Dashboard: React.FC = () => {
           }
         }
 
-        /* Dark Mode Support */
-        @media (prefers-color-scheme: dark) {
-          :root {
-            --color-bg: #0f172a;
-            --color-surface: #1e293b;
-            --color-text: #f1f5f9;
-            --color-text-muted: #94a3b8;
-            --color-border: #334155;
+        /* High Contrast Mode Support */
+        @media (prefers-contrast: high) {
+          .stat-card,
+          .activity-feed,
+          .content-card,
+          .sidebar {
+            border-width: 2px;
+          }
+        }
+
+        /* Print Styles */
+        @media print {
+          .sidebar,
+          .mobile-header,
+          .bottom-nav,
+          .notification-container {
+            display: none !important;
+          }
+          
+          .main-content {
+            margin-left: 0 !important;
+            padding: 0 !important;
           }
         }
       `}</style>
