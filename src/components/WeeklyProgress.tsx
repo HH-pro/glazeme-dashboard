@@ -1,5 +1,5 @@
 // src/components/WeeklyProgress.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface Week {
   number: number;
@@ -17,7 +17,58 @@ interface Props {
 
 const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) => {
   const [weeks, setWeeks] = useState<Week[]>([
-  
+    {
+      number: 1,
+      focus: "User Onboarding & Authentication",
+      screens: ["Splash Screen", "Login Screen", "Sign Up Screen", "Profile Setup"],
+      tasks: [
+        "Design splash screen with app logo",
+        "Implement email/password login",
+        "Create sign up flow with validation",
+        "Build profile setup with photo upload"
+      ],
+      completed: true,
+      progress: 100
+    },
+    {
+      number: 2,
+      focus: "Main Feed & Content Discovery",
+      screens: ["Home Feed", "Search Screen", "Categories", "Content Details"],
+      tasks: [
+        "Build infinite scroll feed",
+        "Implement search with filters",
+        "Create category browsing",
+        "Design content detail view"
+      ],
+      completed: false,
+      progress: 65
+    },
+    {
+      number: 3,
+      focus: "User Engagement Features",
+      screens: ["Notifications", "Messages", "Comments", "Share Sheet"],
+      tasks: [
+        "Implement push notifications",
+        "Build messaging interface",
+        "Create comment system",
+        "Add share functionality"
+      ],
+      completed: false,
+      progress: 30
+    },
+    {
+      number: 4,
+      focus: "Profile & Settings",
+      screens: ["User Profile", "Settings", "Edit Profile", "Privacy Settings"],
+      tasks: [
+        "Design profile page with stats",
+        "Build settings options",
+        "Implement edit profile",
+        "Add privacy controls"
+      ],
+      completed: false,
+      progress: 10
+    }
   ]);
 
   const [editingWeek, setEditingWeek] = useState<number | null>(null);
@@ -33,6 +84,18 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
     progress: 0
   });
 
+  // Add resize listener for mobile responsiveness
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleEditClick = (week: Week) => {
     if (!isEditMode && onEditAction) {
       onEditAction();
@@ -40,6 +103,12 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
     }
     setEditingWeek(week.number);
     setEditForm({ ...week });
+  };
+
+  const handleDeleteClick = (weekNumber: number) => {
+    if (window.confirm('Are you sure you want to delete this week?')) {
+      setWeeks(weeks.filter(w => w.number !== weekNumber));
+    }
   };
 
   const handleSaveEdit = () => {
@@ -133,8 +202,34 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
   const totalScreens = weeks.reduce((acc, week) => acc + week.screens.length, 0);
   const completedScreens = Math.round((overallProgress / 100) * totalScreens);
 
+  // Mobile-specific styles
+  const mobileStyles = {
+    overviewCards: {
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '10px',
+    },
+    weekHeader: {
+      flexDirection: 'column' as const,
+      alignItems: 'flex-start',
+      gap: '10px',
+    },
+    weekHeaderLeft: {
+      flexWrap: 'wrap' as const,
+    },
+    weekHeaderRight: {
+      width: '100%',
+      justifyContent: 'flex-end',
+    },
+    screensGrid: {
+      gridTemplateColumns: '1fr',
+    },
+    roadmapGrid: {
+      gridTemplateColumns: '1fr',
+    },
+  };
+
   return (
-    <div>
+    <div style={styles.container}>
       <div style={styles.header}>
         <div>
           <h2 style={styles.sectionTitle}>📱 4-Week Screen Development Plan</h2>
@@ -155,7 +250,10 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
       )}
 
       {/* Screen Progress Overview */}
-      <div style={styles.overviewCards}>
+      <div style={{
+        ...styles.overviewCards,
+        ...(isMobile ? mobileStyles.overviewCards : {})
+      }}>
         <div style={styles.overviewCard}>
           <span style={styles.overviewIcon}>📱</span>
           <div>
@@ -302,22 +400,39 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
             ) : (
               // View Mode
               <>
-                <div style={styles.weekHeader}>
-                  <div style={styles.weekHeaderLeft}>
+                <div style={{
+                  ...styles.weekHeader,
+                  ...(isMobile ? mobileStyles.weekHeader : {})
+                }}>
+                  <div style={{
+                    ...styles.weekHeaderLeft,
+                    ...(isMobile ? mobileStyles.weekHeaderLeft : {})
+                  }}>
                     <span style={styles.weekNumber}>Week {week.number}</span>
                     <span style={styles.weekFocus}>{week.focus}</span>
                   </div>
-                  <div style={styles.weekHeaderRight}>
+                  <div style={{
+                    ...styles.weekHeaderRight,
+                    ...(isMobile ? mobileStyles.weekHeaderRight : {})
+                  }}>
                     {week.progress === 100 && (
                       <span style={styles.completedBadge}>✅ Complete</span>
                     )}
                     {isEditMode && (
-                      <button 
-                        onClick={() => handleEditClick(week)}
-                        style={styles.editWeekButton}
-                      >
-                        ✏️ Edit
-                      </button>
+                      <>
+                        <button 
+                          onClick={() => handleEditClick(week)}
+                          style={styles.editWeekButton}
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteClick(week.number)}
+                          style={styles.deleteWeekButton}
+                        >
+                          🗑️
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -325,7 +440,10 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
                 {/* Screens Section */}
                 <div style={styles.screensSection}>
                   <h4 style={styles.screensTitle}>📱 Screens to Build:</h4>
-                  <div style={styles.screensGrid}>
+                  <div style={{
+                    ...styles.screensGrid,
+                    ...(isMobile ? mobileStyles.screensGrid : {})
+                  }}>
                     {week.screens.map((screen, index) => {
                       const screenCompleted = week.progress && week.progress > (index / week.screens.length) * 100;
                       return (
@@ -413,8 +531,22 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
               <h4 style={styles.modalScreenName}>{selectedScreen.screen}</h4>
               <p style={styles.modalWeek}>Week {selectedScreen.week}</p>
               <div style={styles.modalActions}>
-                <button style={styles.modalButton}>View Design</button>
-                <button style={styles.modalButton}>Mark Complete</button>
+                <button 
+                  style={{
+                    ...styles.modalButton,
+                    ...(isMobile ? { flex: '1' } : {})
+                  }}
+                >
+                  View Design
+                </button>
+                <button 
+                  style={{
+                    ...styles.modalButton,
+                    ...(isMobile ? { flex: '1' } : {})
+                  }}
+                >
+                  Mark Complete
+                </button>
               </div>
             </div>
           </div>
@@ -424,7 +556,10 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
       {/* Development Roadmap */}
       <div style={styles.roadmap}>
         <h3 style={styles.roadmapTitle}>🗺️ Screen Development Roadmap</h3>
-        <div style={styles.roadmapGrid}>
+        <div style={{
+          ...styles.roadmapGrid,
+          ...(isMobile ? mobileStyles.roadmapGrid : {})
+        }}>
           {weeks.map(week => (
             <div key={week.number} style={styles.roadmapColumn}>
               <div style={styles.roadmapHeader}>
@@ -443,52 +578,64 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
           ))}
         </div>
       </div>
-
-      
     </div>
   );
 };
 
 const styles = {
+  container: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '20px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    flexWrap: 'wrap' as const,
+    gap: '15px',
   },
   sectionTitle: {
-    fontSize: '24px',
+    fontSize: 'clamp(20px, 5vw, 24px)',
     margin: '0 0 10px 0',
-    color: '#333'
+    color: '#333',
+    lineHeight: '1.3',
   },
   subtitle: {
-    fontSize: '14px',
+    fontSize: 'clamp(12px, 4vw, 14px)',
     color: '#666',
-    margin: 0
+    margin: 0,
   },
   addButton: {
-    padding: '8px 16px',
+    padding: '10px 20px',
     backgroundColor: '#FF8C42',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: 'clamp(14px, 4vw, 16px)',
+    fontWeight: '500',
+    '@media (max-width: 768px)': {
+      width: '100%',
+    },
   },
   editModeIndicator: {
     backgroundColor: '#fff3cd',
     color: '#856404',
-    padding: '8px 12px',
-    borderRadius: '6px',
+    padding: '12px 16px',
+    borderRadius: '8px',
     marginBottom: '20px',
-    fontSize: '14px',
-    fontWeight: '500'
+    fontSize: 'clamp(13px, 4vw, 14px)',
+    fontWeight: '500',
+    textAlign: 'center' as const,
   },
   overviewCards: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gridTemplateColumns: 'repeat(4, 1fr)',
     gap: '15px',
-    marginBottom: '20px'
+    marginBottom: '20px',
   },
   overviewCard: {
     display: 'flex',
@@ -496,362 +643,385 @@ const styles = {
     gap: '12px',
     padding: '15px',
     backgroundColor: 'white',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    border: '1px solid #eee'
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    border: '1px solid #eee',
+    '@media (max-width: 768px)': {
+      padding: '12px',
+      gap: '8px',
+    },
   },
   overviewIcon: {
-    fontSize: '24px'
+    fontSize: 'clamp(20px, 5vw, 24px)',
   },
   overviewValue: {
     display: 'block',
-    fontSize: '20px',
+    fontSize: 'clamp(18px, 5vw, 20px)',
     fontWeight: 'bold',
-    color: '#FF8C42'
+    color: '#FF8C42',
+    lineHeight: '1.2',
   },
   overviewLabel: {
-    fontSize: '12px',
-    color: '#666'
+    fontSize: 'clamp(11px, 3vw, 12px)',
+    color: '#666',
   },
   overallProgress: {
     marginBottom: '30px',
-    padding: '15px',
+    padding: '20px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '8px'
+    borderRadius: '12px',
   },
   overallProgressHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    marginBottom: '8px'
+    marginBottom: '10px',
+    flexWrap: 'wrap' as const,
+    gap: '10px',
   },
   overallProgressLabel: {
-    fontSize: '14px',
-    color: '#666'
+    fontSize: 'clamp(13px, 4vw, 14px)',
+    color: '#666',
   },
   overallProgressValue: {
-    fontSize: '14px',
+    fontSize: 'clamp(13px, 4vw, 14px)',
     fontWeight: 'bold',
-    color: '#FF8C42'
+    color: '#FF8C42',
   },
   progressBarBg: {
     width: '100%',
-    height: '8px',
+    height: '10px',
     backgroundColor: '#e9ecef',
-    borderRadius: '4px',
-    overflow: 'hidden'
+    borderRadius: '5px',
+    overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#FF8C42',
-    transition: 'width 0.3s ease'
+    transition: 'width 0.3s ease',
   },
   screenCount: {
-    marginTop: '8px',
-    textAlign: 'right' as const
+    marginTop: '10px',
+    textAlign: 'right' as const,
   },
   screenCountText: {
-    fontSize: '12px',
-    color: '#6c757d'
+    fontSize: 'clamp(11px, 3vw, 12px)',
+    color: '#6c757d',
   },
   timeline: {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '20px',
-    marginBottom: '30px'
+    marginBottom: '30px',
   },
   weekCard: {
     padding: '20px',
     backgroundColor: 'white',
-    borderRadius: '10px',
+    borderRadius: '16px',
     boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    border: '1px solid #eee'
+    border: '1px solid #eee',
+    '@media (max-width: 768px)': {
+      padding: '16px',
+    },
   },
   weekHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '15px'
+    marginBottom: '15px',
   },
   weekHeaderLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: '15px'
+    gap: '12px',
   },
   weekHeaderRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px'
+    gap: '8px',
   },
   weekNumber: {
     padding: '6px 12px',
     backgroundColor: '#FF8C42',
     color: 'white',
     borderRadius: '20px',
-    fontSize: '14px',
-    fontWeight: 'bold'
+    fontSize: 'clamp(12px, 4vw, 14px)',
+    fontWeight: 'bold',
+    whiteSpace: 'nowrap' as const,
   },
   weekFocus: {
-    fontSize: '18px',
+    fontSize: 'clamp(16px, 5vw, 18px)',
     fontWeight: 'bold',
-    color: '#333'
+    color: '#333',
   },
   completedBadge: {
-    fontSize: '13px',
+    fontSize: 'clamp(12px, 4vw, 13px)',
     color: '#28a745',
-    fontWeight: '500'
+    fontWeight: '500',
   },
   editWeekButton: {
-    padding: '4px 8px',
+    padding: '8px 12px',
     backgroundColor: '#f8f9fa',
     border: '1px solid #dee2e6',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '12px'
+    fontSize: '14px',
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#e9ecef',
+    },
+  },
+  deleteWeekButton: {
+    padding: '8px 12px',
+    backgroundColor: '#fff',
+    border: '1px solid #dc3545',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    color: '#dc3545',
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#dc3545',
+      color: 'white',
+    },
   },
   screensSection: {
-    marginBottom: '15px'
+    marginBottom: '20px',
   },
   screensTitle: {
-    fontSize: '15px',
-    margin: '0 0 10px 0',
-    color: '#555'
+    fontSize: 'clamp(14px, 4vw, 15px)',
+    margin: '0 0 12px 0',
+    color: '#555',
   },
   screensGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '10px'
+    gap: '10px',
   },
   screenCard: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '10px',
+    gap: '10px',
+    padding: '12px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '6px',
+    borderRadius: '10px',
     border: '1px solid #e9ecef',
     cursor: 'pointer',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    ':active': {
+      transform: 'scale(0.98)',
+    },
   },
   screenCompleted: {
     backgroundColor: '#d4edda',
-    borderColor: '#c3e6cb'
+    borderColor: '#c3e6cb',
   },
   screenIcon: {
-    fontSize: '16px'
+    fontSize: '18px',
   },
   screenName: {
-    fontSize: '13px',
-    color: '#495057'
+    fontSize: 'clamp(12px, 4vw, 13px)',
+    color: '#495057',
+    wordBreak: 'break-word' as const,
   },
   tasksSection: {
-    marginBottom: '15px'
+    marginBottom: '20px',
   },
   tasksTitle: {
-    fontSize: '15px',
-    margin: '0 0 10px 0',
-    color: '#555'
+    fontSize: 'clamp(14px, 4vw, 15px)',
+    margin: '0 0 12px 0',
+    color: '#555',
   },
   taskList: {
     margin: 0,
     padding: 0,
-    listStyle: 'none'
+    listStyle: 'none',
   },
   taskItem: {
-    fontSize: '14px',
-    marginBottom: '8px',
+    fontSize: 'clamp(13px, 4vw, 14px)',
+    marginBottom: '10px',
     cursor: 'pointer',
     display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    color: '#666'
+    alignItems: 'flex-start',
+    gap: '10px',
+    color: '#666',
+    padding: '4px 0',
   },
   taskCompleted: {
     color: '#999',
-    textDecoration: 'line-through'
+    textDecoration: 'line-through',
   },
   taskBullet: {
-    fontSize: '14px'
+    fontSize: '16px',
+    flexShrink: 0,
   },
   progressSection: {
-    marginTop: '15px',
-    padding: '15px',
+    marginTop: '20px',
+    padding: '16px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '8px'
+    borderRadius: '12px',
   },
   progressHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    marginBottom: '8px'
+    marginBottom: '10px',
   },
   progressLabel: {
-    fontSize: '13px',
-    color: '#666'
+    fontSize: 'clamp(12px, 4vw, 13px)',
+    color: '#666',
   },
   progressValue: {
-    fontSize: '13px',
+    fontSize: 'clamp(12px, 4vw, 13px)',
     fontWeight: 'bold',
-    color: '#FF8C42'
+    color: '#FF8C42',
   },
   progressSlider: {
     width: '100%',
-    marginTop: '10px'
+    marginTop: '12px',
+    height: '6px',
+    WebkitAppearance: 'none' as const,
+    background: '#e9ecef',
+    borderRadius: '3px',
+    outline: 'none',
+    '::-webkit-slider-thumb': {
+      WebkitAppearance: 'none' as const,
+      width: '20px',
+      height: '20px',
+      background: '#FF8C42',
+      borderRadius: '50%',
+      cursor: 'pointer',
+      border: 'none',
+    },
   },
   editForm: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '10px'
+    gap: '15px',
   },
   input: {
-    padding: '8px',
+    padding: '12px',
     border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px'
+    borderRadius: '8px',
+    fontSize: 'clamp(14px, 4vw, 16px)',
+    width: '100%',
+    boxSizing: 'border-box' as const,
   },
   textarea: {
-    padding: '8px',
+    padding: '12px',
     border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    minHeight: '80px'
+    borderRadius: '8px',
+    fontSize: 'clamp(14px, 4vw, 16px)',
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    minHeight: '100px',
+    resize: 'vertical' as const,
   },
   range: {
-    width: '100%'
+    width: '100%',
+    margin: '10px 0',
+    height: '6px',
+    background: '#e9ecef',
+    borderRadius: '3px',
   },
   progressControl: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '5px'
+    gap: '8px',
   },
   editButtons: {
     display: 'flex',
-    gap: '10px',
-    justifyContent: 'flex-end'
+    gap: '12px',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap' as const,
   },
   cancelButton: {
-    padding: '6px 12px',
+    padding: '10px 20px',
     backgroundColor: '#6c757d',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer'
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: 'clamp(14px, 4vw, 16px)',
   },
   saveButton: {
-    padding: '6px 12px',
+    padding: '10px 20px',
     backgroundColor: '#28a745',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer'
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: 'clamp(14px, 4vw, 16px)',
   },
   formButtons: {
     display: 'flex',
-    gap: '10px',
+    gap: '12px',
     justifyContent: 'flex-end',
-    marginTop: '10px'
+    marginTop: '10px',
+    flexWrap: 'wrap' as const,
   },
   addWeekForm: {
     backgroundColor: '#f8f9fa',
     padding: '20px',
-    borderRadius: '8px',
+    borderRadius: '16px',
     marginBottom: '20px',
-    border: '2px solid #FF8C42'
+    border: '2px solid #FF8C42',
   },
   formTitle: {
     margin: '0 0 15px 0',
-    fontSize: '18px',
-    color: '#333'
+    fontSize: 'clamp(16px, 5vw, 18px)',
+    color: '#333',
   },
   roadmap: {
-    marginBottom: '30px'
+    marginBottom: '30px',
   },
   roadmapTitle: {
-    fontSize: '18px',
+    fontSize: 'clamp(16px, 5vw, 18px)',
     margin: '0 0 15px 0',
-    color: '#333'
+    color: '#333',
   },
   roadmapGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '15px'
+    gap: '15px',
   },
   roadmapColumn: {
-    padding: '15px',
+    padding: '16px',
     backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    border: '1px solid #e9ecef'
+    borderRadius: '12px',
+    border: '1px solid #e9ecef',
   },
   roadmapHeader: {
-    marginBottom: '10px',
-    paddingBottom: '8px',
-    borderBottom: '2px solid #FF8C42'
+    marginBottom: '12px',
+    paddingBottom: '10px',
+    borderBottom: '2px solid #FF8C42',
   },
   roadmapWeek: {
     display: 'block',
-    fontSize: '14px',
+    fontSize: 'clamp(13px, 4vw, 14px)',
     fontWeight: 'bold',
     color: '#FF8C42',
-    marginBottom: '4px'
+    marginBottom: '4px',
   },
   roadmapFocus: {
-    fontSize: '13px',
-    color: '#333'
+    fontSize: 'clamp(12px, 4vw, 13px)',
+    color: '#333',
   },
   roadmapScreens: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '6px'
+    gap: '8px',
   },
   roadmapScreen: {
-    fontSize: '12px',
+    fontSize: 'clamp(11px, 3vw, 12px)',
     color: '#666',
     display: 'flex',
     alignItems: 'center',
-    gap: '6px'
+    gap: '8px',
+    wordBreak: 'break-word' as const,
   },
   roadmapBullet: {
     color: '#FF8C42',
-    fontSize: '16px'
-  },
-  statusCard: {
-    padding: '20px',
-    backgroundColor: '#fff3cd',
-    borderRadius: '8px',
-    border: '1px solid #ffeeba'
-  },
-  statusHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginBottom: '15px'
-  },
-  statusIcon: {
-    fontSize: '20px'
-  },
-  statusTitle: {
     fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#856404'
-  },
-  statusContent: {
-    marginBottom: '15px'
-  },
-  statusText: {
-    margin: '5px 0',
-    fontSize: '14px',
-    color: '#856404'
-  },
-  statusTags: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap' as const
-  },
-  statusTag: {
-    padding: '4px 8px',
-    backgroundColor: '#fff',
-    borderRadius: '4px',
-    fontSize: '12px',
-    color: '#856404',
-    border: '1px solid #ffeeba'
+    flexShrink: 0,
   },
   modal: {
     position: 'fixed' as const,
@@ -863,64 +1033,74 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 1000,
+    padding: '20px',
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '20px',
+    borderRadius: '20px',
+    padding: '24px',
     maxWidth: '400px',
-    width: '90%',
-    position: 'relative' as const
+    width: '100%',
+    position: 'relative' as const,
+    maxHeight: '90vh',
+    overflow: 'auto',
   },
   modalClose: {
     position: 'absolute' as const,
-    top: '10px',
-    right: '10px',
-    width: '30px',
-    height: '30px',
+    top: '15px',
+    right: '15px',
+    width: '36px',
+    height: '36px',
     borderRadius: '50%',
     border: 'none',
     backgroundColor: '#ff4444',
     color: 'white',
-    fontSize: '20px',
-    cursor: 'pointer'
+    fontSize: '24px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalTitle: {
-    fontSize: '20px',
+    fontSize: 'clamp(18px, 5vw, 20px)',
     margin: '0 0 20px 0',
-    color: '#333'
+    color: '#333',
+    paddingRight: '30px',
   },
   modalBody: {
-    textAlign: 'center' as const
+    textAlign: 'center' as const,
   },
   modalIcon: {
     fontSize: '48px',
-    marginBottom: '15px'
+    marginBottom: '20px',
   },
   modalScreenName: {
-    fontSize: '18px',
+    fontSize: 'clamp(16px, 5vw, 18px)',
     margin: '0 0 10px 0',
-    color: '#333'
+    color: '#333',
+    wordBreak: 'break-word' as const,
   },
   modalWeek: {
-    fontSize: '14px',
+    fontSize: 'clamp(13px, 4vw, 14px)',
     color: '#666',
-    marginBottom: '20px'
+    marginBottom: '20px',
   },
   modalActions: {
     display: 'flex',
-    gap: '10px',
-    justifyContent: 'center'
+    gap: '12px',
+    justifyContent: 'center',
+    flexWrap: 'wrap' as const,
   },
   modalButton: {
-    padding: '8px 16px',
+    padding: '12px 24px',
     backgroundColor: '#FF8C42',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer'
-  }
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: 'clamp(14px, 4vw, 16px)',
+  },
 };
 
 export default WeeklyProgress;
