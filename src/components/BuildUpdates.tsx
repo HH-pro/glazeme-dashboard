@@ -1,12 +1,12 @@
 // src/components/BuildUpdates.tsx
 import React, { useState, useEffect } from 'react';
-import { BuildUpdate } from '../types';
+import { BuildUpdate, UpdateCategory, UpdateStatus, UpdatePriority } from '../types';
 
 interface Props {
   updates: BuildUpdate[];
   onAddUpdate: (update: Omit<BuildUpdate, 'id'>) => void;
-  onEditUpdate?: (id: string, update: Omit<BuildUpdate, 'id'>) => void;
-  onDeleteUpdate?: (id: string) => void;
+  onEditUpdate?: (id: number, update: Omit<BuildUpdate, 'id'>) => void;
+  onDeleteUpdate?: (id: number) => void;
   isEditMode?: boolean;
   onEditAction?: () => void;
 }
@@ -25,14 +25,11 @@ const BuildUpdates: React.FC<Props> = ({
     weekNumber: 1,
     title: '',
     description: '',
-    category: 'development',
-    status: 'in-progress',
-    priority: 'medium',
+    category: 'development' as UpdateCategory,
+    status: 'in-progress' as UpdateStatus,
+    priority: 'medium' as UpdatePriority,
     timeSpent: 0,
-    date: new Date(),
-    commitHash: '',
-    branch: '',
-    completedBy: ''
+    date: new Date()
   });
 
   // Add resize listener for mobile responsiveness
@@ -58,14 +55,11 @@ const BuildUpdates: React.FC<Props> = ({
       weekNumber: 1,
       title: '',
       description: '',
-      category: 'development',
-      status: 'in-progress',
-      priority: 'medium',
+      category: 'development' as UpdateCategory,
+      status: 'in-progress' as UpdateStatus,
+      priority: 'medium' as UpdatePriority,
       timeSpent: 0,
-      date: new Date(),
-      commitHash: '',
-      branch: '',
-      completedBy: ''
+      date: new Date()
     });
   };
 
@@ -74,7 +68,6 @@ const BuildUpdates: React.FC<Props> = ({
       onEditAction();
       return;
     }
-    console.log('Editing update:', update); // Debug log
     setEditingUpdate(update);
     setNewUpdate({
       weekNumber: update.weekNumber,
@@ -82,29 +75,21 @@ const BuildUpdates: React.FC<Props> = ({
       description: update.description,
       category: update.category,
       status: update.status,
-      priority: update.priority,
-      timeSpent: update.timeSpent,
-      date: update.date,
-      commitHash: update.commitHash || '',
-      branch: update.branch || '',
-      completedBy: update.completedBy || ''
+      priority: update.priority || 'medium',
+      timeSpent: update.timeSpent || 0,
+      date: update.date
     });
     setShowAddForm(true);
   };
 
-  const handleDeleteClick = (id: string) => {
+  const handleDeleteClick = (id: number) => {
     if (!isEditMode && onEditAction) {
       onEditAction();
       return;
     }
     
     if (window.confirm('Are you sure you want to delete this update?')) {
-      console.log('Deleting update with id:', id); // Debug log
-      if (onDeleteUpdate) {
-        onDeleteUpdate(id);
-      } else {
-        console.error('onDeleteUpdate function is not provided');
-      }
+      onDeleteUpdate?.(id);
     }
   };
 
@@ -112,17 +97,11 @@ const BuildUpdates: React.FC<Props> = ({
     e.preventDefault();
     
     if (editingUpdate) {
-      console.log('Submitting edit for update:', editingUpdate.id); // Debug log
-      if (onEditUpdate) {
-        onEditUpdate(editingUpdate.id, {
-          ...newUpdate,
-          date: editingUpdate.date
-        });
-      } else {
-        console.error('onEditUpdate function is not provided');
-      }
+      onEditUpdate?.(editingUpdate.id, {
+        ...newUpdate,
+        date: editingUpdate.date
+      });
     } else {
-      console.log('Adding new update'); // Debug log
       onAddUpdate({
         ...newUpdate,
         date: new Date()
@@ -135,14 +114,11 @@ const BuildUpdates: React.FC<Props> = ({
       weekNumber: 1,
       title: '',
       description: '',
-      category: 'development',
-      status: 'in-progress',
-      priority: 'medium',
+      category: 'development' as UpdateCategory,
+      status: 'in-progress' as UpdateStatus,
+      priority: 'medium' as UpdatePriority,
       timeSpent: 0,
-      date: new Date(),
-      commitHash: '',
-      branch: '',
-      completedBy: ''
+      date: new Date()
     });
   };
 
@@ -153,28 +129,25 @@ const BuildUpdates: React.FC<Props> = ({
       weekNumber: 1,
       title: '',
       description: '',
-      category: 'development',
-      status: 'in-progress',
-      priority: 'medium',
+      category: 'development' as UpdateCategory,
+      status: 'in-progress' as UpdateStatus,
+      priority: 'medium' as UpdatePriority,
       timeSpent: 0,
-      date: new Date(),
-      commitHash: '',
-      branch: '',
-      completedBy: ''
+      date: new Date()
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: UpdateStatus) => {
     switch(status) {
       case 'completed': return '#28a745';
       case 'in-progress': return '#ffc107';
       case 'planned': return '#6c757d';
-      case 'blocked': return '#dc3545';
       default: return '#6c757d';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: UpdatePriority | undefined) => {
+    if (!priority) return '#6c757d';
     switch(priority) {
       case 'high': return '#dc3545';
       case 'medium': return '#ffc107';
@@ -200,10 +173,6 @@ const BuildUpdates: React.FC<Props> = ({
       gap: '10px',
     },
     leftHeader: {
-      width: '100%',
-      justifyContent: 'space-between',
-    },
-    rightHeader: {
       width: '100%',
       justifyContent: 'space-between',
     },
@@ -297,7 +266,7 @@ const BuildUpdates: React.FC<Props> = ({
           }}>
             <select
               value={newUpdate.category}
-              onChange={(e) => setNewUpdate({...newUpdate, category: e.target.value as any})}
+              onChange={(e) => setNewUpdate({...newUpdate, category: e.target.value as UpdateCategory})}
               style={styles.select}
             >
               <option value="development">Development</option>
@@ -305,24 +274,21 @@ const BuildUpdates: React.FC<Props> = ({
               <option value="ai-integration">AI Integration</option>
               <option value="testing">Testing</option>
               <option value="deployment">Deployment</option>
-              <option value="backend">Backend</option>
-              <option value="security">Security</option>
             </select>
             
             <select
               value={newUpdate.status}
-              onChange={(e) => setNewUpdate({...newUpdate, status: e.target.value as any})}
+              onChange={(e) => setNewUpdate({...newUpdate, status: e.target.value as UpdateStatus})}
               style={styles.select}
             >
               <option value="planned">Planned</option>
               <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
-              <option value="blocked">Blocked</option>
             </select>
             
             <select
               value={newUpdate.priority}
-              onChange={(e) => setNewUpdate({...newUpdate, priority: e.target.value as any})}
+              onChange={(e) => setNewUpdate({...newUpdate, priority: e.target.value as UpdatePriority})}
               style={styles.select}
             >
               <option value="low">Low Priority</option>
@@ -330,35 +296,6 @@ const BuildUpdates: React.FC<Props> = ({
               <option value="high">High Priority</option>
             </select>
           </div>
-
-          {/* Optional fields */}
-          <div style={{
-            ...styles.formRow,
-            ...(isMobile ? mobileStyles.formRow : {})
-          }}>
-            <input
-              type="text"
-              placeholder="Commit Hash (optional)"
-              value={newUpdate.commitHash || ''}
-              onChange={(e) => setNewUpdate({...newUpdate, commitHash: e.target.value})}
-              style={styles.input}
-            />
-            <input
-              type="text"
-              placeholder="Branch (optional)"
-              value={newUpdate.branch || ''}
-              onChange={(e) => setNewUpdate({...newUpdate, branch: e.target.value})}
-              style={styles.input}
-            />
-          </div>
-
-          <input
-            type="text"
-            placeholder="Completed By (optional)"
-            value={newUpdate.completedBy || ''}
-            onChange={(e) => setNewUpdate({...newUpdate, completedBy: e.target.value})}
-            style={styles.input}
-          />
           
           <div style={styles.formButtons}>
             <button 
@@ -396,35 +333,28 @@ const BuildUpdates: React.FC<Props> = ({
                 ...(isMobile ? mobileStyles.leftHeader : {})
               }}>
                 <span style={styles.weekBadge}>Week {update.weekNumber}</span>
-                <span style={{...styles.priorityBadge, backgroundColor: getPriorityColor(update.priority)}}>
-                  {update.priority} priority
-                </span>
+                {update.priority && (
+                  <span style={{...styles.priorityBadge, backgroundColor: getPriorityColor(update.priority)}}>
+                    {update.priority} priority
+                  </span>
+                )}
               </div>
-              <div style={{
-                ...styles.rightHeader,
-                ...(isMobile ? mobileStyles.rightHeader : {})
-              }}>
+              <div style={styles.rightHeader}>
                 {isEditMode && (
                   <>
                     <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditClick(update);
-                      }}
+                      onClick={() => handleEditClick(update)}
                       style={styles.editButton}
                       title="Edit update"
                     >
-                      ✏️ Edit
+                      ✏️
                     </button>
                     <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteClick(update.id);
-                      }}
+                      onClick={() => handleDeleteClick(update.id)}
                       style={styles.deleteButton}
                       title="Delete update"
                     >
-                      🗑️ Delete
+                      🗑️
                     </button>
                   </>
                 )}
@@ -446,24 +376,12 @@ const BuildUpdates: React.FC<Props> = ({
                 ...(isMobile ? mobileStyles.leftFooter : {})
               }}>
                 <span style={styles.categoryTag}>{update.category}</span>
-                {update.timeSpent > 0 && (
+                {update.timeSpent && update.timeSpent > 0 && (
                   <span style={styles.timeSpent}>⏱️ {update.timeSpent}h</span>
-                )}
-                {update.branch && (
-                  <span style={styles.branchTag}>🌿 {update.branch}</span>
-                )}
-                {update.completedBy && (
-                  <span style={styles.completedByTag}>👤 {update.completedBy}</span>
                 )}
               </div>
               <span style={styles.date}>{new Date(update.date).toLocaleDateString()}</span>
             </div>
-
-            {update.commitHash && (
-              <div style={styles.commitInfo}>
-                <span style={styles.commitHash}>🔗 {update.commitHash.substring(0, 7)}</span>
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -647,32 +565,22 @@ const styles = {
     fontWeight: '500',
   },
   editButton: {
-    padding: '6px 12px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
+    padding: '8px 12px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dee2e6',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: '500',
+    fontSize: '14px',
     transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#0056b3',
-    },
   },
   deleteButton: {
-    padding: '6px 12px',
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
+    padding: '8px 12px',
+    backgroundColor: '#f8d7da',
+    border: '1px solid #f5c6cb',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: '500',
+    fontSize: '14px',
     transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#c82333',
-    },
   },
   updateTitle: {
     fontSize: 'clamp(16px, 4vw, 18px)',
@@ -715,37 +623,9 @@ const styles = {
     alignItems: 'center',
     gap: '4px',
   },
-  branchTag: {
-    padding: '4px 10px',
-    backgroundColor: '#e7f5ff',
-    borderRadius: '6px',
-    fontSize: 'clamp(12px, 3vw, 13px)',
-    color: '#0066cc',
-    border: '1px solid #b8daff',
-  },
-  completedByTag: {
-    padding: '4px 10px',
-    backgroundColor: '#f3e8ff',
-    borderRadius: '6px',
-    fontSize: 'clamp(12px, 3vw, 13px)',
-    color: '#6f42c1',
-    border: '1px solid #d3b8ff',
-  },
   date: {
     fontSize: 'clamp(12px, 3vw, 13px)',
     color: '#999'
-  },
-  commitInfo: {
-    marginTop: '10px',
-    padding: '8px 12px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '6px',
-    border: '1px solid #dee2e6',
-  },
-  commitHash: {
-    fontSize: 'clamp(11px, 3vw, 12px)',
-    color: '#666',
-    fontFamily: 'monospace',
   }
 };
 
