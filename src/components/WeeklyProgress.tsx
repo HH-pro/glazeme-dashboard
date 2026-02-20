@@ -444,6 +444,11 @@ const WeeklyProgress: React.FC<Props> = ({ isEditMode = false, onEditAction }) =
         </div>
       </div>
 
+      
+    </div>
+  );
+};
+
 const styles = {
   header: {
     display: 'flex',
