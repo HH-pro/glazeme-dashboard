@@ -1,4 +1,3 @@
-// src/components/ClientReview.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -9,124 +8,69 @@ import {
   getDocs, 
   query, 
   orderBy,
-  where,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 // Types
-type ReviewStatus = 'pending' | 'approved' | 'changes-requested' | 'in-review';
-type FeedbackPriority = 'low' | 'medium' | 'high' | 'critical';
-type FeedbackType = 'general' | 'bug' | 'feature-request' | 'design' | 'content' | 'ux' | 'performance';
-
-interface ReviewPoint {
-  id: string;
-  text: string;
-  type: 'praise' | 'issue' | 'suggestion' | 'question';
-  priority?: FeedbackPriority;
-  isResolved?: boolean;
-}
+type ReviewStatus = 'pending' | 'in-review' | 'resolved';
+type FeedbackType = 'bug' | 'feature' | 'design' | 'general';
 
 interface ClientReview {
   id: string;
   updateId: string;
   updateTitle: string;
-  clientName: string;
-  clientEmail: string;
-  rating?: number;
   feedback: string;
-  points: ReviewPoint[];
-  summary?: string;
-  feedbackType: FeedbackType;
-  priority: FeedbackPriority;
+  type: FeedbackType;
   status: ReviewStatus;
-  attachments?: string[];
   createdAt: Date;
-  reviewedAt?: Date;
-  tags?: string[];
-  timeToReview?: number;
-  isUrgent: boolean;
+  resolvedAt?: Date;
 }
 
 interface BuildUpdate {
   id: string;
   weekNumber: number;
   title: string;
-  description: string;
-  category: string;
-  status: string;
 }
 
 interface Props {
-  clientEmail?: string;
-  showFilters?: boolean;
+  isAdmin?: boolean;
 }
 
-const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
+// Icons
+const Icons = {
+  Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+  MessageSquare: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  Check: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  Trash: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  Bug: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="14" x="8" y="6" rx="4"/><path d="m18 8 2 2"/><path d="m22 8-2 2"/><path d="m18 16 2-2"/><path d="m22 16-2-2"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>,
+  Lightbulb: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>,
+  Palette: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>,
+  MessageCircle: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>,
+  X: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+  Clock: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  CheckCircle: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+  Inbox: () => <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+};
+
+const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
   const [reviews, setReviews] = useState<ClientReview[]>([]);
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedUpdate, setSelectedUpdate] = useState<string>('');
-  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<ReviewStatus | 'all'>('all');
-  const [filterPriority, setFilterPriority] = useState<FeedbackPriority | 'all'>('all');
   const [filterType, setFilterType] = useState<FeedbackType | 'all'>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedReview, setExpandedReview] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [activeFilterTab, setActiveFilterTab] = useState<'filters' | 'sort'>('filters');
-
-  // Mobile responsiveness
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [isTablet, setIsTablet] = useState(window.innerWidth > 768 && window.innerWidth <= 1024);
-
-  // New review form state
-  const [newReview, setNewReview] = useState<{
-    updateId: string;
-    updateTitle: string;
-    clientName: string;
-    clientEmail: string;
-    rating: number;
-    summary: string;
-    points: ReviewPoint[];
-    feedbackType: FeedbackType;
-    priority: FeedbackPriority;
-    isUrgent: boolean;
-    attachments: string[];
-  }>({
+  
+  const [newReview, setNewReview] = useState({
     updateId: '',
-    updateTitle: '',
-    clientName: '',
-    clientEmail: clientEmail || '',
-    rating: 5,
-    summary: '',
-    points: [],
-    feedbackType: 'general',
-    priority: 'medium',
-    isUrgent: false,
-    attachments: []
+    feedback: '',
+    type: 'general' as FeedbackType
   });
 
-  // Current point being added
-  const [currentPoint, setCurrentPoint] = useState<{
-    text: string;
-    type: 'praise' | 'issue' | 'suggestion' | 'question';
-    priority: FeedbackPriority;
-  }>({
-    text: '',
-    type: 'issue',
-    priority: 'medium'
-  });
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-      setIsTablet(window.innerWidth > 768 && window.innerWidth <= 1024);
-    };
-
+    const handleResize = () => setIsMobile(window.innerWidth <= 640);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -136,33 +80,16 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     fetchReviews();
   }, []);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 5000);
-  };
-
   const fetchUpdates = async () => {
     try {
       const updatesRef = collection(db, 'buildUpdates');
       const q = query(updatesRef, orderBy('date', 'desc'));
-      const querySnapshot = await getDocs(q);
-
-      const fetchedUpdates: BuildUpdate[] = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          weekNumber: data.weekNumber,
-          title: data.title,
-          description: data.description,
-          category: data.category,
-          status: data.status,
-          author: data.author,
-          priority: data.priority,
-          timeSpent: data.timeSpent,
-          date: data.date?.toDate() || null,
-        };
-      });
-
+      const snapshot = await getDocs(q);
+      const fetchedUpdates = snapshot.docs.map(doc => ({
+        id: doc.id,
+        weekNumber: doc.data().weekNumber,
+        title: doc.data().title
+      }));
       setUpdates(fetchedUpdates);
     } catch (err) {
       console.error('Error fetching updates:', err);
@@ -173,988 +100,172 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     try {
       setLoading(true);
       const reviewsRef = collection(db, 'clientReviews');
-      let q;
-      
-      if (clientEmail) {
-        q = query(
-          reviewsRef, 
-          where('clientEmail', '==', clientEmail),
-          orderBy('createdAt', 'desc')
-        );
-      } else {
-        q = query(reviewsRef, orderBy('createdAt', 'desc'));
-      }
-      
-      const querySnapshot = await getDocs(q);
-      
-      const fetchedReviews = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          points: data.points || [],
-          createdAt: data.createdAt?.toDate(),
-          reviewedAt: data.reviewedAt?.toDate()
-        } as ClientReview;
-      });
-      
+      const q = query(reviewsRef, orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const fetchedReviews = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate()
+      })) as ClientReview[];
       setReviews(fetchedReviews);
-      setError(null);
     } catch (err) {
       console.error('Error fetching reviews:', err);
-      setError('Failed to load reviews');
-      showNotification('error', 'Failed to load reviews');
     } finally {
       setLoading(false);
     }
   };
 
-  const addPoint = () => {
-    if (!currentPoint.text.trim()) {
-      showNotification('error', 'Point text cannot be empty');
-      return;
-    }
-
-    const newPoint: ReviewPoint = {
-      id: Date.now().toString(),
-      text: currentPoint.text,
-      type: currentPoint.type,
-      priority: currentPoint.priority,
-      isResolved: false
-    };
-
-    setNewReview({
-      ...newReview,
-      points: [...newReview.points, newPoint]
-    });
-
-    setCurrentPoint({
-      text: '',
-      type: 'issue',
-      priority: 'medium'
-    });
-  };
-
-  const removePoint = (pointId: string) => {
-    setNewReview({
-      ...newReview,
-      points: newReview.points.filter(p => p.id !== pointId)
-    });
-  };
-
-  const handleSubmitReview = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (newReview.points.length === 0) {
-      showNotification('error', 'Please add at least one point');
-      return;
-    }
+    if (!newReview.updateId || !newReview.feedback.trim()) return;
 
     try {
       setLoading(true);
-      const reviewsRef = collection(db, 'clientReviews');
+      const update = updates.find(u => u.id === newReview.updateId);
       
-      const feedbackText = newReview.points.map(p => 
-        `[${p.type.toUpperCase()}] ${p.text}${p.priority ? ` (${p.priority} priority)` : ''}`
-      ).join('\n\n');
-
       const reviewData = {
-        ...newReview,
-        feedback: feedbackText,
+        updateId: newReview.updateId,
+        updateTitle: update ? `Week ${update.weekNumber}: ${update.title}` : '',
+        feedback: newReview.feedback.trim(),
+        type: newReview.type,
         status: 'pending' as ReviewStatus,
-        createdAt: Timestamp.now(),
-        timeToReview: 0
+        createdAt: Timestamp.now()
       };
+
+      await addDoc(collection(db, 'clientReviews'), reviewData);
       
-      const docRef = await addDoc(reviewsRef, reviewData);
-      
-      const newReviewWithId: ClientReview = {
-        id: docRef.id,
-        ...newReview,
-        feedback: feedbackText,
-        status: 'pending',
-        createdAt: new Date()
-      };
-      
-      setReviews(prev => [newReviewWithId, ...prev]);
-      setShowReviewForm(false);
-      resetForm();
-      showNotification('success', 'Review submitted successfully!');
-      
+      setShowForm(false);
+      setNewReview({ updateId: '', feedback: '', type: 'general' });
+      fetchReviews();
     } catch (err) {
       console.error('Error submitting review:', err);
-      setError('Failed to submit review');
-      showNotification('error', 'Failed to submit review');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateStatus = async (reviewId: string, status: ReviewStatus) => {
+  const handleStatusChange = async (reviewId: string, status: ReviewStatus) => {
     try {
       const reviewRef = doc(db, 'clientReviews', reviewId);
       await updateDoc(reviewRef, {
         status,
-        reviewedAt: Timestamp.now()
+        resolvedAt: status === 'resolved' ? Timestamp.now() : null
       });
-      
-      setReviews(prev => 
-        prev.map(r => r.id === reviewId ? { ...r, status, reviewedAt: new Date() } : r)
-      );
-      
-      showNotification('success', `Review marked as ${status}`);
+      fetchReviews();
     } catch (err) {
-      console.error('Error updating review status:', err);
-      showNotification('error', 'Failed to update status');
+      console.error('Error updating status:', err);
     }
   };
 
-  const togglePointResolution = (reviewId: string, pointId: string) => {
-    setReviews(prev => prev.map(review => {
-      if (review.id === reviewId && review.points) {
-        return {
-          ...review,
-          points: review.points.map(point => 
-            point.id === pointId ? { ...point, isResolved: !point.isResolved } : point
-          )
-        };
-      }
-      return review;
-    }));
-  };
-
-  const handleDeleteReview = async (reviewId: string) => {
-    if (!window.confirm('Are you sure you want to delete this review?')) return;
-    
+  const handleDelete = async (reviewId: string) => {
+    if (!window.confirm('Delete this feedback?')) return;
     try {
-      const reviewRef = doc(db, 'clientReviews', reviewId);
-      await deleteDoc(reviewRef);
-      
-      setReviews(prev => prev.filter(r => r.id !== reviewId));
-      showNotification('success', 'Review deleted successfully');
+      await deleteDoc(doc(db, 'clientReviews', reviewId));
+      fetchReviews();
     } catch (err) {
       console.error('Error deleting review:', err);
-      showNotification('error', 'Failed to delete review');
-    }
-  };
-
-  const resetForm = () => {
-    setNewReview({
-      updateId: '',
-      updateTitle: '',
-      clientName: '',
-      clientEmail: clientEmail || '',
-      rating: 5,
-      summary: '',
-      points: [],
-      feedbackType: 'general',
-      priority: 'medium',
-      isUrgent: false,
-      attachments: []
-    });
-    setSelectedUpdate('');
-    setCurrentPoint({
-      text: '',
-      type: 'issue',
-      priority: 'medium'
-    });
-  };
-
-  const handleUpdateSelect = (updateId: string) => {
-    const update = updates.find(u => u.id === updateId);
-    if (update) {
-      setNewReview({
-        ...newReview,
-        updateId: update.id,
-        updateTitle: `Week ${update.weekNumber}: ${update.title}`
-      });
     }
   };
 
   const filteredReviews = reviews.filter(review => {
     const matchesStatus = filterStatus === 'all' || review.status === filterStatus;
-    const matchesPriority = filterPriority === 'all' || review.priority === filterPriority;
-    const matchesType = filterType === 'all' || review.feedbackType === filterType;
-    
-    const matchesSearch = searchTerm === '' || 
-      review.updateTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.summary?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.points?.some(p => p.text.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    return matchesStatus && matchesPriority && matchesType && matchesSearch;
+    const matchesType = filterType === 'all' || review.type === filterType;
+    return matchesStatus && matchesType;
   });
 
-  const reviewStats = {
+  const stats = {
     total: reviews.length,
     pending: reviews.filter(r => r.status === 'pending').length,
-    approved: reviews.filter(r => r.status === 'approved').length,
-    changesRequested: reviews.filter(r => r.status === 'changes-requested').length,
-    inReview: reviews.filter(r => r.status === 'in-review').length,
-    urgent: reviews.filter(r => r.isUrgent).length,
-    totalPoints: reviews.reduce((acc, r) => acc + (r.points?.length || 0), 0),
-    unresolvedPoints: reviews.reduce((acc, r) => 
-      acc + (r.points?.filter(p => !p.isResolved).length || 0), 0
-    ),
-    averageRating: reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / (reviews.length || 1),
-    criticalIssues: reviews.filter(r => r.priority === 'critical' || r.priority === 'high').length
+    resolved: reviews.filter(r => r.status === 'resolved').length
   };
 
-  const getStatusColor = (status: ReviewStatus) => {
-    switch(status) {
-      case 'approved': return '#10b981';
-      case 'changes-requested': return '#ef4444';
-      case 'in-review': return '#f59e0b';
-      case 'pending': return '#6b7280';
-      default: return '#6b7280';
-    }
+  const typeConfig = {
+    bug: { label: 'Bug', color: '#ef4444', bg: '#fef2f2', icon: <Icons.Bug /> },
+    feature: { label: 'Feature', color: '#7c3aed', bg: '#f5f3ff', icon: <Icons.Lightbulb /> },
+    design: { label: 'Design', color: '#db2777', bg: '#fdf2f8', icon: <Icons.Palette /> },
+    general: { label: 'General', color: '#059669', bg: '#ecfdf5', icon: <Icons.MessageCircle /> }
   };
 
-  const getPriorityColor = (priority: FeedbackPriority) => {
-    switch(priority) {
-      case 'critical': return '#ef4444';
-      case 'high': return '#f97316';
-      case 'medium': return '#f59e0b';
-      case 'low': return '#10b981';
-      default: return '#6b7280';
-    }
+  const statusConfig = {
+    pending: { label: 'Pending', color: '#d97706', bg: '#fffbeb' },
+    'in-review': { label: 'In Review', color: '#2563eb', bg: '#eff6ff' },
+    resolved: { label: 'Resolved', color: '#059669', bg: '#ecfdf5' }
   };
 
-  const getPointTypeIcon = (type: string) => {
-    switch(type) {
-      case 'praise': return '👍';
-      case 'issue': return '🔴';
-      case 'suggestion': return '💡';
-      case 'question': return '❓';
-      default: return '📌';
-    }
-  };
-
-  const getFeedbackTypeIcon = (type: FeedbackType) => {
-    switch(type) {
-      case 'bug': return '🐛';
-      case 'feature-request': return '✨';
-      case 'design': return '🎨';
-      case 'content': return '📝';
-      case 'ux': return '🖱️';
-      case 'performance': return '⚡';
-      default: return '💬';
-    }
-  };
-
-  const renderStars = (rating: number) => {
-    return '★'.repeat(rating) + '☆'.repeat(5 - rating);
-  };
-
-  // Professional mobile styles - Optimized for full width
-  const mobileStyles = {
-    container: {
-      padding: '0',
-      width: '100%',
-      maxWidth: '100%',
-    },
-    header: {
-      flexDirection: 'column' as const,
-      alignItems: 'stretch',
-      gap: '16px',
-      marginBottom: '20px',
-      padding: '0 16px',
-    },
-    headerTitle: {
-      textAlign: 'left' as const,
-    },
-    sectionTitle: {
-      fontSize: '24px',
-      marginBottom: '4px',
-    },
-    subtitle: {
-      fontSize: '14px',
-    },
-    addButton: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '16px',
-      borderRadius: '12px',
-      backgroundColor: '#f97316',
-    },
-    statsGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(2, 1fr)',
-      gap: '12px',
-      marginBottom: '20px',
-      padding: '0 16px',
-    },
-    statCard: {
-      padding: '16px',
-      borderRadius: '14px',
-      backgroundColor: 'white',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-    },
-    statValue: {
-      fontSize: '24px',
-      fontWeight: '700',
-    },
-    statLabel: {
-      fontSize: '12px',
-      color: '#6b7280',
-      marginTop: '4px',
-      textTransform: 'uppercase' as const,
-      letterSpacing: '0.3px',
-    },
-    mobileFilterToggle: {
-      width: 'calc(100% - 32px)',
-      margin: '0 16px 16px 16px',
-      padding: '16px',
-      backgroundColor: '#f9fafb',
-      border: '1px solid #e5e7eb',
-      borderRadius: '12px',
-      fontSize: '15px',
-      fontWeight: '500',
-      color: '#374151',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
-    },
-    filterTabs: {
-      display: 'flex',
-      gap: '8px',
-      marginBottom: '16px',
-      padding: '0 16px',
-    },
-    filterTab: {
-      flex: 1,
-      padding: '12px',
-      backgroundColor: '#f9fafb',
-      border: '1px solid #e5e7eb',
-      borderRadius: '10px',
-      fontSize: '14px',
-      fontWeight: '500',
-      color: '#6b7280',
-      cursor: 'pointer',
-      textAlign: 'center' as const,
-    },
-    activeFilterTab: {
-      backgroundColor: '#f97316',
-      color: 'white',
-      borderColor: '#f97316',
-    },
-    filters: {
-      display: 'flex',
-      flexDirection: 'column' as const,
-      gap: '12px',
-      margin: '0 16px 20px 16px',
-      padding: '20px',
-      backgroundColor: '#f9fafb',
-      borderRadius: '16px',
-    },
-    searchBox: {
-      width: '100%',
-    },
-    searchInput: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '16px',
-      borderRadius: '12px',
-      border: '1px solid #e5e7eb',
-      backgroundColor: 'white',
-    },
-    filterSelect: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '16px',
-      borderRadius: '12px',
-      border: '1px solid #e5e7eb',
-      backgroundColor: 'white',
-    },
-    viewToggle: {
-      display: 'flex',
-      gap: '8px',
-      marginTop: '4px',
-    },
-    viewButton: {
-      flex: 1,
-      padding: '14px',
-      fontSize: '15px',
-      borderRadius: '10px',
-      border: '1px solid #e5e7eb',
-      backgroundColor: 'white',
-    },
-    form: {
-      margin: '0 16px 24px 16px',
-      padding: '20px',
-      borderRadius: '20px',
-      backgroundColor: '#f9fafb',
-      border: '2px solid #f97316',
-    },
-    formTitle: {
-      fontSize: '22px',
-      marginBottom: '20px',
-      fontWeight: '600',
-    },
-    formGrid: {
-      gridTemplateColumns: '1fr',
-      gap: '16px',
-    },
-    formGroup: {
-      marginBottom: '16px',
-    },
-    label: {
-      fontSize: '14px',
-      fontWeight: '600',
-      marginBottom: '8px',
-      color: '#374151',
-    },
-    input: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '16px',
-      borderRadius: '12px',
-      border: '1px solid #e5e7eb',
-      backgroundColor: 'white',
-    },
-    select: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '16px',
-      borderRadius: '12px',
-      border: '1px solid #e5e7eb',
-      backgroundColor: 'white',
-    },
-    formRow: {
-      flexDirection: 'column' as const,
-      gap: '16px',
-    },
-    ratingContainer: {
-      justifyContent: 'flex-start',
-      padding: '8px 0',
-      gap: '12px',
-    },
-    starButton: {
-      fontSize: '32px',
-    },
-    pointsBuilder: {
-      padding: '16px',
-      borderRadius: '14px',
-    },
-    pointsTitle: {
-      fontSize: '16px',
-      marginBottom: '16px',
-      fontWeight: '600',
-    },
-    pointInputGroup: {
-      flexDirection: 'column' as const,
-      gap: '12px',
-    },
-    pointTypeSelect: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '15px',
-    },
-    pointPrioritySelect: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '15px',
-    },
-    pointInput: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '15px',
-    },
-    addPointButton: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '16px',
-      backgroundColor: '#10b981',
-      borderRadius: '12px',
-    },
-    pointsList: {
-      marginTop: '16px',
-    },
-    pointItem: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-      padding: '14px',
-      gap: '10px',
-    },
-    pointText: {
-      width: 'calc(100% - 100px)',
-      fontSize: '14px',
-    },
-    formButtons: {
-      flexDirection: 'column' as const,
-      gap: '12px',
-    },
-    submitButton: {
-      width: '100%',
-      padding: '18px',
-      fontSize: '16px',
-      borderRadius: '12px',
-    },
-    cancelButton: {
-      width: '100%',
-      padding: '18px',
-      fontSize: '16px',
-      borderRadius: '12px',
-      backgroundColor: '#6b7280',
-    },
-    reviewsContainer: {
-      gap: '12px',
-      padding: '0 16px',
-    },
-    reviewsGrid: {
-      gridTemplateColumns: '1fr',
-      gap: '12px',
-    },
-    reviewCard: {
-      padding: '20px',
-      borderRadius: '18px',
-      border: '1px solid #f0f0f0',
-      marginBottom: '0',
-    },
-    reviewHeader: {
-      flexDirection: 'column' as const,
-      alignItems: 'flex-start',
-      gap: '12px',
-    },
-    reviewTitle: {
-      fontSize: '18px',
-      fontWeight: '600',
-      marginBottom: '10px',
-      lineHeight: '1.4',
-    },
-    badgeContainer: {
-      gap: '8px',
-    },
-    statusBadge: {
-      padding: '6px 12px',
-      fontSize: '12px',
-      borderRadius: '20px',
-    },
-    priorityBadge: {
-      padding: '6px 12px',
-      fontSize: '12px',
-      borderRadius: '20px',
-    },
-    typeBadge: {
-      padding: '6px 12px',
-      fontSize: '12px',
-      borderRadius: '20px',
-    },
-    urgentBadge: {
-      padding: '6px 12px',
-      fontSize: '12px',
-      borderRadius: '20px',
-    },
-    reviewActions: {
-      width: '100%',
-      justifyContent: 'space-between',
-      marginTop: '8px',
-    },
-    expandButton: {
-      padding: '10px 18px',
-      fontSize: '14px',
-      borderRadius: '10px',
-    },
-    deleteButton: {
-      padding: '10px 18px',
-      fontSize: '14px',
-      borderRadius: '10px',
-    },
-    reviewDate: {
-      fontSize: '13px',
-      color: '#9ca3af',
-      marginTop: '8px',
-    },
-    summary: {
-      fontSize: '14px',
-      padding: '14px',
-      borderRadius: '12px',
-      marginTop: '12px',
-    },
-    stars: {
-      fontSize: '18px',
-    },
-    pointsDisplay: {
-      marginTop: '20px',
-    },
-    pointsDisplayTitle: {
-      fontSize: '16px',
-      marginBottom: '12px',
-      fontWeight: '600',
-    },
-    pointsGrid: {
-      gridTemplateColumns: '1fr',
-      gap: '10px',
-    },
-    displayPoint: {
-      padding: '16px',
-      borderRadius: '12px',
-    },
-    pointHeader: {
-      marginBottom: '10px',
-    },
-    pointPriorityBadge: {
-      padding: '4px 10px',
-      fontSize: '11px',
-    },
-    resolveButton: {
-      width: '100%',
-      padding: '12px',
-      fontSize: '14px',
-      marginTop: '12px',
-      borderRadius: '10px',
-    },
-    showMoreButton: {
-      padding: '14px',
-      fontSize: '14px',
-      borderRadius: '12px',
-    },
-    adminActions: {
-      flexDirection: 'column' as const,
-      gap: '10px',
-      marginTop: '20px',
-      paddingTop: '20px',
-    },
-    actionButton: {
-      width: '100%',
-      padding: '16px',
-      fontSize: '15px',
-      borderRadius: '12px',
-    },
-    emptyState: {
-      padding: '60px 20px',
-      fontSize: '16px',
-      margin: '0 16px',
-    },
-    loadingContainer: {
-      padding: '60px 20px',
-    },
-    loadingSpinner: {
-      width: '44px',
-      height: '44px',
-    },
-  };
-
-  const tabletStyles = {
-    statsGrid: {
-      gridTemplateColumns: 'repeat(3, 1fr)',
-    },
-    reviewsGrid: {
-      gridTemplateColumns: 'repeat(2, 1fr)',
-    },
-    formGrid: {
-      gridTemplateColumns: '1fr 1fr',
-    },
-  };
+  if (loading && reviews.length === 0) {
+    return (
+      <div className="reviews-loading">
+        <div className="spinner"></div>
+        <p>Loading feedback...</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      ...styles.container,
-      ...(isMobile ? mobileStyles.container : {})
-    }}>
-      {/* Notification Toast */}
-      {notification && (
-        <div style={{
-          ...styles.notification,
-          ...(isMobile ? { 
-            width: 'calc(100% - 32px)',
-            left: '16px',
-            right: '16px',
-            top: '16px',
-            padding: '16px',
-            fontSize: '15px',
-            borderRadius: '12px',
-          } : {}),
-          backgroundColor: notification.type === 'success' ? '#d1fae5' : '#fee2e2',
-          color: notification.type === 'success' ? '#065f46' : '#991b1b',
-          border: `1px solid ${notification.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
-        }}>
-          {notification.message}
-        </div>
-      )}
-
-      {/* Error Banner */}
-      {error && (
-        <div style={{
-          ...styles.errorBanner,
-          ...(isMobile ? { margin: '0 16px 20px 16px', width: 'auto' } : {})
-        }}>
-          <span>{error}</span>
-          <button onClick={fetchReviews} style={styles.retryButton}>
-            Retry
-          </button>
-        </div>
-      )}
-
+    <div className="client-reviews">
       {/* Header */}
-      <div style={{
-        ...styles.header,
-        ...(isMobile ? mobileStyles.header : {})
-      }}>
-        <div style={isMobile ? mobileStyles.headerTitle : {}}>
-          <h2 style={{
-            ...styles.sectionTitle,
-            ...(isMobile ? mobileStyles.sectionTitle : {})
-          }}>📝 Client Reviews</h2>
-          <p style={{
-            ...styles.subtitle,
-            ...(isMobile ? mobileStyles.subtitle : {})
-          }}>Share structured feedback on our build progress</p>
+      <div className="reviews-header">
+        <div className="header-content">
+          <h2>Client Feedback</h2>
+          <p>Share your thoughts on our progress</p>
         </div>
         <button 
-          onClick={() => setShowReviewForm(!showReviewForm)}
-          style={{
-            ...styles.addButton,
-            ...(isMobile ? mobileStyles.addButton : {})
-          }}
+          onClick={() => setShowForm(!showForm)}
+          className={`btn-primary ${showForm ? 'active' : ''}`}
         >
-          {showReviewForm ? '✕ Cancel' : '+ New Review'}
+          {showForm ? <><Icons.X /> Close</> : <><Icons.Plus /> Add Feedback</>}
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div style={{
-        ...styles.statsGrid,
-        ...(isMobile ? mobileStyles.statsGrid : {}),
-        ...(isTablet && !isMobile ? tabletStyles.statsGrid : {})
-      }}>
-        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
-          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.total}</div>
-          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Total</div>
+      {/* Stats */}
+      <div className="stats-row">
+        <div className="stat-pill">
+          <span className="stat-value">{stats.total}</span>
+          <span className="stat-label">Total</span>
         </div>
-        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
-          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.pending}</div>
-          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Pending</div>
+        <div className="stat-pill pending">
+          <span className="stat-value">{stats.pending}</span>
+          <span className="stat-label">Pending</span>
         </div>
-        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
-          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.urgent}</div>
-          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Urgent</div>
-        </div>
-        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
-          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.unresolvedPoints}</div>
-          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Open</div>
-        </div>
-        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
-          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.averageRating.toFixed(1)}</div>
-          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Rating</div>
-        </div>
-        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
-          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.criticalIssues}</div>
-          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Critical</div>
+        <div className="stat-pill resolved">
+          <span className="stat-value">{stats.resolved}</span>
+          <span className="stat-label">Resolved</span>
         </div>
       </div>
 
-      {/* Mobile Filter Toggle */}
-      {isMobile && showFilters && (
-        <button 
-          onClick={() => setShowMobileFilters(!showMobileFilters)}
-          style={mobileStyles.mobileFilterToggle}
+      {/* Filters */}
+      <div className="filters-bar">
+        <select 
+          value={filterStatus} 
+          onChange={(e) => setFilterStatus(e.target.value as ReviewStatus | 'all')}
+          className="filter-select"
         >
-          <span>{showMobileFilters ? '▲' : '▼'}</span>
-          {showMobileFilters ? 'Hide Filters' : 'Filter & Sort Reviews'}
-        </button>
-      )}
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="in-review">In Review</option>
+          <option value="resolved">Resolved</option>
+        </select>
+        <select 
+          value={filterType} 
+          onChange={(e) => setFilterType(e.target.value as FeedbackType | 'all')}
+          className="filter-select"
+        >
+          <option value="all">All Types</option>
+          <option value="bug">Bug</option>
+          <option value="feature">Feature</option>
+          <option value="design">Design</option>
+          <option value="general">General</option>
+        </select>
+      </div>
 
-      {/* Filter Tabs for Mobile */}
-      {isMobile && showMobileFilters && (
-        <div style={mobileStyles.filterTabs}>
-          <button
-            onClick={() => setActiveFilterTab('filters')}
-            style={{
-              ...mobileStyles.filterTab,
-              ...(activeFilterTab === 'filters' ? mobileStyles.activeFilterTab : {})
-            }}
-          >
-            🔍 Filters
-          </button>
-          <button
-            onClick={() => setActiveFilterTab('sort')}
-            style={{
-              ...mobileStyles.filterTab,
-              ...(activeFilterTab === 'sort' ? mobileStyles.activeFilterTab : {})
-            }}
-          >
-            📊 Sort
-          </button>
-        </div>
-      )}
-
-      {/* Advanced Filters */}
-      {showFilters && (!isMobile || (showMobileFilters && activeFilterTab === 'filters')) && (
-        <div style={{
-          ...styles.filters,
-          ...(isMobile ? mobileStyles.filters : {})
-        }}>
-          <div style={isMobile ? mobileStyles.searchBox : styles.searchBox}>
-            <input
-              type="text"
-              placeholder="🔍 Search reviews..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={isMobile ? mobileStyles.searchInput : styles.searchInput}
-            />
-          </div>
-          
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as ReviewStatus | 'all')}
-            style={isMobile ? mobileStyles.filterSelect : styles.filterSelect}
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="in-review">In Review</option>
-            <option value="approved">Approved</option>
-            <option value="changes-requested">Changes</option>
-          </select>
-
-          <select
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value as FeedbackPriority | 'all')}
-            style={isMobile ? mobileStyles.filterSelect : styles.filterSelect}
-          >
-            <option value="all">All Priorities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as FeedbackType | 'all')}
-            style={isMobile ? mobileStyles.filterSelect : styles.filterSelect}
-          >
-            <option value="all">All Types</option>
-            <option value="bug">Bug</option>
-            <option value="feature-request">Feature</option>
-            <option value="design">Design</option>
-            <option value="ux">UX</option>
-            <option value="performance">Performance</option>
-          </select>
-        </div>
-      )}
-
-      {/* Sort Options for Mobile */}
-      {isMobile && showMobileFilters && activeFilterTab === 'sort' && (
-        <div style={mobileStyles.filters}>
-          <div style={mobileStyles.viewToggle}>
-            <button
-              onClick={() => setViewMode('list')}
-              style={{
-                ...mobileStyles.viewButton,
-                backgroundColor: viewMode === 'list' ? '#f97316' : '#ffffff',
-                color: viewMode === 'list' ? '#ffffff' : '#374151',
-                borderColor: viewMode === 'list' ? '#f97316' : '#e5e7eb',
-              }}
-            >
-              📋 List View
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              style={{
-                ...mobileStyles.viewButton,
-                backgroundColor: viewMode === 'grid' ? '#f97316' : '#ffffff',
-                color: viewMode === 'grid' ? '#ffffff' : '#374151',
-                borderColor: viewMode === 'grid' ? '#f97316' : '#e5e7eb',
-              }}
-            >
-              📊 Grid View
-            </button>
-          </div>
-          
-          <select
-            onChange={(e) => {
-              const [sortBy, order] = e.target.value.split('-');
-              // Implement sorting logic here
-            }}
-            style={mobileStyles.filterSelect}
-          >
-            <option value="date-desc">Newest First</option>
-            <option value="date-asc">Oldest First</option>
-            <option value="priority-desc">Highest Priority</option>
-            <option value="rating-desc">Highest Rated</option>
-          </select>
-        </div>
-      )}
-
-      {/* Desktop View Toggle */}
-      {!isMobile && (
-        <div style={styles.viewToggle}>
-          <button
-            onClick={() => setViewMode('list')}
-            style={{
-              ...styles.viewButton,
-              backgroundColor: viewMode === 'list' ? '#f97316' : '#ffffff',
-              color: viewMode === 'list' ? '#ffffff' : '#374151',
-              borderColor: viewMode === 'list' ? '#f97316' : '#e5e7eb',
-            }}
-          >
-            📋 List
-          </button>
-          <button
-            onClick={() => setViewMode('grid')}
-            style={{
-              ...styles.viewButton,
-              backgroundColor: viewMode === 'grid' ? '#f97316' : '#ffffff',
-              color: viewMode === 'grid' ? '#ffffff' : '#374151',
-              borderColor: viewMode === 'grid' ? '#f97316' : '#e5e7eb',
-            }}
-          >
-            📊 Grid
-          </button>
-        </div>
-      )}
-
-      {/* Review Form */}
-      {showReviewForm && (
-        <form onSubmit={handleSubmitReview} style={{
-          ...styles.form,
-          ...(isMobile ? mobileStyles.form : {})
-        }}>
-          <h3 style={isMobile ? mobileStyles.formTitle : styles.formTitle}>
-            Share Structured Feedback
-          </h3>
-          
-          <div style={{
-            ...styles.formGrid,
-            ...(isMobile ? mobileStyles.formGrid : {}),
-            ...(isTablet && !isMobile ? tabletStyles.formGrid : {})
-          }}>
-            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
-              <label style={isMobile ? mobileStyles.label : styles.label}>Your Name *</label>
-              <input
-                type="text"
-                value={newReview.clientName}
-                onChange={(e) => setNewReview({...newReview, clientName: e.target.value})}
-                style={isMobile ? mobileStyles.input : styles.input}
-                required
-                placeholder="Enter your name"
-              />
-            </div>
-            
-            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
-              <label style={isMobile ? mobileStyles.label : styles.label}>Email *</label>
-              <input
-                type="email"
-                value={newReview.clientEmail}
-                onChange={(e) => setNewReview({...newReview, clientEmail: e.target.value})}
-                style={isMobile ? mobileStyles.input : styles.input}
-                required
-                placeholder="Your email"
-                readOnly={!!clientEmail}
-              />
-            </div>
-          </div>
-
-          <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
-            <label style={isMobile ? mobileStyles.label : styles.label}>Select Update *</label>
+      {/* Form */}
+      {showForm && (
+        <form onSubmit={handleSubmit} className="review-form">
+          <div className="form-group">
+            <label>Select Update</label>
             <select
-              value={selectedUpdate}
-              onChange={(e) => {
-                setSelectedUpdate(e.target.value);
-                handleUpdateSelect(e.target.value);
-              }}
-              style={isMobile ? mobileStyles.select : styles.select}
+              value={newReview.updateId}
+              onChange={(e) => setNewReview({...newReview, updateId: e.target.value})}
               required
             >
               <option value="">Choose an update...</option>
@@ -1166,1050 +277,547 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             </select>
           </div>
 
-          <div style={{
-            ...styles.formRow,
-            ...(isMobile ? mobileStyles.formRow : {})
-          }}>
-            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
-              <label style={isMobile ? mobileStyles.label : styles.label}>Feedback Type</label>
-              <select
-                value={newReview.feedbackType}
-                onChange={(e) => setNewReview({...newReview, feedbackType: e.target.value as FeedbackType})}
-                style={isMobile ? mobileStyles.select : styles.select}
-              >
-                <option value="general">💬 General</option>
-                <option value="bug">🐛 Bug</option>
-                <option value="feature-request">✨ Feature</option>
-                <option value="design">🎨 Design</option>
-                <option value="ux">🖱️ UX</option>
-                <option value="performance">⚡ Performance</option>
-              </select>
-            </div>
-
-            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
-              <label style={isMobile ? mobileStyles.label : styles.label}>Overall Priority</label>
-              <select
-                value={newReview.priority}
-                onChange={(e) => setNewReview({...newReview, priority: e.target.value as FeedbackPriority})}
-                style={isMobile ? mobileStyles.select : styles.select}
-              >
-                <option value="low">🔵 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🟠 High</option>
-                <option value="critical">🔴 Critical</option>
-              </select>
+          <div className="form-group">
+            <label>Feedback Type</label>
+            <div className="type-buttons">
+              {(['bug', 'feature', 'design', 'general'] as FeedbackType[]).map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setNewReview({...newReview, type})}
+                  className={`type-btn ${newReview.type === type ? 'active' : ''}`}
+                  style={{
+                    '--type-color': typeConfig[type].color,
+                    '--type-bg': typeConfig[type].bg
+                  } as React.CSSProperties}
+                >
+                  {typeConfig[type].icon}
+                  <span>{typeConfig[type].label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
-          <div style={{
-            ...styles.formRow,
-            ...(isMobile ? mobileStyles.formRow : {})
-          }}>
-            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
-              <label style={isMobile ? mobileStyles.label : styles.label}>Rating</label>
-              <div style={{
-                ...styles.ratingContainer,
-                ...(isMobile ? mobileStyles.ratingContainer : {})
-              }}>
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setNewReview({...newReview, rating: star})}
-                    style={{
-                      ...styles.starButton,
-                      ...(isMobile ? mobileStyles.starButton : {}),
-                      color: star <= (newReview.rating || 0) ? '#f59e0b' : '#d1d5db'
-                    }}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
-              <label style={isMobile ? mobileStyles.label : styles.label}>
-                <input
-                  type="checkbox"
-                  checked={newReview.isUrgent}
-                  onChange={(e) => setNewReview({...newReview, isUrgent: e.target.checked})}
-                  style={styles.checkbox}
-                />
-                Mark as Urgent
-              </label>
-            </div>
-          </div>
-
-          <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
-            <label style={isMobile ? mobileStyles.label : styles.label}>Executive Summary</label>
-            <input
-              type="text"
-              value={newReview.summary}
-              onChange={(e) => setNewReview({...newReview, summary: e.target.value})}
-              style={isMobile ? mobileStyles.input : styles.input}
-              placeholder="Brief summary of your feedback"
+          <div className="form-group">
+            <label>Your Feedback</label>
+            <textarea
+              value={newReview.feedback}
+              onChange={(e) => setNewReview({...newReview, feedback: e.target.value})}
+              placeholder="Describe your feedback, suggestions, or issues..."
+              rows={4}
+              required
             />
           </div>
 
-          {/* Points Builder */}
-          <div style={{
-            ...styles.pointsBuilder,
-            ...(isMobile ? mobileStyles.pointsBuilder : {})
-          }}>
-            <h4 style={isMobile ? mobileStyles.pointsTitle : styles.pointsTitle}>
-              Add Feedback Points
-            </h4>
-            
-            <div style={{
-              ...styles.pointInputGroup,
-              ...(isMobile ? mobileStyles.pointInputGroup : {})
-            }}>
-              <select
-                value={currentPoint.type}
-                onChange={(e) => setCurrentPoint({...currentPoint, type: e.target.value as any})}
-                style={isMobile ? mobileStyles.pointTypeSelect : styles.pointTypeSelect}
-              >
-                <option value="praise">👍 Praise</option>
-                <option value="issue">🔴 Issue</option>
-                <option value="suggestion">💡 Suggestion</option>
-                <option value="question">❓ Question</option>
-              </select>
-
-              <select
-                value={currentPoint.priority}
-                onChange={(e) => setCurrentPoint({...currentPoint, priority: e.target.value as FeedbackPriority})}
-                style={isMobile ? mobileStyles.pointPrioritySelect : styles.pointPrioritySelect}
-              >
-                <option value="low">🔵 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🟠 High</option>
-                <option value="critical">🔴 Critical</option>
-              </select>
-
-              <input
-                type="text"
-                value={currentPoint.text}
-                onChange={(e) => setCurrentPoint({...currentPoint, text: e.target.value})}
-                style={isMobile ? mobileStyles.pointInput : styles.pointInput}
-                placeholder="Enter your point..."
-              />
-
-              <button
-                type="button"
-                onClick={addPoint}
-                style={isMobile ? mobileStyles.addPointButton : styles.addPointButton}
-              >
-                Add Point
-              </button>
-            </div>
-
-            {/* Points List */}
-            {newReview.points.length > 0 && (
-              <div style={isMobile ? mobileStyles.pointsList : styles.pointsList}>
-                {newReview.points.map((point) => (
-                  <div key={point.id} style={{
-                    ...styles.pointItem,
-                    ...(isMobile ? mobileStyles.pointItem : {})
-                  }}>
-                    <span style={styles.pointIcon}>{getPointTypeIcon(point.type)}</span>
-                    <span style={{
-                      ...styles.pointPriority,
-                      backgroundColor: getPriorityColor(point.priority || 'medium')
-                    }}>
-                      {point.priority}
-                    </span>
-                    <span style={isMobile ? mobileStyles.pointText : styles.pointText}>
-                      {point.text}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removePoint(point.id)}
-                      style={styles.removePointButton}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div style={{
-            ...styles.formButtons,
-            ...(isMobile ? mobileStyles.formButtons : {})
-          }}>
-            <button 
-              type="button" 
-              onClick={() => setShowReviewForm(false)}
-              style={isMobile ? mobileStyles.cancelButton : styles.cancelButton}
-            >
+          <div className="form-actions">
+            <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
               Cancel
             </button>
-            <button 
-              type="submit" 
-              style={isMobile ? mobileStyles.submitButton : styles.submitButton}
-              disabled={loading || newReview.points.length === 0}
-            >
-              {loading ? 'Submitting...' : `Submit (${newReview.points.length} pts)`}
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Submitting...' : 'Submit Feedback'}
             </button>
           </div>
         </form>
       )}
 
-      {/* Reviews Display */}
-      <div style={{
-        ...styles.reviewsContainer,
-        ...(viewMode === 'grid' ? {
-          ...styles.reviewsGrid,
-          ...(isTablet && !isMobile ? tabletStyles.reviewsGrid : {})
-        } : {}),
-        ...(isMobile ? mobileStyles.reviewsContainer : {})
-      }}>
-        {loading && reviews.length === 0 ? (
-          <div style={isMobile ? mobileStyles.loadingContainer : styles.loadingContainer}>
-            <div style={isMobile ? mobileStyles.loadingSpinner : styles.loadingSpinner}></div>
-            <p>Loading reviews...</p>
-          </div>
-        ) : filteredReviews.length === 0 ? (
-          <div style={isMobile ? mobileStyles.emptyState : styles.emptyState}>
-            <p>No reviews yet. Be the first to share your feedback!</p>
+      {/* Reviews List */}
+      <div className="reviews-list">
+        {filteredReviews.length === 0 ? (
+          <div className="empty-state">
+            <Icons.Inbox />
+            <p>No feedback yet</p>
+            <span>Be the first to share your thoughts</span>
           </div>
         ) : (
-          filteredReviews.map((review) => (
-            <div 
-              key={review.id} 
-              style={{
-                ...styles.reviewCard,
-                ...(viewMode === 'grid' ? styles.gridCard : {}),
-                ...(isMobile ? mobileStyles.reviewCard : {})
-              }}
-            >
-              <div style={{
-                ...styles.reviewHeader,
-                ...(isMobile ? mobileStyles.reviewHeader : {})
-              }}>
-                <div style={styles.reviewMeta}>
-                  <span style={isMobile ? mobileStyles.reviewTitle : styles.reviewTitle}>
-                    {review.updateTitle}
-                  </span>
-                  <div style={{
-                    ...styles.badgeContainer,
-                    ...(isMobile ? mobileStyles.badgeContainer : {})
-                  }}>
-                    <span style={{
-                      ...styles.statusBadge,
-                      ...(isMobile ? mobileStyles.statusBadge : {}),
-                      backgroundColor: getStatusColor(review.status)
-                    }}>
-                      {review.status}
+          filteredReviews.map(review => {
+            const type = typeConfig[review.type];
+            const status = statusConfig[review.status];
+            
+            return (
+              <div key={review.id} className={`review-item ${review.status}`}>
+                <div className="review-main">
+                  <div className="review-meta-row">
+                    <span 
+                      className="type-badge"
+                      style={{ background: type.bg, color: type.color }}
+                    >
+                      {type.icon}
+                      {type.label}
                     </span>
-                    <span style={{
-                      ...styles.priorityBadge,
-                      ...(isMobile ? mobileStyles.priorityBadge : {}),
-                      backgroundColor: getPriorityColor(review.priority)
-                    }}>
-                      {review.priority}
+                    <span 
+                      className="status-badge"
+                      style={{ background: status.bg, color: status.color }}
+                    >
+                      {status.label}
                     </span>
-                    <span style={{
-                      ...styles.typeBadge,
-                      ...(isMobile ? mobileStyles.typeBadge : {})
-                    }}>
-                      {getFeedbackTypeIcon(review.feedbackType)}
-                    </span>
-                    {review.isUrgent && (
-                      <span style={{
-                        ...styles.urgentBadge,
-                        ...(isMobile ? mobileStyles.urgentBadge : {})
-                      }}>
-                        🚨
-                      </span>
-                    )}
                   </div>
-                </div>
-                
-                <div style={{
-                  ...styles.reviewActions,
-                  ...(isMobile ? mobileStyles.reviewActions : {})
-                }}>
-                  <button
-                    onClick={() => setExpandedReview(expandedReview === review.id ? null : review.id)}
-                    style={isMobile ? mobileStyles.expandButton : styles.expandButton}
-                  >
-                    {expandedReview === review.id ? '▼' : '▶'} {!isMobile && (expandedReview === review.id ? 'Show Less' : 'Read More')}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteReview(review.id)}
-                    style={isMobile ? mobileStyles.deleteButton : styles.deleteButton}
-                    title="Delete review"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-
-              <div style={isMobile ? mobileStyles.reviewDate : styles.reviewDate}>
-                {review.createdAt.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })}
-              </div>
-
-              {review.summary && (
-                <div style={isMobile ? mobileStyles.summary : styles.summary}>
-                  <strong>Summary:</strong> {review.summary}
-                </div>
-              )}
-
-              {review.rating && (
-                <div style={styles.rating}>
-                  <span style={isMobile ? mobileStyles.stars : styles.stars}>
-                    {renderStars(review.rating)}
-                  </span>
-                </div>
-              )}
-
-              {/* Points Display */}
-              {review.points && review.points.length > 0 && (
-                <div style={isMobile ? mobileStyles.pointsDisplay : styles.pointsDisplay}>
-                  <h4 style={isMobile ? mobileStyles.pointsDisplayTitle : styles.pointsDisplayTitle}>
-                    Feedback Points:
-                  </h4>
-                  <div style={{
-                    ...styles.pointsGrid,
-                    ...(isMobile ? mobileStyles.pointsGrid : {})
-                  }}>
-                    {review.points.slice(0, expandedReview === review.id ? undefined : 2).map((point) => (
-                      <div 
-                        key={point.id} 
-                        style={{
-                          ...styles.displayPoint,
-                          ...(isMobile ? mobileStyles.displayPoint : {}),
-                          opacity: point.isResolved ? 0.6 : 1,
-                          backgroundColor: point.isResolved ? '#f9fafb' : '#ffffff'
-                        }}
-                      >
-                        <div style={isMobile ? mobileStyles.pointHeader : styles.pointHeader}>
-                          <span style={styles.pointIcon}>{getPointTypeIcon(point.type)}</span>
-                          {point.priority && (
-                            <span style={{
-                              ...styles.pointPriorityBadge,
-                              ...(isMobile ? mobileStyles.pointPriorityBadge : {}),
-                              backgroundColor: getPriorityColor(point.priority)
-                            }}>
-                              {point.priority}
-                            </span>
-                          )}
-                        </div>
-                        <p style={isMobile ? mobileStyles.pointText : styles.pointText}>
-                          {point.text}
-                        </p>
-                        {!clientEmail && (
-                          <button
-                            onClick={() => togglePointResolution(review.id, point.id)}
-                            style={{
-                              ...styles.resolveButton,
-                              ...(isMobile ? mobileStyles.resolveButton : {}),
-                              backgroundColor: point.isResolved ? '#10b981' : '#6b7280'
-                            }}
+                  
+                  <h4 className="review-title">{review.updateTitle}</h4>
+                  <p className="review-text">{review.feedback}</p>
+                  
+                  <div className="review-footer">
+                    <span className="review-date">
+                      <Icons.Clock />
+                      {review.createdAt.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    
+                    {isAdmin && (
+                      <div className="admin-controls">
+                        {review.status !== 'resolved' && (
+                          <button 
+                            onClick={() => handleStatusChange(review.id, 'resolved')}
+                            className="btn-resolve"
                           >
-                            {point.isResolved ? '✓ Resolved' : '○ Mark Resolved'}
+                            <Icons.CheckCircle /> Resolve
                           </button>
                         )}
+                        <button 
+                          onClick={() => handleDelete(review.id)}
+                          className="btn-delete"
+                        >
+                          <Icons.Trash />
+                        </button>
                       </div>
-                    ))}
-                    {review.points.length > 2 && expandedReview !== review.id && (
-                      <button
-                        onClick={() => setExpandedReview(review.id)}
-                        style={isMobile ? mobileStyles.showMoreButton : styles.showMoreButton}
-                      >
-                        +{review.points.length - 2} more points
-                      </button>
                     )}
                   </div>
                 </div>
-              )}
-
-              {/* Admin Actions */}
-              {!clientEmail && (
-                <div style={{
-                  ...styles.adminActions,
-                  ...(isMobile ? mobileStyles.adminActions : {})
-                }}>
-                  <button
-                    onClick={() => handleUpdateStatus(review.id, 'in-review')}
-                    style={{
-                      ...styles.actionButton,
-                      ...(isMobile ? mobileStyles.actionButton : {}),
-                      backgroundColor: '#f59e0b'
-                    }}
-                  >
-                   🔍 In Review
-                  </button>
-                  <button
-                    onClick={() => handleUpdateStatus(review.id, 'approved')}
-                    style={{
-                      ...styles.actionButton,
-                      ...(isMobile ? mobileStyles.actionButton : {}),
-                      backgroundColor: '#10b981'
-                    }}
-                  >
-                    ✅ Approve
-                  </button>
-                  <button
-                    onClick={() => handleUpdateStatus(review.id, 'changes-requested')}
-                    style={{
-                      ...styles.actionButton,
-                      ...(isMobile ? mobileStyles.actionButton : {}),
-                      backgroundColor: '#ef4444'
-                    }}
-                  >
-                    🔄 Changes
-                  </button>
-                </div>
-              )}
-            </div>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
 
-      {/* Global Styles */}
       <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
+        .client-reviews {
+          --primary: #f97316;
+          --primary-light: #fff7ed;
+          --gray-50: #f8fafc;
+          --gray-100: #f1f5f9;
+          --gray-200: #e2e8f0;
+          --gray-400: #94a3b8;
+          --gray-600: #475569;
+          --gray-900: #0f172a;
+          
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 24px;
         }
 
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-          input, select, textarea, button {
-            font-size: 16px !important;
+        .reviews-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .header-content h2 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 700;
+          color: var(--gray-900);
+          letter-spacing: -0.025em;
+        }
+
+        .header-content p {
+          margin: 4px 0 0;
+          color: var(--gray-600);
+          font-size: 14px;
+        }
+
+        .btn-primary {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 20px;
+          background: var(--primary);
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .btn-primary.active {
+          background: var(--gray-600);
+        }
+
+        .stats-row {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+        }
+
+        .stat-pill {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          background: white;
+          border: 1px solid var(--gray-200);
+          border-radius: 20px;
+        }
+
+        .stat-pill.pending {
+          background: #fffbeb;
+          border-color: #fcd34d;
+        }
+
+        .stat-pill.resolved {
+          background: #ecfdf5;
+          border-color: #6ee7b7;
+        }
+
+        .stat-value {
+          font-size: 18px;
+          font-weight: 700;
+          color: var(--gray-900);
+        }
+
+        .stat-pill.pending .stat-value {
+          color: #d97706;
+        }
+
+        .stat-pill.resolved .stat-value {
+          color: #059669;
+        }
+
+        .stat-label {
+          font-size: 13px;
+          color: var(--gray-600);
+          font-weight: 500;
+        }
+
+        .filters-bar {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+        }
+
+        .filter-select {
+          padding: 10px 16px;
+          border: 1px solid var(--gray-200);
+          border-radius: 10px;
+          font-size: 14px;
+          background: white;
+          color: var(--gray-600);
+          cursor: pointer;
+          outline: none;
+        }
+
+        .filter-select:focus {
+          border-color: var(--primary);
+        }
+
+        .review-form {
+          background: var(--gray-50);
+          padding: 24px;
+          border-radius: 16px;
+          margin-bottom: 24px;
+          border: 2px solid var(--primary);
+        }
+
+        .form-group {
+          margin-bottom: 20px;
+        }
+
+        .form-group label {
+          display: block;
+          margin-bottom: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--gray-900);
+        }
+
+        .form-group select,
+        .form-group textarea {
+          width: 100%;
+          padding: 12px;
+          border: 1px solid var(--gray-200);
+          border-radius: 10px;
+          font-size: 15px;
+          outline: none;
+          transition: all 0.2s;
+          font-family: inherit;
+        }
+
+        .form-group select:focus,
+        .form-group textarea:focus {
+          border-color: var(--primary);
+          box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-group textarea {
+          resize: vertical;
+          min-height: 100px;
+        }
+
+        .type-buttons {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .type-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 16px;
+          border: 2px solid transparent;
+          border-radius: 10px;
+          background: white;
+          color: var(--gray-600);
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .type-btn:hover {
+          background: var(--gray-100);
+        }
+
+        .type-btn.active {
+          border-color: var(--type-color);
+          background: var(--type-bg);
+          color: var(--type-color);
+        }
+
+        .form-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .btn-secondary {
+          padding: 12px 24px;
+          background: white;
+          color: var(--gray-600);
+          border: 1px solid var(--gray-200);
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+          background: var(--gray-100);
+        }
+
+        .reviews-list {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 60px 20px;
+          color: var(--gray-400);
+          text-align: center;
+        }
+
+        .empty-state svg {
+          margin-bottom: 16px;
+          opacity: 0.5;
+        }
+
+        .empty-state p {
+          margin: 0 0 4px;
+          font-size: 16px;
+          font-weight: 500;
+          color: var(--gray-600);
+        }
+
+        .empty-state span {
+          font-size: 14px;
+        }
+
+        .review-item {
+          background: white;
+          border: 1px solid var(--gray-200);
+          border-radius: 16px;
+          padding: 20px;
+          transition: all 0.2s;
+        }
+
+        .review-item:hover {
+          border-color: var(--gray-300);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .review-item.resolved {
+          opacity: 0.7;
+          background: var(--gray-50);
+        }
+
+        .review-meta-row {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 12px;
+          flex-wrap: wrap;
+        }
+
+        .type-badge,
+        .status-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .review-title {
+          margin: 0 0 12px;
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--gray-900);
+          line-height: 1.4;
+        }
+
+        .review-text {
+          margin: 0 0 16px;
+          font-size: 15px;
+          color: var(--gray-600);
+          line-height: 1.6;
+        }
+
+        .review-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        .review-date {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
+          color: var(--gray-400);
+        }
+
+        .admin-controls {
+          display: flex;
+          gap: 8px;
+        }
+
+        .btn-resolve {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          background: #ecfdf5;
+          color: #059669;
+          border: none;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-resolve:hover {
+          background: #d1fae5;
+        }
+
+        .btn-delete {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          background: #fef2f2;
+          color: #ef4444;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-delete:hover {
+          background: #fee2e2;
+        }
+
+        .reviews-loading {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 60px;
+          color: var(--gray-400);
+        }
+
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid var(--gray-200);
+          border-top-color: var(--primary);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 640px) {
+          .client-reviews {
+            padding: 16px;
           }
-          
-          /* Prevent zoom on iOS */
-          input[type="text"],
-          input[type="email"],
-          input[type="number"],
-          select,
-          textarea {
-            font-size: 16px !important;
+
+          .reviews-header {
+            flex-direction: column;
+            align-items: stretch;
           }
-          
-          /* Smooth scrolling */
-          * {
-            -webkit-overflow-scrolling: touch;
-          }
-          
-          /* Better tap targets */
-          button, 
-          [role="button"],
-          input[type="submit"],
-          input[type="button"] {
-            min-height: 48px;
-          }
-          
-          /* Full width containers */
-          .review-card {
+
+          .btn-primary {
             width: 100%;
-            margin-left: 0;
-            margin-right: 0;
+            justify-content: center;
+          }
+
+          .type-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .form-actions {
+            flex-direction: column;
+          }
+
+          .form-actions button {
+            width: 100%;
+          }
+
+          .review-footer {
+            flex-direction: column;
+            align-items: flex-start;
           }
         }
       `}</style>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    maxWidth: '1400px',
-    margin: '0 auto',
-    padding: '24px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    position: 'relative' as const,
-  },
-  notification: {
-    position: 'fixed' as const,
-    top: '24px',
-    right: '24px',
-    padding: '16px 24px',
-    borderRadius: '12px',
-    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-    zIndex: 1000,
-    animation: 'slideIn 0.3s ease-out',
-    fontSize: '15px',
-    fontWeight: '500',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '32px',
-    flexWrap: 'wrap' as const,
-    gap: '20px',
-  },
-  sectionTitle: {
-    fontSize: '28px',
-    margin: 0,
-    color: '#111827',
-    fontWeight: '600',
-    letterSpacing: '-0.02em',
-  },
-  subtitle: {
-    margin: '6px 0 0',
-    color: '#6b7280',
-    fontSize: '16px',
-  },
-  addButton: {
-    padding: '12px 28px',
-    backgroundColor: '#f97316',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: '16px',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-    boxShadow: '0 4px 6px -1px rgba(249,115,22,0.2)',
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-    gap: '16px',
-    marginBottom: '32px',
-  },
-  statCard: {
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '16px',
-    textAlign: 'center' as const,
-    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-    border: '1px solid #f3f4f6',
-  },
-  statValue: {
-    fontSize: '28px',
-    fontWeight: '600',
-    color: '#f97316',
-    marginBottom: '4px',
-  },
-  statLabel: {
-    fontSize: '13px',
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-  },
-  filters: {
-    display: 'flex',
-    gap: '16px',
-    marginBottom: '32px',
-    flexWrap: 'wrap' as const,
-    alignItems: 'center',
-  },
-  searchBox: {
-    flex: 1,
-    minWidth: '280px',
-  },
-  searchInput: {
-    width: '100%',
-    padding: '12px 20px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '12px',
-    fontSize: '15px',
-    outline: 'none',
-    transition: 'all 0.2s',
-    backgroundColor: '#f9fafb',
-  },
-  filterSelect: {
-    padding: '12px 28px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '12px',
-    fontSize: '15px',
-    backgroundColor: '#f9fafb',
-    cursor: 'pointer',
-    outline: 'none',
-    minWidth: '150px',
-    color: '#374151',
-  },
-  viewToggle: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '24px',
-  },
-  viewButton: {
-    padding: '12px 24px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-    backgroundColor: '#ffffff',
-    color: '#374151',
-  },
-  errorBanner: {
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
-    padding: '14px 20px',
-    borderRadius: '12px',
-    marginBottom: '24px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap' as const,
-    gap: '12px',
-    border: '1px solid #fecaca',
-  },
-  retryButton: {
-    padding: '8px 20px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-  },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '80px',
-    backgroundColor: 'white',
-    borderRadius: '24px',
-  },
-  loadingSpinner: {
-    width: '48px',
-    height: '48px',
-    border: '3px solid #f3f4f6',
-    borderTop: '3px solid #f97316',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-    marginBottom: '20px',
-  },
-  form: {
-    backgroundColor: '#f9fafb',
-    padding: '32px',
-    borderRadius: '24px',
-    marginBottom: '32px',
-    border: '2px solid #f97316',
-    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
-  },
-  formTitle: {
-    margin: '0 0 24px 0',
-    fontSize: '22px',
-    color: '#111827',
-    fontWeight: '600',
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '20px',
-    marginBottom: '20px',
-  },
-  formGroup: {
-    marginBottom: '20px',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '8px',
-    fontWeight: '500',
-    color: '#374151',
-    fontSize: '14px',
-  },
-  input: {
-    width: '100%',
-    padding: '14px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '12px',
-    fontSize: '15px',
-    outline: 'none',
-    transition: 'all 0.2s',
-    backgroundColor: '#ffffff',
-    boxSizing: 'border-box' as const,
-  },
-  select: {
-    width: '100%',
-    padding: '14px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '12px',
-    fontSize: '15px',
-    backgroundColor: '#ffffff',
-    outline: 'none',
-    color: '#374151',
-  },
-  checkbox: {
-    marginRight: '10px',
-    width: '18px',
-    height: '18px',
-    cursor: 'pointer',
-  },
-  formRow: {
-    display: 'flex',
-    gap: '20px',
-    alignItems: 'center',
-    marginBottom: '20px',
-    flexWrap: 'wrap' as const,
-  },
-  ratingContainer: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-  },
-  starButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '32px',
-    cursor: 'pointer',
-    padding: '0 4px',
-    transition: 'transform 0.1s',
-  },
-  pointsBuilder: {
-    backgroundColor: '#ffffff',
-    padding: '24px',
-    borderRadius: '16px',
-    marginBottom: '24px',
-    border: '1px solid #e5e7eb',
-  },
-  pointsTitle: {
-    margin: '0 0 16px 0',
-    fontSize: '16px',
-    color: '#111827',
-    fontWeight: '600',
-  },
-  pointInputGroup: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '20px',
-    flexWrap: 'wrap' as const,
-  },
-  pointTypeSelect: {
-    padding: '12px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    fontSize: '14px',
-    minWidth: '110px',
-    backgroundColor: '#f9fafb',
-  },
-  pointPrioritySelect: {
-    padding: '12px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    fontSize: '14px',
-    minWidth: '110px',
-    backgroundColor: '#f9fafb',
-  },
-  pointInput: {
-    flex: 1,
-    padding: '12px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    fontSize: '14px',
-    minWidth: '240px',
-    backgroundColor: '#f9fafb',
-  },
-  addPointButton: {
-    padding: '12px 24px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    whiteSpace: 'nowrap' as const,
-  },
-  pointsList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '10px',
-  },
-  pointItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '14px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '12px',
-    border: '1px solid #e5e7eb',
-  },
-  pointIcon: {
-    fontSize: '18px',
-  },
-  pointPriority: {
-    padding: '4px 12px',
-    borderRadius: '20px',
-    fontSize: '11px',
-    color: 'white',
-    textTransform: 'uppercase' as const,
-    fontWeight: '600',
-  },
-  pointText: {
-    flex: 1,
-    fontSize: '14px',
-    color: '#374151',
-    wordBreak: 'break-word' as const,
-  },
-  removePointButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '16px',
-    cursor: 'pointer',
-    color: '#ef4444',
-    padding: '6px',
-    borderRadius: '6px',
-  },
-  formButtons: {
-    display: 'flex',
-    gap: '16px',
-    justifyContent: 'flex-end',
-    marginTop: '24px',
-  },
-  submitButton: {
-    padding: '14px 36px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: '16px',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-    boxShadow: '0 4px 6px -1px rgba(16,185,129,0.2)',
-  },
-  cancelButton: {
-    padding: '14px 36px',
-    backgroundColor: '#6b7280',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: '16px',
-    transition: 'all 0.2s',
-  },
-  reviewsContainer: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '20px',
-    marginBottom: '40px',
-  },
-  reviewsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-    gap: '24px',
-  },
-  reviewCard: {
-    backgroundColor: 'white',
-    borderRadius: '20px',
-    padding: '28px',
-    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-    border: '1px solid #f3f4f6',
-    transition: 'transform 0.2s',
-  },
-  gridCard: {
-    height: 'fit-content',
-  },
-  reviewHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '12px',
-    flexWrap: 'wrap' as const,
-    gap: '12px',
-  },
-  reviewMeta: {
-    flex: 1,
-  },
-  reviewTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: '8px',
-    display: 'block',
-    lineHeight: '1.4',
-  },
-  badgeContainer: {
-    display: 'flex',
-    gap: '6px',
-    flexWrap: 'wrap' as const,
-  },
-  statusBadge: {
-    padding: '4px 12px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '500',
-    color: 'white',
-  },
-  priorityBadge: {
-    padding: '4px 12px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '500',
-    color: 'white',
-  },
-  typeBadge: {
-    padding: '4px 12px',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '20px',
-    fontSize: '12px',
-    color: '#4b5563',
-    fontWeight: '500',
-  },
-  urgentBadge: {
-    padding: '4px 12px',
-    backgroundColor: '#ef4444',
-    borderRadius: '20px',
-    fontSize: '12px',
-    color: 'white',
-    fontWeight: '500',
-  },
-  reviewActions: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-  },
-  expandButton: {
-    padding: '8px 16px',
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    color: '#4b5563',
-    transition: 'all 0.2s',
-    fontWeight: '500',
-  },
-  deleteButton: {
-    padding: '8px 16px',
-    backgroundColor: '#fee2e2',
-    border: '1px solid #fecaca',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    color: '#ef4444',
-    transition: 'all 0.2s',
-  },
-  reviewDate: {
-    color: '#9ca3af',
-    fontSize: '13px',
-    marginBottom: '12px',
-  },
-  summary: {
-    backgroundColor: '#f9fafb',
-    padding: '14px',
-    borderRadius: '12px',
-    marginBottom: '16px',
-    fontSize: '14px',
-    color: '#4b5563',
-    border: '1px solid #f3f4f6',
-  },
-  rating: {
-    marginBottom: '16px',
-  },
-  stars: {
-    color: '#f59e0b',
-    fontSize: '18px',
-    letterSpacing: '2px',
-  },
-  pointsDisplay: {
-    marginTop: '20px',
-  },
-  pointsDisplayTitle: {
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '12px',
-  },
-  pointsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-    gap: '12px',
-  },
-  displayPoint: {
-    padding: '16px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '12px',
-    border: '1px solid #f3f4f6',
-    position: 'relative' as const,
-  },
-  pointHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginBottom: '10px',
-  },
-  pointPriorityBadge: {
-    padding: '4px 10px',
-    borderRadius: '16px',
-    fontSize: '10px',
-    color: 'white',
-    textTransform: 'uppercase' as const,
-    fontWeight: '600',
-  },
-  resolveButton: {
-    padding: '6px 12px',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '12px',
-    color: 'white',
-    cursor: 'pointer',
-    marginTop: '10px',
-    width: '100%',
-    fontWeight: '500',
-    transition: 'opacity 0.2s',
-  },
-  showMoreButton: {
-    padding: '12px',
-    backgroundColor: '#f9fafb',
-    border: '1px dashed #d1d5db',
-    borderRadius: '12px',
-    fontSize: '13px',
-    color: '#6b7280',
-    cursor: 'pointer',
-    textAlign: 'center' as const,
-    fontWeight: '500',
-    transition: 'all 0.2s',
-  },
-  adminActions: {
-    display: 'flex',
-    gap: '10px',
-    marginTop: '20px',
-    paddingTop: '20px',
-    borderTop: '1px solid #f3f4f6',
-    flexWrap: 'wrap' as const,
-  },
-  actionButton: {
-    padding: '10px 16px',
-    border: 'none',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500',
-    color: 'white',
-    flex: 1,
-    transition: 'opacity 0.2s',
-  },
-  emptyState: {
-    textAlign: 'center' as const,
-    padding: '60px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '24px',
-    color: '#6b7280',
-    fontSize: '16px',
-    border: '2px dashed #e5e7eb',
-  },
 };
 
 export default ClientReview;
