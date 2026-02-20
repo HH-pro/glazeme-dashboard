@@ -82,30 +82,38 @@ const Dashboard: React.FC = () => {
         setError(null);
 
         // Real-time updates listener
-        const updatesQuery = query(collection(db, 'buildUpdates'), orderBy('date', 'desc'), limit(50));
-        const unsubscribeUpdates = onSnapshot(updatesQuery, 
-          (snapshot) => {
-            const updatesData: BuildUpdate[] = snapshot.docs.map(doc => {
-  const data = doc.data();
+       const updatesQuery = query(
+  collection(db, 'buildUpdates'),
+  orderBy('date', 'desc'),
+  limit(50)
+);
 
-  return {
-    id: doc.id,
-    weekNumber: data.weekNumber || 0,
-    title: data.title || "",
-    description: data.description || "",
-    category: data.category || "",
-    status: data.status || "",
-    author: data.author || "",
-    date: data.date?.toDate?.() || new Date()
-  };
-});
+const unsubscribeUpdates = onSnapshot(
+  updatesQuery,
+  (snapshot) => {
+    const updatesData: BuildUpdate[] = snapshot.docs.map((doc) => {
+      const data = doc.data();
 
-setUpdates(updatesData);
-          },
-          () => {
-            setError('Failed to load updates');
-          }
-        );
+      return {
+        id: doc.id,
+        weekNumber: data.weekNumber ?? 0,
+        title: data.title ?? "",
+        description: data.description ?? "",
+        category: data.category ?? "",
+        status: data.status ?? "",
+        author: data.author ?? "",
+        priority: data.priority ?? "low",   // ✅ required field fix
+        timeSpent: data.timeSpent ?? 0,     // ✅ required field fix
+        date: data.date?.toDate?.() ?? new Date()
+      };
+    });
+
+    setUpdates(updatesData);
+  },
+  () => {
+    setError('Failed to load updates');
+  }
+);
 
         // Screenshots listener
         const screensQuery = query(collection(db, 'screenshots'), orderBy('date', 'desc'), limit(50));
