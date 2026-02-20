@@ -218,63 +218,7 @@ const TechnicalLog: React.FC<Props> = ({ isEditMode = false, onEditAction }) => 
         </div>
       </div>
 
-      {/* Code Architecture Diagram */}
-      <div style={styles.architectureSection}>
-        <h3 style={styles.sectionSubtitle}>📐 MVVM Architecture Structure</h3>
-        <div style={styles.architectureDiagram}>
-          <div style={styles.layer}>
-            <span style={styles.layerNumber}>1</span>
-            <div style={styles.layerContent}>
-              <h4 style={styles.layerTitle}>View Layer (SwiftUI)</h4>
-              <p style={styles.layerDesc}>iMessage Extension UI • Gradient Themes • Compliment Display</p>
-              <div style={styles.fileList}>
-                <span style={styles.fileTag}>MessageView.swift</span>
-                <span style={styles.fileTag}>ComplimentView.swift</span>
-                <span style={styles.fileTag}>GradientTheme.swift</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={styles.layer}>
-            <span style={styles.layerNumber}>2</span>
-            <div style={styles.layerContent}>
-              <h4 style={styles.layerTitle}>ViewModel Layer</h4>
-              <p style={styles.layerDesc}>State Management • AI Service Calls • Business Logic</p>
-              <div style={styles.fileList}>
-                <span style={styles.fileTag}>ComplimentViewModel.swift</span>
-                <span style={styles.fileTag}>AIService.swift</span>
-                <span style={styles.fileTag}>MessageHandler.swift</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={styles.layer}>
-            <span style={styles.layerNumber}>3</span>
-            <div style={styles.layerContent}>
-              <h4 style={styles.layerTitle}>Model Layer</h4>
-              <p style={styles.layerDesc}>Data Structures • API Models • Local Storage</p>
-              <div style={styles.fileList}>
-                <span style={styles.fileTag}>Compliment.swift</span>
-                <span style={styles.fileTag}>UserPreferences.swift</span>
-                <span style={styles.fileTag}>APIResponse.swift</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={styles.layer}>
-            <span style={styles.layerNumber}>4</span>
-            <div style={styles.layerContent}>
-              <h4 style={styles.layerTitle}>Backend Services</h4>
-              <p style={styles.layerDesc}>API Key Protection • OpenAI Proxy • Analytics</p>
-              <div style={styles.fileList}>
-                <span style={styles.fileTag}>Node.js Server</span>
-                <span style={styles.fileTag}>OpenAI Integration</span>
-                <span style={styles.fileTag}>Firebase Sync</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+     
 
       {/* Technical Milestones Tracker */}
       <div style={styles.milestonesSection}>
