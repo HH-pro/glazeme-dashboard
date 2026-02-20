@@ -326,61 +326,6 @@ const TechnicalLog: React.FC<Props> = ({ isEditMode = false, onEditAction }) => 
         </div>
       </div>
 
-      {/* API Integration Details */}
-      <div style={styles.apiSection}>
-        <h3 style={styles.sectionSubtitle}>🔌 API Integration Details</h3>
-        <div style={styles.apiGrid}>
-          <div style={styles.apiCard}>
-            <h4 style={styles.apiTitle}>OpenAI Integration</h4>
-            <pre style={styles.codeBlock}>
-{`// Prompt Engineering for GlazeMe
-let prompt = \`
-Generate an over-the-top, 
-meme-style compliment 
-with emojis. Make it 
-funny and encouraging.
-Theme: Yellow to orange
-Style: American inside joke
-\``}
-            </pre>
-          </div>
-
-          <div style={styles.apiCard}>
-            <h4 style={styles.apiTitle}>Backend Proxy</h4>
-            <pre style={styles.codeBlock}>
-{`// Node.js endpoint
-app.post('/api/compliment', 
-  verifyAPIKey,
-  rateLimit,
-  async (req, res) => {
-    const compliment = 
-      await generateCompliment(
-        req.body.prompt
-      );
-    res.json({ compliment });
-});`}
-            </pre>
-          </div>
-
-          <div style={styles.apiCard}>
-            <h4 style={styles.apiTitle}>iMessage Extension</h4>
-            <pre style={styles.codeBlock}>
-{`// Swift implementation
-class MessageViewController: 
-    MSMessagesAppViewController {
-    
-    @IBOutlet weak var 
-    complimentView: UIView!
-    
-    func generateCompliment() {
-        // AI call here
-    }
-}`}
-            </pre>
-          </div>
-        </div>
-      </div>
-
       {/* Performance Metrics */}
       <div style={styles.metricsSection}>
         <h3 style={styles.sectionSubtitle}>📊 Performance Targets</h3>
