@@ -6,8 +6,8 @@ export type UpdateStatus = 'completed' | 'in-progress' | 'planned' | 'blocked';
 export type UpdatePriority = 'high' | 'medium' | 'low';
 
 export interface BuildUpdate {
-  id: number; // Changed from string to number to match component usage
   date: Date;
+   id: string;   // ✅ change from number → string
   weekNumber: number;
   title: string;
   description: string;
