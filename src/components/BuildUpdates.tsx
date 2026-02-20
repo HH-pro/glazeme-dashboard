@@ -12,6 +12,7 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import PasswordModal from './PasswordModal';
 
 // Types
 type UpdateCategory = 'development' | 'design' | 'ai-integration' | 'testing' | 'deployment';
@@ -41,9 +42,10 @@ const BuildUpdates: React.FC<Props> = ({ initialEditMode = false }) => {
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isEditMode, setIsEditMode] = useState(initialEditMode);
+  const [isEditMode, setIsEditMode] = useState(false); // Start with false, require password
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUpdate, setEditingUpdate] = useState<BuildUpdate | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   
   const [newUpdate, setNewUpdate] = useState<Omit<BuildUpdate, 'id'>>({
     weekNumber: 1,
@@ -208,9 +210,18 @@ const BuildUpdates: React.FC<Props> = ({ initialEditMode = false }) => {
     });
   };
 
+  const handleEnableEditMode = () => {
+    setIsPasswordModalOpen(true);
+  };
+
+  const handlePasswordSuccess = () => {
+    setIsEditMode(true);
+    setIsPasswordModalOpen(false);
+  };
+
   const handleAddClick = () => {
     if (!isEditMode) {
-      setIsEditMode(true);
+      handleEnableEditMode();
       return;
     }
     setShowAddForm(true);
@@ -220,7 +231,7 @@ const BuildUpdates: React.FC<Props> = ({ initialEditMode = false }) => {
 
   const handleEditClick = (update: BuildUpdate) => {
     if (!isEditMode) {
-      setIsEditMode(true);
+      handleEnableEditMode();
       return;
     }
     setEditingUpdate(update);
@@ -304,6 +315,13 @@ const BuildUpdates: React.FC<Props> = ({ initialEditMode = false }) => {
 
   return (
     <div style={styles.container}>
+      {/* Password Modal */}
+      <PasswordModal 
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSuccess={handlePasswordSuccess}
+      />
+
       {/* Error Banner */}
       {error && (
         <div style={styles.errorBanner}>
