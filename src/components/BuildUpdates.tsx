@@ -1,26 +1,50 @@
 // src/components/BuildUpdates.tsx
 import React, { useState, useEffect } from 'react';
-import { BuildUpdate, UpdateCategory, UpdateStatus, UpdatePriority } from '../types';
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  getDocs, 
+  query, 
+  orderBy,
+  Timestamp 
+} from 'firebase/firestore';
+import { db } from '../services/firebase';
 
-interface Props {
-  updates: BuildUpdate[];
-  onAddUpdate: (update: Omit<BuildUpdate, 'id'>) => void;
-  onEditUpdate?: (id: number, update: Omit<BuildUpdate, 'id'>) => void;
-  onDeleteUpdate?: (id: number) => void;
-  isEditMode?: boolean;
-  onEditAction?: () => void;
+// Types
+type UpdateCategory = 'development' | 'design' | 'ai-integration' | 'testing' | 'deployment';
+type UpdateStatus = 'planned' | 'in-progress' | 'completed';
+type UpdatePriority = 'low' | 'medium' | 'high';
+
+interface BuildUpdate {
+  id: string;
+  weekNumber: number;
+  title: string;
+  description: string;
+  category: UpdateCategory;
+  status: UpdateStatus;
+  priority?: UpdatePriority;
+  timeSpent?: number;
+  date: Date;
+  createdAt?: Date;
 }
 
-const BuildUpdates: React.FC<Props> = ({ 
-  updates, 
-  onAddUpdate, 
-  onEditUpdate,
-  onDeleteUpdate,
-  isEditMode = false, 
-  onEditAction 
-}) => {
+interface Props {
+  initialEditMode?: boolean;
+}
+
+const COLLECTION_NAME = 'buildUpdates';
+
+const BuildUpdates: React.FC<Props> = ({ initialEditMode = false }) => {
+  const [updates, setUpdates] = useState<BuildUpdate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(initialEditMode);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUpdate, setEditingUpdate] = useState<BuildUpdate | null>(null);
+  
   const [newUpdate, setNewUpdate] = useState<Omit<BuildUpdate, 'id'>>({
     weekNumber: 1,
     title: '',
@@ -44,28 +68,159 @@ const BuildUpdates: React.FC<Props> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleAddClick = () => {
-    if (!isEditMode && onEditAction) {
-      onEditAction();
-      return;
+  // Load updates on mount
+  useEffect(() => {
+    fetchUpdates();
+  }, []);
+
+  // Convert Firestore timestamp to Date
+  const convertTimestampToDate = (data: any, docId: string): BuildUpdate => {
+    return {
+      id: docId,
+      weekNumber: data.weekNumber || 1,
+      title: data.title || '',
+      description: data.description || '',
+      category: data.category || 'development',
+      status: data.status || 'planned',
+      priority: data.priority || 'medium',
+      timeSpent: data.timeSpent || 0,
+      date: data.date?.toDate() || new Date(),
+      createdAt: data.createdAt?.toDate()
+    };
+  };
+
+  // Fetch all updates from Firebase
+  const fetchUpdates = async () => {
+    try {
+      setLoading(true);
+      const updatesRef = collection(db, COLLECTION_NAME);
+      const q = query(updatesRef, orderBy('date', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const fetchedUpdates = querySnapshot.docs.map(doc => 
+        convertTimestampToDate(doc.data(), doc.id)
+      );
+      
+      setUpdates(fetchedUpdates);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching updates:', err);
+      setError('Failed to load updates');
+    } finally {
+      setLoading(false);
     }
-    setShowAddForm(true);
-    setEditingUpdate(null);
+  };
+
+  // Add new update to Firebase
+  const handleAddUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      setLoading(true);
+      const updatesRef = collection(db, COLLECTION_NAME);
+      const updateWithTimestamp = {
+        ...newUpdate,
+        date: Timestamp.fromDate(newUpdate.date),
+        createdAt: Timestamp.now()
+      };
+      
+      const docRef = await addDoc(updatesRef, updateWithTimestamp);
+      
+      const newUpdateWithId: BuildUpdate = {
+        id: docRef.id,
+        ...newUpdate
+      };
+      
+      setUpdates(prev => [newUpdateWithId, ...prev]);
+      setShowAddForm(false);
+      resetForm();
+      setError(null);
+    } catch (err) {
+      console.error('Error adding update:', err);
+      setError('Failed to add update');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Edit update in Firebase
+  const handleEditUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingUpdate) return;
+    
+    try {
+      setLoading(true);
+      const updateRef = doc(db, COLLECTION_NAME, editingUpdate.id);
+      const updateWithTimestamp = {
+        ...newUpdate,
+        date: Timestamp.fromDate(newUpdate.date),
+        updatedAt: Timestamp.now()
+      };
+      
+      await updateDoc(updateRef, updateWithTimestamp);
+      
+      setUpdates(prev => 
+        prev.map(u => u.id === editingUpdate.id ? { ...newUpdate, id: editingUpdate.id } : u)
+      );
+      
+      setShowAddForm(false);
+      setEditingUpdate(null);
+      resetForm();
+      setError(null);
+    } catch (err) {
+      console.error('Error editing update:', err);
+      setError('Failed to edit update');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete update from Firebase
+  const handleDeleteUpdate = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this update?')) return;
+    
+    try {
+      setLoading(true);
+      const updateRef = doc(db, COLLECTION_NAME, id);
+      await deleteDoc(updateRef);
+      
+      setUpdates(prev => prev.filter(u => u.id !== id));
+      setError(null);
+    } catch (err) {
+      console.error('Error deleting update:', err);
+      setError('Failed to delete update');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
     setNewUpdate({
       weekNumber: 1,
       title: '',
       description: '',
-      category: 'development' as UpdateCategory,
-      status: 'in-progress' as UpdateStatus,
-      priority: 'medium' as UpdatePriority,
+      category: 'development',
+      status: 'in-progress',
+      priority: 'medium',
       timeSpent: 0,
       date: new Date()
     });
   };
 
+  const handleAddClick = () => {
+    if (!isEditMode) {
+      setIsEditMode(true);
+      return;
+    }
+    setShowAddForm(true);
+    setEditingUpdate(null);
+    resetForm();
+  };
+
   const handleEditClick = (update: BuildUpdate) => {
-    if (!isEditMode && onEditAction) {
-      onEditAction();
+    if (!isEditMode) {
+      setIsEditMode(true);
       return;
     }
     setEditingUpdate(update);
@@ -82,59 +237,10 @@ const BuildUpdates: React.FC<Props> = ({
     setShowAddForm(true);
   };
 
-  const handleDeleteClick = (id: number) => {
-    if (!isEditMode && onEditAction) {
-      onEditAction();
-      return;
-    }
-    
-    if (window.confirm('Are you sure you want to delete this update?')) {
-      onDeleteUpdate?.(id);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingUpdate) {
-      onEditUpdate?.(editingUpdate.id, {
-        ...newUpdate,
-        date: editingUpdate.date
-      });
-    } else {
-      onAddUpdate({
-        ...newUpdate,
-        date: new Date()
-      });
-    }
-    
-    setShowAddForm(false);
-    setEditingUpdate(null);
-    setNewUpdate({
-      weekNumber: 1,
-      title: '',
-      description: '',
-      category: 'development' as UpdateCategory,
-      status: 'in-progress' as UpdateStatus,
-      priority: 'medium' as UpdatePriority,
-      timeSpent: 0,
-      date: new Date()
-    });
-  };
-
   const cancelForm = () => {
     setShowAddForm(false);
     setEditingUpdate(null);
-    setNewUpdate({
-      weekNumber: 1,
-      title: '',
-      description: '',
-      category: 'development' as UpdateCategory,
-      status: 'in-progress' as UpdateStatus,
-      priority: 'medium' as UpdatePriority,
-      timeSpent: 0,
-      date: new Date()
-    });
+    resetForm();
   };
 
   const getStatusColor = (status: UpdateStatus) => {
@@ -187,8 +293,28 @@ const BuildUpdates: React.FC<Props> = ({
     },
   };
 
+  if (loading && updates.length === 0) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingSpinner}></div>
+        <p>Loading updates...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
+      {/* Error Banner */}
+      {error && (
+        <div style={styles.errorBanner}>
+          <span>{error}</span>
+          <button onClick={fetchUpdates} style={styles.retryButton}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Header */}
       <div style={{
         ...styles.header,
         ...(isMobile ? mobileStyles.header : {})
@@ -199,11 +325,10 @@ const BuildUpdates: React.FC<Props> = ({
           style={{
             ...styles.addButton,
             backgroundColor: isEditMode ? '#FF8C42' : '#6c757d',
-            cursor: isEditMode ? 'pointer' : 'not-allowed',
             width: isMobile ? '100%' : 'auto'
           }}
         >
-          {isEditMode ? '+ Add Update' : '🔒 Edit Mode Required'}
+          {isEditMode ? '+ Add Update' : '🔒 Enable Edit Mode'}
         </button>
       </div>
 
@@ -214,8 +339,9 @@ const BuildUpdates: React.FC<Props> = ({
         </div>
       )}
 
+      {/* Add/Edit Form */}
       {showAddForm && isEditMode && (
-        <form onSubmit={handleSubmit} style={styles.form}>
+        <form onSubmit={editingUpdate ? handleEditUpdate : handleAddUpdate} style={styles.form}>
           <h4 style={styles.formTitle}>
             {editingUpdate ? '✏️ Edit Update' : '➕ Add New Update'}
           </h4>
@@ -314,77 +440,94 @@ const BuildUpdates: React.FC<Props> = ({
                 ...styles.submitButton,
                 ...(isMobile ? { flex: '1' } : {})
               }}
+              disabled={loading}
             >
-              {editingUpdate ? 'Update' : 'Post Update'}
+              {loading ? 'Saving...' : (editingUpdate ? 'Update' : 'Post Update')}
             </button>
           </div>
         </form>
       )}
 
+      {/* Updates Timeline */}
       <div style={styles.timeline}>
-        {updates.map((update) => (
-          <div key={update.id} style={styles.updateCard}>
-            <div style={{
-              ...styles.updateHeader,
-              ...(isMobile ? mobileStyles.updateHeader : {})
-            }}>
-              <div style={{
-                ...styles.leftHeader,
-                ...(isMobile ? mobileStyles.leftHeader : {})
-              }}>
-                <span style={styles.weekBadge}>Week {update.weekNumber}</span>
-                {update.priority && (
-                  <span style={{...styles.priorityBadge, backgroundColor: getPriorityColor(update.priority)}}>
-                    {update.priority} priority
-                  </span>
-                )}
-              </div>
-              <div style={styles.rightHeader}>
-                {isEditMode && (
-                  <>
-                    <button 
-                      onClick={() => handleEditClick(update)}
-                      style={styles.editButton}
-                      title="Edit update"
-                    >
-                      ✏️
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteClick(update.id)}
-                      style={styles.deleteButton}
-                      title="Delete update"
-                    >
-                      🗑️
-                    </button>
-                  </>
-                )}
-                <span style={{...styles.statusBadge, backgroundColor: getStatusColor(update.status)}}>
-                  {update.status}
-                </span>
-              </div>
-            </div>
-            
-            <h3 style={styles.updateTitle}>{update.title}</h3>
-            <p style={styles.updateDescription}>{update.description}</p>
-            
-            <div style={{
-              ...styles.updateFooter,
-              ...(isMobile ? mobileStyles.updateFooter : {})
-            }}>
-              <div style={{
-                ...styles.leftFooter,
-                ...(isMobile ? mobileStyles.leftFooter : {})
-              }}>
-                <span style={styles.categoryTag}>{update.category}</span>
-                {update.timeSpent && update.timeSpent > 0 && (
-                  <span style={styles.timeSpent}>⏱️ {update.timeSpent}h</span>
-                )}
-              </div>
-              <span style={styles.date}>{new Date(update.date).toLocaleDateString()}</span>
-            </div>
+        {updates.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p>No updates yet. Click "Add Update" to create your first build update!</p>
           </div>
-        ))}
+        ) : (
+          updates.map((update) => (
+            <div key={update.id} style={styles.updateCard}>
+              <div style={{
+                ...styles.updateHeader,
+                ...(isMobile ? mobileStyles.updateHeader : {})
+              }}>
+                <div style={{
+                  ...styles.leftHeader,
+                  ...(isMobile ? mobileStyles.leftHeader : {})
+                }}>
+                  <span style={styles.weekBadge}>Week {update.weekNumber}</span>
+                  {update.priority && (
+                    <span style={{...styles.priorityBadge, backgroundColor: getPriorityColor(update.priority)}}>
+                      {update.priority} priority
+                    </span>
+                  )}
+                </div>
+                <div style={styles.rightHeader}>
+                  {isEditMode && (
+                    <>
+                      <button 
+                        onClick={() => handleEditClick(update)}
+                        style={styles.editButton}
+                        title="Edit update"
+                        disabled={loading}
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteUpdate(update.id)}
+                        style={styles.deleteButton}
+                        title="Delete update"
+                        disabled={loading}
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                  <span style={{...styles.statusBadge, backgroundColor: getStatusColor(update.status)}}>
+                    {update.status}
+                  </span>
+                </div>
+              </div>
+              
+              <h3 style={styles.updateTitle}>{update.title}</h3>
+              <p style={styles.updateDescription}>{update.description}</p>
+              
+              <div style={{
+                ...styles.updateFooter,
+                ...(isMobile ? mobileStyles.updateFooter : {})
+              }}>
+                <div style={{
+                  ...styles.leftFooter,
+                  ...(isMobile ? mobileStyles.leftFooter : {})
+                }}>
+                  <span style={styles.categoryTag}>{update.category}</span>
+                  {update.timeSpent && update.timeSpent > 0 && (
+                    <span style={styles.timeSpent}>⏱️ {update.timeSpent}h</span>
+                  )}
+                </div>
+                <span style={styles.date}>{new Date(update.date).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
+
+      {/* Edit Mode Prompt */}
+      {!isEditMode && updates.length > 0 && (
+        <div style={styles.editModePrompt}>
+          <p>🔒 View only mode. Click "Enable Edit Mode" to add or edit updates.</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -395,6 +538,44 @@ const styles = {
     margin: '0 auto',
     padding: '20px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px',
+    textAlign: 'center' as const,
+  },
+  loadingSpinner: {
+    width: '50px',
+    height: '50px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #FF8C42',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '20px',
+  },
+  errorBanner: {
+    backgroundColor: '#f8d7da',
+    color: '#721c24',
+    padding: '12px 20px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap' as const,
+    gap: '10px',
+  },
+  retryButton: {
+    padding: '6px 16px',
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
   },
   header: {
     display: 'flex',
@@ -428,6 +609,23 @@ const styles = {
     fontSize: 'clamp(13px, 4vw, 14px)',
     fontWeight: '500',
     textAlign: 'center' as const,
+  },
+  editModePrompt: {
+    textAlign: 'center' as const,
+    marginTop: '30px',
+    padding: '15px',
+    backgroundColor: '#e9ecef',
+    borderRadius: '8px',
+    color: '#495057',
+    fontSize: '14px',
+  },
+  emptyState: {
+    textAlign: 'center' as const,
+    padding: '40px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '16px',
+    color: '#6c757d',
+    fontSize: '16px',
   },
   form: {
     display: 'flex',
@@ -496,6 +694,11 @@ const styles = {
     borderRadius: '8px',
     cursor: 'pointer',
     fontSize: 'clamp(14px, 4vw, 16px)',
+    transition: 'opacity 0.2s',
+    ':disabled': {
+      opacity: 0.5,
+      cursor: 'not-allowed',
+    },
   },
   cancelButton: {
     padding: '12px 24px',
@@ -518,12 +721,6 @@ const styles = {
     boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
     border: '1px solid #eee',
     transition: 'transform 0.2s',
-    ':active': {
-      transform: 'scale(0.99)',
-    },
-    '@media (max-width: 768px)': {
-      padding: '16px',
-    },
   },
   updateHeader: {
     display: 'flex',
@@ -572,6 +769,10 @@ const styles = {
     cursor: 'pointer',
     fontSize: '14px',
     transition: 'all 0.2s',
+    ':disabled': {
+      opacity: 0.5,
+      cursor: 'not-allowed',
+    },
   },
   deleteButton: {
     padding: '8px 12px',
@@ -581,6 +782,10 @@ const styles = {
     cursor: 'pointer',
     fontSize: '14px',
     transition: 'all 0.2s',
+    ':disabled': {
+      opacity: 0.5,
+      cursor: 'not-allowed',
+    },
   },
   updateTitle: {
     fontSize: 'clamp(16px, 4vw, 18px)',
@@ -628,5 +833,15 @@ const styles = {
     color: '#999'
   }
 };
+
+// Add global styles for animations
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style);
 
 export default BuildUpdates;
