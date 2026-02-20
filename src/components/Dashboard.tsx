@@ -85,12 +85,22 @@ const Dashboard: React.FC = () => {
         const updatesQuery = query(collection(db, 'buildUpdates'), orderBy('date', 'desc'), limit(50));
         const unsubscribeUpdates = onSnapshot(updatesQuery, 
           (snapshot) => {
-            const updatesData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-              date: doc.data().date.toDate()
-            })) as BuildUpdate[];
-            setUpdates(updatesData);
+            const updatesData: BuildUpdate[] = snapshot.docs.map(doc => {
+  const data = doc.data();
+
+  return {
+    id: doc.id,
+    weekNumber: data.weekNumber || 0,
+    title: data.title || "",
+    description: data.description || "",
+    category: data.category || "",
+    status: data.status || "",
+    author: data.author || "",
+    date: data.date?.toDate?.() || new Date()
+  };
+});
+
+setUpdates(updatesData);
           },
           () => {
             setError('Failed to load updates');
