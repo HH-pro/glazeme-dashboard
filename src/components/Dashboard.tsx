@@ -48,6 +48,58 @@ const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+ const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([
+    {
+      id: '1',
+      weekNumber: 1,
+      title: 'Initial Setup',
+      description: 'Set up project structure and dependencies',
+      category: 'development',
+      status: 'completed',
+      priority: 'high',
+      timeSpent: 4,
+      date: new Date('2024-03-01'),
+      branch: 'main',
+      completedBy: 'Hamza'
+    },
+    {
+      id: '2',
+      weekNumber: 2,
+      title: 'Authentication System',
+      description: 'Implement user authentication with JWT',
+      category: 'backend',
+      status: 'in-progress',
+      priority: 'high',
+      timeSpent: 6,
+      date: new Date('2024-03-08'),
+      branch: 'feature/auth',
+      commitHash: 'abc123def456'
+    }
+  ]);
+ const [isEditMode, setIsEditMode] = useState(true);
+
+  const handleAddUpdate = (update: Omit<BuildUpdate, 'id'>) => {
+    const newUpdate: BuildUpdate = {
+      ...update,
+      id: Date.now().toString() // Generate unique ID
+    };
+    setBuildUpdates([...buildUpdates, newUpdate]);
+    console.log('Added update:', newUpdate);
+  };
+
+  const handleEditUpdate = (id: string, updatedUpdate: Omit<BuildUpdate, 'id'>) => {
+    setBuildUpdates(buildUpdates.map(update => 
+      update.id === id 
+        ? { ...updatedUpdate, id } 
+        : update
+    ));
+    console.log('Edited update with id:', id);
+  };
+
+  const handleDeleteUpdate = (id: string) => {
+    setBuildUpdates(buildUpdates.filter(update => update.id !== id));
+    console.log('Deleted update with id:', id);
+  };
 
   const glazemeSpecs: GlazeMeSpecs = {
     name: "GlazeMe",
@@ -900,11 +952,12 @@ const Dashboard: React.FC = () => {
         <div style={styles.content}>
           {activeTab === 'updates' && (
             <BuildUpdates 
-              updates={filteredUpdates} 
-              onAddUpdate={addBuildUpdate}
-              isEditMode={isEditMode}
-              onEditAction={() => handleEditAction('addUpdate')}
-            />
+        updates={buildUpdates}
+        onAddUpdate={handleAddUpdate}
+        onEditUpdate={handleEditUpdate}
+        onDeleteUpdate={handleDeleteUpdate}
+        isEditMode={isEditMode}
+      />
           )}
           {activeTab === 'screens' && (
             <ScreenGallery 
