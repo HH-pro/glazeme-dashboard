@@ -74,6 +74,7 @@ const BuildUpdates: React.FC<Props> = ({
       onEditAction();
       return;
     }
+    console.log('Editing update:', update); // Debug log
     setEditingUpdate(update);
     setNewUpdate({
       weekNumber: update.weekNumber,
@@ -98,7 +99,12 @@ const BuildUpdates: React.FC<Props> = ({
     }
     
     if (window.confirm('Are you sure you want to delete this update?')) {
-      onDeleteUpdate?.(id);
+      console.log('Deleting update with id:', id); // Debug log
+      if (onDeleteUpdate) {
+        onDeleteUpdate(id);
+      } else {
+        console.error('onDeleteUpdate function is not provided');
+      }
     }
   };
 
@@ -106,11 +112,17 @@ const BuildUpdates: React.FC<Props> = ({
     e.preventDefault();
     
     if (editingUpdate) {
-      onEditUpdate?.(editingUpdate.id, {
-        ...newUpdate,
-        date: editingUpdate.date
-      });
+      console.log('Submitting edit for update:', editingUpdate.id); // Debug log
+      if (onEditUpdate) {
+        onEditUpdate(editingUpdate.id, {
+          ...newUpdate,
+          date: editingUpdate.date
+        });
+      } else {
+        console.error('onEditUpdate function is not provided');
+      }
     } else {
+      console.log('Adding new update'); // Debug log
       onAddUpdate({
         ...newUpdate,
         date: new Date()
@@ -395,18 +407,24 @@ const BuildUpdates: React.FC<Props> = ({
                 {isEditMode && (
                   <>
                     <button 
-                      onClick={() => handleEditClick(update)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditClick(update);
+                      }}
                       style={styles.editButton}
                       title="Edit update"
                     >
-                      ✏️
+                      ✏️ Edit
                     </button>
                     <button 
-                      onClick={() => handleDeleteClick(update.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(update.id);
+                      }}
                       style={styles.deleteButton}
                       title="Delete update"
                     >
-                      🗑️
+                      🗑️ Delete
                     </button>
                   </>
                 )}
@@ -629,28 +647,31 @@ const styles = {
     fontWeight: '500',
   },
   editButton: {
-    padding: '8px 12px',
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #dee2e6',
+    padding: '6px 12px',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '12px',
+    fontWeight: '500',
     transition: 'all 0.2s',
     ':hover': {
-      backgroundColor: '#e9ecef',
+      backgroundColor: '#0056b3',
     },
   },
   deleteButton: {
-    padding: '8px 12px',
-    backgroundColor: '#f8d7da',
-    border: '1px solid #f5c6cb',
+    padding: '6px 12px',
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '12px',
+    fontWeight: '500',
     transition: 'all 0.2s',
     ':hover': {
-      backgroundColor: '#dc3545',
-      color: 'white',
+      backgroundColor: '#c82333',
     },
   },
   updateTitle: {
