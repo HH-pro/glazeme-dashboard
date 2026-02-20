@@ -4,6 +4,22 @@
 export type UpdateCategory = 'development' | 'design' | 'ai-integration' | 'testing' | 'deployment' | 'backend' | 'security';
 export type UpdateStatus = 'completed' | 'in-progress' | 'planned' | 'blocked';
 export type UpdatePriority = 'high' | 'medium' | 'low';
+export interface ClientReview {
+  id: string;
+  updateId: string;
+  updateTitle: string;
+  clientName: string;
+  clientEmail: string;
+  rating?: number;
+  feedback: string;
+  feedbackType: 'general' | 'bug' | 'feature-request' | 'design' | 'content';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'pending' | 'approved' | 'changes-requested' | 'in-review';
+  attachments?: string[];
+  createdAt: Date;
+  reviewedAt?: Date;
+  tags?: string[];
+}
 
 export interface BuildUpdate {
   id: string; // Changed from string to number to match component usage
