@@ -10,8 +10,7 @@ import {
   query, 
   orderBy,
   where,
-  Timestamp,
-  getDoc
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
@@ -34,18 +33,18 @@ interface ClientReview {
   updateTitle: string;
   clientName: string;
   clientEmail: string;
-  rating?: number; // 1-5 stars
-  feedback: string; // Keep for backward compatibility
-  points: ReviewPoint[]; // New points system
+  rating?: number;
+  feedback: string;
+  points: ReviewPoint[];
   summary?: string;
   feedbackType: FeedbackType;
   priority: FeedbackPriority;
   status: ReviewStatus;
-  attachments?: string[]; // URLs to attached files
+  attachments?: string[];
   createdAt: Date;
   reviewedAt?: Date;
   tags?: string[];
-  timeToReview?: number; // in minutes
+  timeToReview?: number;
   isUrgent: boolean;
 }
 
@@ -59,7 +58,7 @@ interface BuildUpdate {
 }
 
 interface Props {
-  clientEmail?: string; // Optional: filter by client email
+  clientEmail?: string;
   showFilters?: boolean;
 }
 
@@ -77,14 +76,13 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
   const [expandedReview, setExpandedReview] = useState<string | null>(null);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [dateRange, setDateRange] = useState<{start: Date | null, end: Date | null}>({start: null, end: null});
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Mobile responsiveness
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isTablet, setIsTablet] = useState(window.innerWidth > 768 && window.innerWidth <= 1024);
 
-  // New review form state with points
+  // New review form state
   const [newReview, setNewReview] = useState<{
     updateId: string;
     updateTitle: string;
@@ -132,19 +130,16 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load data on mount
   useEffect(() => {
     fetchUpdates();
     fetchReviews();
   }, []);
 
-  // Show notification helper
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 5000);
   };
 
-  // Fetch all updates
   const fetchUpdates = async () => {
     try {
       const updatesRef = collection(db, 'buildUpdates');
@@ -173,7 +168,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     }
   };
 
-  // Fetch reviews
   const fetchReviews = async () => {
     try {
       setLoading(true);
@@ -214,7 +208,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     }
   };
 
-  // Add a point to the review
   const addPoint = () => {
     if (!currentPoint.text.trim()) {
       showNotification('error', 'Point text cannot be empty');
@@ -241,7 +234,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     });
   };
 
-  // Remove a point
   const removePoint = (pointId: string) => {
     setNewReview({
       ...newReview,
@@ -249,7 +241,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     });
   };
 
-  // Submit new review
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -262,7 +253,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
       setLoading(true);
       const reviewsRef = collection(db, 'clientReviews');
       
-      // Combine points into feedback text for backward compatibility
       const feedbackText = newReview.points.map(p => 
         `[${p.type.toUpperCase()}] ${p.text}${p.priority ? ` (${p.priority} priority)` : ''}`
       ).join('\n\n');
@@ -299,7 +289,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     }
   };
 
-  // Update review status (for admin use)
   const handleUpdateStatus = async (reviewId: string, status: ReviewStatus) => {
     try {
       const reviewRef = doc(db, 'clientReviews', reviewId);
@@ -319,7 +308,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     }
   };
 
-  // Toggle point resolution
   const togglePointResolution = (reviewId: string, pointId: string) => {
     setReviews(prev => prev.map(review => {
       if (review.id === reviewId && review.points) {
@@ -334,7 +322,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     }));
   };
 
-  // Delete review
   const handleDeleteReview = async (reviewId: string) => {
     if (!window.confirm('Are you sure you want to delete this review?')) return;
     
@@ -383,7 +370,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     }
   };
 
-  // Filter reviews based on status, priority, type, and search
   const filteredReviews = reviews.filter(review => {
     const matchesStatus = filterStatus === 'all' || review.status === filterStatus;
     const matchesPriority = filterPriority === 'all' || review.priority === filterPriority;
@@ -394,13 +380,9 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
       review.summary?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       review.points?.some(p => p.text.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesDateRange = (!dateRange.start || review.createdAt >= dateRange.start) &&
-                            (!dateRange.end || review.createdAt <= dateRange.end);
-    
-    return matchesStatus && matchesPriority && matchesType && matchesSearch && matchesDateRange;
+    return matchesStatus && matchesPriority && matchesType && matchesSearch;
   });
 
-  // Calculate statistics
   const reviewStats = {
     total: reviews.length,
     pending: reviews.filter(r => r.status === 'pending').length,
@@ -418,21 +400,21 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
 
   const getStatusColor = (status: ReviewStatus) => {
     switch(status) {
-      case 'approved': return '#28a745';
-      case 'changes-requested': return '#dc3545';
-      case 'in-review': return '#ffc107';
-      case 'pending': return '#6c757d';
-      default: return '#6c757d';
+      case 'approved': return '#10b981';
+      case 'changes-requested': return '#ef4444';
+      case 'in-review': return '#f59e0b';
+      case 'pending': return '#6b7280';
+      default: return '#6b7280';
     }
   };
 
   const getPriorityColor = (priority: FeedbackPriority) => {
     switch(priority) {
-      case 'critical': return '#dc3545';
-      case 'high': return '#ff8c42';
-      case 'medium': return '#ffc107';
-      case 'low': return '#28a745';
-      default: return '#6c757d';
+      case 'critical': return '#ef4444';
+      case 'high': return '#f97316';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#10b981';
+      default: return '#6b7280';
     }
   };
 
@@ -462,105 +444,345 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
     return '★'.repeat(rating) + '☆'.repeat(5 - rating);
   };
 
-  // Mobile styles
+  // Professional mobile styles
   const mobileStyles = {
     container: {
-      padding: '10px',
+      padding: '12px',
     },
     header: {
       flexDirection: 'column' as const,
       alignItems: 'stretch',
-      gap: '15px',
+      gap: '12px',
+      marginBottom: '20px',
     },
     headerTitle: {
-      textAlign: 'center' as const,
+      textAlign: 'left' as const,
+    },
+    sectionTitle: {
+      fontSize: '22px',
+      marginBottom: '4px',
+    },
+    subtitle: {
+      fontSize: '14px',
     },
     addButton: {
       width: '100%',
       padding: '14px',
+      fontSize: '15px',
+      borderRadius: '10px',
+      backgroundColor: '#f97316',
     },
     statsGrid: {
+      display: 'grid',
       gridTemplateColumns: 'repeat(2, 1fr)',
       gap: '10px',
+      marginBottom: '20px',
+    },
+    statCard: {
+      padding: '14px',
+      borderRadius: '12px',
+      backgroundColor: 'white',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    },
+    statValue: {
+      fontSize: '22px',
+      fontWeight: '600',
+    },
+    statLabel: {
+      fontSize: '12px',
+      color: '#6b7280',
+      marginTop: '4px',
+    },
+    mobileFilterToggle: {
+      width: '100%',
+      padding: '14px',
+      backgroundColor: '#f9fafb',
+      border: '1px solid #e5e7eb',
+      borderRadius: '10px',
+      fontSize: '14px',
+      fontWeight: '500',
+      color: '#374151',
+      marginBottom: '12px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '6px',
     },
     filters: {
+      display: 'flex',
       flexDirection: 'column' as const,
-      width: '100%',
       gap: '10px',
+      marginBottom: '20px',
+      padding: '16px',
+      backgroundColor: '#f9fafb',
+      borderRadius: '12px',
     },
     searchBox: {
       width: '100%',
     },
+    searchInput: {
+      width: '100%',
+      padding: '14px 16px',
+      fontSize: '15px',
+      borderRadius: '10px',
+      border: '1px solid #e5e7eb',
+    },
     filterSelect: {
       width: '100%',
-      padding: '12px',
+      padding: '14px 16px',
+      fontSize: '15px',
+      borderRadius: '10px',
+      border: '1px solid #e5e7eb',
+      backgroundColor: 'white',
     },
     viewToggle: {
-      width: '100%',
-      justifyContent: 'center',
+      display: 'flex',
+      gap: '8px',
+      marginTop: '4px',
+    },
+    viewButton: {
+      flex: 1,
+      padding: '12px',
+      fontSize: '14px',
+      borderRadius: '8px',
+      border: '1px solid #e5e7eb',
+      backgroundColor: 'white',
     },
     form: {
-      padding: '15px',
+      padding: '20px',
+      marginBottom: '24px',
+      borderRadius: '16px',
+      backgroundColor: '#f9fafb',
+      border: '2px solid #f97316',
+    },
+    formTitle: {
+      fontSize: '20px',
+      marginBottom: '20px',
+      fontWeight: '600',
     },
     formGrid: {
       gridTemplateColumns: '1fr',
-      gap: '10px',
+      gap: '12px',
+    },
+    formGroup: {
+      marginBottom: '16px',
+    },
+    label: {
+      fontSize: '14px',
+      fontWeight: '500',
+      marginBottom: '6px',
+      color: '#374151',
+    },
+    input: {
+      width: '100%',
+      padding: '14px',
+      fontSize: '15px',
+      borderRadius: '10px',
+      border: '1px solid #e5e7eb',
+    },
+    select: {
+      width: '100%',
+      padding: '14px',
+      fontSize: '15px',
+      borderRadius: '10px',
+      border: '1px solid #e5e7eb',
     },
     formRow: {
       flexDirection: 'column' as const,
-      gap: '10px',
+      gap: '12px',
+    },
+    ratingContainer: {
+      justifyContent: 'center',
+      padding: '8px 0',
+    },
+    starButton: {
+      fontSize: '28px',
+    },
+    pointsBuilder: {
+      padding: '16px',
+      borderRadius: '12px',
+    },
+    pointsTitle: {
+      fontSize: '16px',
+      marginBottom: '12px',
     },
     pointInputGroup: {
       flexDirection: 'column' as const,
-      gap: '8px',
+      gap: '10px',
     },
     pointTypeSelect: {
       width: '100%',
+      padding: '14px',
     },
     pointPrioritySelect: {
       width: '100%',
+      padding: '14px',
     },
     pointInput: {
       width: '100%',
+      padding: '14px',
     },
     addPointButton: {
       width: '100%',
+      padding: '14px',
+      fontSize: '15px',
+      backgroundColor: '#10b981',
     },
-    pointsGrid: {
+    pointsList: {
+      marginTop: '16px',
+    },
+    pointItem: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      padding: '12px',
+      gap: '8px',
+    },
+    pointText: {
+      width: 'calc(100% - 100px)',
+      fontSize: '14px',
+    },
+    formButtons: {
+      flexDirection: 'column' as const,
+      gap: '10px',
+    },
+    submitButton: {
+      width: '100%',
+      padding: '16px',
+      fontSize: '16px',
+    },
+    cancelButton: {
+      width: '100%',
+      padding: '16px',
+      fontSize: '16px',
+      backgroundColor: '#6b7280',
+    },
+    reviewsContainer: {
+      gap: '12px',
+    },
+    reviewsGrid: {
       gridTemplateColumns: '1fr',
+      gap: '12px',
     },
     reviewCard: {
-      padding: '15px',
+      padding: '20px',
+      borderRadius: '16px',
+      border: '1px solid #f0f0f0',
     },
     reviewHeader: {
       flexDirection: 'column' as const,
       alignItems: 'flex-start',
-      gap: '10px',
+      gap: '12px',
+    },
+    reviewTitle: {
+      fontSize: '17px',
+      fontWeight: '600',
+      marginBottom: '8px',
     },
     badgeContainer: {
-      flexWrap: 'wrap' as const,
+      gap: '6px',
+    },
+    statusBadge: {
+      padding: '6px 12px',
+      fontSize: '12px',
+      borderRadius: '20px',
+    },
+    priorityBadge: {
+      padding: '6px 12px',
+      fontSize: '12px',
+      borderRadius: '20px',
+    },
+    typeBadge: {
+      padding: '6px 12px',
+      fontSize: '12px',
+    },
+    urgentBadge: {
+      padding: '6px 12px',
+      fontSize: '12px',
     },
     reviewActions: {
       width: '100%',
       justifyContent: 'space-between',
+      marginTop: '4px',
+    },
+    expandButton: {
+      padding: '8px 16px',
+      fontSize: '13px',
+      borderRadius: '8px',
+    },
+    deleteButton: {
+      padding: '8px 16px',
+      fontSize: '13px',
+      borderRadius: '8px',
+    },
+    reviewDate: {
+      fontSize: '12px',
+      color: '#9ca3af',
+    },
+    summary: {
+      fontSize: '14px',
+      padding: '12px',
+      borderRadius: '10px',
+    },
+    stars: {
+      fontSize: '16px',
+    },
+    pointsDisplay: {
+      marginTop: '16px',
+    },
+    pointsDisplayTitle: {
+      fontSize: '15px',
+      marginBottom: '12px',
+    },
+    pointsGrid: {
+      gridTemplateColumns: '1fr',
+      gap: '8px',
+    },
+    displayPoint: {
+      padding: '14px',
+      borderRadius: '10px',
+    },
+    pointHeader: {
+      marginBottom: '8px',
+    },
+    pointPriorityBadge: {
+      padding: '4px 8px',
+      fontSize: '10px',
+    },
+    resolveButton: {
+      width: '100%',
+      padding: '10px',
+      fontSize: '13px',
+      marginTop: '10px',
+    },
+    showMoreButton: {
+      padding: '12px',
+      fontSize: '13px',
     },
     adminActions: {
       flexDirection: 'column' as const,
       gap: '8px',
+      marginTop: '16px',
+      paddingTop: '16px',
     },
     actionButton: {
       width: '100%',
+      padding: '14px',
+      fontSize: '14px',
+      borderRadius: '10px',
     },
-    pointHeader: {
-      flexWrap: 'wrap' as const,
+    emptyState: {
+      padding: '40px 20px',
+      fontSize: '15px',
     },
-    resolveButton: {
-      width: '100%',
-      marginTop: '5px',
+    loadingContainer: {
+      padding: '40px 20px',
+    },
+    loadingSpinner: {
+      width: '40px',
+      height: '40px',
     },
   };
 
-  // Tablet styles
   const tabletStyles = {
     statsGrid: {
       gridTemplateColumns: 'repeat(3, 1fr)',
@@ -582,9 +804,17 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
       {notification && (
         <div style={{
           ...styles.notification,
-          ...(isMobile ? { width: '90%', right: '5%', left: '5%' } : {}),
-          backgroundColor: notification.type === 'success' ? '#d4edda' : '#f8d7da',
-          color: notification.type === 'success' ? '#155724' : '#721c24',
+          ...(isMobile ? { 
+            width: 'calc(100% - 32px)',
+            left: '16px',
+            right: '16px',
+            top: '16px',
+            padding: '14px',
+            fontSize: '14px',
+          } : {}),
+          backgroundColor: notification.type === 'success' ? '#d1fae5' : '#fee2e2',
+          color: notification.type === 'success' ? '#065f46' : '#991b1b',
+          border: `1px solid ${notification.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
         }}>
           {notification.message}
         </div>
@@ -606,8 +836,14 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
         ...(isMobile ? mobileStyles.header : {})
       }}>
         <div style={isMobile ? mobileStyles.headerTitle : {}}>
-          <h2 style={styles.sectionTitle}>📝 Client Reviews</h2>
-          <p style={styles.subtitle}>Share structured feedback on our build progress</p>
+          <h2 style={{
+            ...styles.sectionTitle,
+            ...(isMobile ? mobileStyles.sectionTitle : {})
+          }}>📝 Client Reviews</h2>
+          <p style={{
+            ...styles.subtitle,
+            ...(isMobile ? mobileStyles.subtitle : {})
+          }}>Share structured feedback on our build progress</p>
         </div>
         <button 
           onClick={() => setShowReviewForm(!showReviewForm)}
@@ -624,31 +860,31 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
       <div style={{
         ...styles.statsGrid,
         ...(isMobile ? mobileStyles.statsGrid : {}),
-        ...(isTablet ? tabletStyles.statsGrid : {})
+        ...(isTablet && !isMobile ? tabletStyles.statsGrid : {})
       }}>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{reviewStats.total}</div>
-          <div style={styles.statLabel}>Total</div>
+        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.total}</div>
+          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Total</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{reviewStats.pending}</div>
-          <div style={styles.statLabel}>Pending</div>
+        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.pending}</div>
+          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Pending</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{reviewStats.urgent}</div>
-          <div style={styles.statLabel}>Urgent</div>
+        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.urgent}</div>
+          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Urgent</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{reviewStats.unresolvedPoints}</div>
-          <div style={styles.statLabel}>Open Points</div>
+        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.unresolvedPoints}</div>
+          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Open</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{reviewStats.averageRating.toFixed(1)}</div>
-          <div style={styles.statLabel}>Rating</div>
+        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.averageRating.toFixed(1)}</div>
+          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Rating</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{reviewStats.criticalIssues}</div>
-          <div style={styles.statLabel}>Critical</div>
+        <div style={isMobile ? mobileStyles.statCard : styles.statCard}>
+          <div style={isMobile ? mobileStyles.statValue : styles.statValue}>{reviewStats.criticalIssues}</div>
+          <div style={isMobile ? mobileStyles.statLabel : styles.statLabel}>Critical</div>
         </div>
       </div>
 
@@ -656,9 +892,10 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
       {isMobile && showFilters && (
         <button 
           onClick={() => setShowMobileFilters(!showMobileFilters)}
-          style={styles.mobileFilterToggle}
+          style={mobileStyles.mobileFilterToggle}
         >
-          {showMobileFilters ? '▲ Hide Filters' : '▼ Show Filters'}
+          <span>{showMobileFilters ? '▲' : '▼'}</span>
+          {showMobileFilters ? 'Hide Filters' : 'Show Filters'}
         </button>
       )}
 
@@ -674,7 +911,7 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
               placeholder="🔍 Search reviews..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={styles.searchInput}
+              style={isMobile ? mobileStyles.searchInput : styles.searchInput}
             />
           </div>
           
@@ -713,7 +950,6 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             <option value="design">Design</option>
             <option value="ux">UX</option>
             <option value="performance">Performance</option>
-            <option value="content">Content</option>
           </select>
 
           <div style={isMobile ? mobileStyles.viewToggle : styles.viewToggle}>
@@ -721,9 +957,10 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
               onClick={() => setViewMode('list')}
               style={{
                 ...styles.viewButton,
-                backgroundColor: viewMode === 'list' ? '#FF8C42' : '#f8f9fa',
-                color: viewMode === 'list' ? 'white' : '#666',
-                ...(isMobile ? { flex: 1 } : {})
+                ...(isMobile ? mobileStyles.viewButton : {}),
+                backgroundColor: viewMode === 'list' ? '#f97316' : '#ffffff',
+                color: viewMode === 'list' ? '#ffffff' : '#374151',
+                borderColor: viewMode === 'list' ? '#f97316' : '#e5e7eb',
               }}
             >
               📋 List
@@ -732,9 +969,10 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
               onClick={() => setViewMode('grid')}
               style={{
                 ...styles.viewButton,
-                backgroundColor: viewMode === 'grid' ? '#FF8C42' : '#f8f9fa',
-                color: viewMode === 'grid' ? 'white' : '#666',
-                ...(isMobile ? { flex: 1 } : {})
+                ...(isMobile ? mobileStyles.viewButton : {}),
+                backgroundColor: viewMode === 'grid' ? '#f97316' : '#ffffff',
+                color: viewMode === 'grid' ? '#ffffff' : '#374151',
+                borderColor: viewMode === 'grid' ? '#f97316' : '#e5e7eb',
               }}
             >
               📊 Grid
@@ -743,38 +981,40 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
         </div>
       )}
 
-      {/* Advanced Review Form with Points */}
+      {/* Review Form */}
       {showReviewForm && (
         <form onSubmit={handleSubmitReview} style={{
           ...styles.form,
           ...(isMobile ? mobileStyles.form : {})
         }}>
-          <h3 style={styles.formTitle}>Share Structured Feedback</h3>
+          <h3 style={isMobile ? mobileStyles.formTitle : styles.formTitle}>
+            Share Structured Feedback
+          </h3>
           
           <div style={{
             ...styles.formGrid,
             ...(isMobile ? mobileStyles.formGrid : {}),
-            ...(isTablet ? tabletStyles.formGrid : {})
+            ...(isTablet && !isMobile ? tabletStyles.formGrid : {})
           }}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Your Name *</label>
+            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
+              <label style={isMobile ? mobileStyles.label : styles.label}>Your Name *</label>
               <input
                 type="text"
                 value={newReview.clientName}
                 onChange={(e) => setNewReview({...newReview, clientName: e.target.value})}
-                style={styles.input}
+                style={isMobile ? mobileStyles.input : styles.input}
                 required
                 placeholder="Enter your name"
               />
             </div>
             
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Email *</label>
+            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
+              <label style={isMobile ? mobileStyles.label : styles.label}>Email *</label>
               <input
                 type="email"
                 value={newReview.clientEmail}
                 onChange={(e) => setNewReview({...newReview, clientEmail: e.target.value})}
-                style={styles.input}
+                style={isMobile ? mobileStyles.input : styles.input}
                 required
                 placeholder="Your email"
                 readOnly={!!clientEmail}
@@ -782,15 +1022,15 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             </div>
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Select Update *</label>
+          <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
+            <label style={isMobile ? mobileStyles.label : styles.label}>Select Update *</label>
             <select
               value={selectedUpdate}
               onChange={(e) => {
                 setSelectedUpdate(e.target.value);
                 handleUpdateSelect(e.target.value);
               }}
-              style={styles.select}
+              style={isMobile ? mobileStyles.select : styles.select}
               required
             >
               <option value="">Choose an update...</option>
@@ -806,12 +1046,12 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             ...styles.formRow,
             ...(isMobile ? mobileStyles.formRow : {})
           }}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Feedback Type</label>
+            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
+              <label style={isMobile ? mobileStyles.label : styles.label}>Feedback Type</label>
               <select
                 value={newReview.feedbackType}
                 onChange={(e) => setNewReview({...newReview, feedbackType: e.target.value as FeedbackType})}
-                style={styles.select}
+                style={isMobile ? mobileStyles.select : styles.select}
               >
                 <option value="general">💬 General</option>
                 <option value="bug">🐛 Bug</option>
@@ -822,12 +1062,12 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
               </select>
             </div>
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Overall Priority</label>
+            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
+              <label style={isMobile ? mobileStyles.label : styles.label}>Overall Priority</label>
               <select
                 value={newReview.priority}
                 onChange={(e) => setNewReview({...newReview, priority: e.target.value as FeedbackPriority})}
-                style={styles.select}
+                style={isMobile ? mobileStyles.select : styles.select}
               >
                 <option value="low">🔵 Low</option>
                 <option value="medium">🟡 Medium</option>
@@ -841,9 +1081,12 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             ...styles.formRow,
             ...(isMobile ? mobileStyles.formRow : {})
           }}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Rating</label>
-              <div style={styles.ratingContainer}>
+            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
+              <label style={isMobile ? mobileStyles.label : styles.label}>Rating</label>
+              <div style={{
+                ...styles.ratingContainer,
+                ...(isMobile ? mobileStyles.ratingContainer : {})
+              }}>
                 {[1, 2, 3, 4, 5].map(star => (
                   <button
                     key={star}
@@ -851,8 +1094,8 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                     onClick={() => setNewReview({...newReview, rating: star})}
                     style={{
                       ...styles.starButton,
-                      fontSize: isMobile ? '24px' : '30px',
-                      color: star <= (newReview.rating || 0) ? '#ffc107' : '#e4e5e9'
+                      ...(isMobile ? mobileStyles.starButton : {}),
+                      color: star <= (newReview.rating || 0) ? '#f59e0b' : '#d1d5db'
                     }}
                   >
                     ★
@@ -861,8 +1104,8 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
               </div>
             </div>
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
+            <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
+              <label style={isMobile ? mobileStyles.label : styles.label}>
                 <input
                   type="checkbox"
                   checked={newReview.isUrgent}
@@ -874,20 +1117,25 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             </div>
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Executive Summary (Optional)</label>
+          <div style={isMobile ? mobileStyles.formGroup : styles.formGroup}>
+            <label style={isMobile ? mobileStyles.label : styles.label}>Executive Summary</label>
             <input
               type="text"
               value={newReview.summary}
               onChange={(e) => setNewReview({...newReview, summary: e.target.value})}
-              style={styles.input}
+              style={isMobile ? mobileStyles.input : styles.input}
               placeholder="Brief summary of your feedback"
             />
           </div>
 
           {/* Points Builder */}
-          <div style={styles.pointsBuilder}>
-            <h4 style={styles.pointsTitle}>Add Feedback Points</h4>
+          <div style={{
+            ...styles.pointsBuilder,
+            ...(isMobile ? mobileStyles.pointsBuilder : {})
+          }}>
+            <h4 style={isMobile ? mobileStyles.pointsTitle : styles.pointsTitle}>
+              Add Feedback Points
+            </h4>
             
             <div style={{
               ...styles.pointInputGroup,
@@ -934,9 +1182,12 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
 
             {/* Points List */}
             {newReview.points.length > 0 && (
-              <div style={styles.pointsList}>
-                {newReview.points.map((point, index) => (
-                  <div key={point.id} style={styles.pointItem}>
+              <div style={isMobile ? mobileStyles.pointsList : styles.pointsList}>
+                {newReview.points.map((point) => (
+                  <div key={point.id} style={{
+                    ...styles.pointItem,
+                    ...(isMobile ? mobileStyles.pointItem : {})
+                  }}>
                     <span style={styles.pointIcon}>{getPointTypeIcon(point.type)}</span>
                     <span style={{
                       ...styles.pointPriority,
@@ -944,7 +1195,9 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                     }}>
                       {point.priority}
                     </span>
-                    <span style={styles.pointText}>{point.text}</span>
+                    <span style={isMobile ? mobileStyles.pointText : styles.pointText}>
+                      {point.text}
+                    </span>
                     <button
                       type="button"
                       onClick={() => removePoint(point.id)}
@@ -958,23 +1211,20 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
             )}
           </div>
 
-          <div style={styles.formButtons}>
+          <div style={{
+            ...styles.formButtons,
+            ...(isMobile ? mobileStyles.formButtons : {})
+          }}>
             <button 
               type="button" 
               onClick={() => setShowReviewForm(false)}
-              style={{
-                ...styles.cancelButton,
-                ...(isMobile ? { flex: 1 } : {})
-              }}
+              style={isMobile ? mobileStyles.cancelButton : styles.cancelButton}
             >
               Cancel
             </button>
             <button 
               type="submit" 
-              style={{
-                ...styles.submitButton,
-                ...(isMobile ? { flex: 1 } : {})
-              }}
+              style={isMobile ? mobileStyles.submitButton : styles.submitButton}
               disabled={loading || newReview.points.length === 0}
             >
               {loading ? 'Submitting...' : `Submit (${newReview.points.length} pts)`}
@@ -988,17 +1238,17 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
         ...styles.reviewsContainer,
         ...(viewMode === 'grid' ? {
           ...styles.reviewsGrid,
-          ...(isTablet ? tabletStyles.reviewsGrid : {})
+          ...(isTablet && !isMobile ? tabletStyles.reviewsGrid : {})
         } : {}),
-        ...(isMobile ? { gap: '10px' } : {})
+        ...(isMobile ? mobileStyles.reviewsContainer : {})
       }}>
         {loading && reviews.length === 0 ? (
-          <div style={styles.loadingContainer}>
-            <div style={styles.loadingSpinner}></div>
+          <div style={isMobile ? mobileStyles.loadingContainer : styles.loadingContainer}>
+            <div style={isMobile ? mobileStyles.loadingSpinner : styles.loadingSpinner}></div>
             <p>Loading reviews...</p>
           </div>
         ) : filteredReviews.length === 0 ? (
-          <div style={styles.emptyState}>
+          <div style={isMobile ? mobileStyles.emptyState : styles.emptyState}>
             <p>No reviews yet. Be the first to share your feedback!</p>
           </div>
         ) : (
@@ -1016,28 +1266,40 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                 ...(isMobile ? mobileStyles.reviewHeader : {})
               }}>
                 <div style={styles.reviewMeta}>
-                  <span style={styles.reviewTitle}>{review.updateTitle}</span>
+                  <span style={isMobile ? mobileStyles.reviewTitle : styles.reviewTitle}>
+                    {review.updateTitle}
+                  </span>
                   <div style={{
                     ...styles.badgeContainer,
                     ...(isMobile ? mobileStyles.badgeContainer : {})
                   }}>
                     <span style={{
                       ...styles.statusBadge,
+                      ...(isMobile ? mobileStyles.statusBadge : {}),
                       backgroundColor: getStatusColor(review.status)
                     }}>
                       {review.status}
                     </span>
                     <span style={{
                       ...styles.priorityBadge,
+                      ...(isMobile ? mobileStyles.priorityBadge : {}),
                       backgroundColor: getPriorityColor(review.priority)
                     }}>
                       {review.priority}
                     </span>
-                    <span style={styles.typeBadge}>
+                    <span style={{
+                      ...styles.typeBadge,
+                      ...(isMobile ? mobileStyles.typeBadge : {})
+                    }}>
                       {getFeedbackTypeIcon(review.feedbackType)}
                     </span>
                     {review.isUrgent && (
-                      <span style={styles.urgentBadge}>🚨</span>
+                      <span style={{
+                        ...styles.urgentBadge,
+                        ...(isMobile ? mobileStyles.urgentBadge : {})
+                      }}>
+                        🚨
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1048,13 +1310,13 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                 }}>
                   <button
                     onClick={() => setExpandedReview(expandedReview === review.id ? null : review.id)}
-                    style={styles.expandButton}
+                    style={isMobile ? mobileStyles.expandButton : styles.expandButton}
                   >
-                    {expandedReview === review.id ? '▼' : '▶'}
+                    {expandedReview === review.id ? '▼ Show Less' : '▶ Read More'}
                   </button>
                   <button
                     onClick={() => handleDeleteReview(review.id)}
-                    style={styles.deleteButton}
+                    style={isMobile ? mobileStyles.deleteButton : styles.deleteButton}
                     title="Delete review"
                   >
                     🗑️
@@ -1062,26 +1324,30 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                 </div>
               </div>
 
-              <div style={styles.reviewDate}>
+              <div style={isMobile ? mobileStyles.reviewDate : styles.reviewDate}>
                 {review.createdAt.toLocaleDateString()}
               </div>
 
               {review.summary && (
-                <div style={styles.summary}>
+                <div style={isMobile ? mobileStyles.summary : styles.summary}>
                   <strong>Summary:</strong> {review.summary}
                 </div>
               )}
 
               {review.rating && (
                 <div style={styles.rating}>
-                  <span style={styles.stars}>{renderStars(review.rating)}</span>
+                  <span style={isMobile ? mobileStyles.stars : styles.stars}>
+                    {renderStars(review.rating)}
+                  </span>
                 </div>
               )}
 
               {/* Points Display */}
               {review.points && review.points.length > 0 && (
-                <div style={styles.pointsDisplay}>
-                  <h4 style={styles.pointsDisplayTitle}>Points:</h4>
+                <div style={isMobile ? mobileStyles.pointsDisplay : styles.pointsDisplay}>
+                  <h4 style={isMobile ? mobileStyles.pointsDisplayTitle : styles.pointsDisplayTitle}>
+                    Feedback Points:
+                  </h4>
                   <div style={{
                     ...styles.pointsGrid,
                     ...(isMobile ? mobileStyles.pointsGrid : {})
@@ -1091,32 +1357,36 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                         key={point.id} 
                         style={{
                           ...styles.displayPoint,
+                          ...(isMobile ? mobileStyles.displayPoint : {}),
                           opacity: point.isResolved ? 0.6 : 1,
-                          backgroundColor: point.isResolved ? '#f8f9fa' : 'white'
+                          backgroundColor: point.isResolved ? '#f9fafb' : '#ffffff'
                         }}
                       >
-                        <div style={styles.pointHeader}>
+                        <div style={isMobile ? mobileStyles.pointHeader : styles.pointHeader}>
                           <span style={styles.pointIcon}>{getPointTypeIcon(point.type)}</span>
                           {point.priority && (
                             <span style={{
                               ...styles.pointPriorityBadge,
+                              ...(isMobile ? mobileStyles.pointPriorityBadge : {}),
                               backgroundColor: getPriorityColor(point.priority)
                             }}>
                               {point.priority}
                             </span>
                           )}
                         </div>
-                        <p style={styles.pointText}>{point.text}</p>
+                        <p style={isMobile ? mobileStyles.pointText : styles.pointText}>
+                          {point.text}
+                        </p>
                         {!clientEmail && (
                           <button
                             onClick={() => togglePointResolution(review.id, point.id)}
                             style={{
                               ...styles.resolveButton,
                               ...(isMobile ? mobileStyles.resolveButton : {}),
-                              backgroundColor: point.isResolved ? '#28a745' : '#6c757d'
+                              backgroundColor: point.isResolved ? '#10b981' : '#6b7280'
                             }}
                           >
-                            {point.isResolved ? '✓' : '○'}
+                            {point.isResolved ? '✓ Resolved' : '○ Mark Resolved'}
                           </button>
                         )}
                       </div>
@@ -1124,9 +1394,9 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                     {review.points.length > 2 && expandedReview !== review.id && (
                       <button
                         onClick={() => setExpandedReview(review.id)}
-                        style={styles.showMoreButton}
+                        style={isMobile ? mobileStyles.showMoreButton : styles.showMoreButton}
                       >
-                        +{review.points.length - 2} more
+                        +{review.points.length - 2} more points
                       </button>
                     )}
                   </div>
@@ -1143,17 +1413,18 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                     onClick={() => handleUpdateStatus(review.id, 'in-review')}
                     style={{
                       ...styles.actionButton,
-                      ...(isMobile ? mobileStyles.actionButton : {})
+                      ...(isMobile ? mobileStyles.actionButton : {}),
+                      backgroundColor: '#f59e0b'
                     }}
                   >
-                   🔍 Review
+                   🔍 In Review
                   </button>
                   <button
                     onClick={() => handleUpdateStatus(review.id, 'approved')}
                     style={{
                       ...styles.actionButton,
-                      backgroundColor: '#28a745',
-                      ...(isMobile ? mobileStyles.actionButton : {})
+                      ...(isMobile ? mobileStyles.actionButton : {}),
+                      backgroundColor: '#10b981'
                     }}
                   >
                     ✅ Approve
@@ -1162,8 +1433,8 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
                     onClick={() => handleUpdateStatus(review.id, 'changes-requested')}
                     style={{
                       ...styles.actionButton,
-                      backgroundColor: '#dc3545',
-                      ...(isMobile ? mobileStyles.actionButton : {})
+                      ...(isMobile ? mobileStyles.actionButton : {}),
+                      backgroundColor: '#ef4444'
                     }}
                   >
                     🔄 Changes
@@ -1175,7 +1446,7 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
         )}
       </div>
 
-      {/* Add global styles for animations and mobile optimizations */}
+      {/* Global Styles */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -1196,11 +1467,29 @@ const ClientReview: React.FC<Props> = ({ clientEmail, showFilters = true }) => {
         /* Mobile optimizations */
         @media (max-width: 768px) {
           input, select, textarea, button {
-            font-size: 16px !important; /* Prevents zoom on iOS */
+            font-size: 16px !important;
           }
           
-          .review-card {
-            margin-bottom: 10px;
+          /* Prevent zoom on iOS */
+          input[type="text"],
+          input[type="email"],
+          input[type="number"],
+          select,
+          textarea {
+            font-size: 16px !important;
+          }
+          
+          /* Smooth scrolling */
+          * {
+            -webkit-overflow-scrolling: touch;
+          }
+          
+          /* Better tap targets */
+          button, 
+          [role="button"],
+          input[type="submit"],
+          input[type="button"] {
+            min-height: 44px;
           }
         }
       `}</style>
@@ -1212,281 +1501,298 @@ const styles = {
   container: {
     maxWidth: '1400px',
     margin: '0 auto',
-    padding: '20px',
+    padding: '24px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     position: 'relative' as const,
   },
   notification: {
     position: 'fixed' as const,
-    top: '20px',
-    right: '20px',
-    padding: '12px 24px',
-    borderRadius: '8px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    top: '24px',
+    right: '24px',
+    padding: '16px 24px',
+    borderRadius: '12px',
+    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
     zIndex: 1000,
     animation: 'slideIn 0.3s ease-out',
+    fontSize: '15px',
+    fontWeight: '500',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px',
+    marginBottom: '32px',
     flexWrap: 'wrap' as const,
-    gap: '15px',
+    gap: '20px',
   },
   sectionTitle: {
-    fontSize: 'clamp(20px, 5vw, 28px)',
+    fontSize: '28px',
     margin: 0,
-    color: '#333',
-    fontWeight: 600,
+    color: '#111827',
+    fontWeight: '600',
+    letterSpacing: '-0.02em',
   },
   subtitle: {
-    margin: '5px 0 0',
-    color: '#666',
-    fontSize: 'clamp(13px, 4vw, 16px)',
+    margin: '6px 0 0',
+    color: '#6b7280',
+    fontSize: '16px',
   },
   addButton: {
-    padding: '12px 24px',
-    backgroundColor: '#FF8C42',
+    padding: '12px 28px',
+    backgroundColor: '#f97316',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '12px',
     cursor: 'pointer',
-    fontSize: 'clamp(14px, 4vw, 16px)',
-    fontWeight: 500,
+    fontSize: '16px',
+    fontWeight: '500',
     transition: 'all 0.2s',
+    boxShadow: '0 4px 6px -1px rgba(249,115,22,0.2)',
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-    gap: '15px',
-    marginBottom: '25px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+    gap: '16px',
+    marginBottom: '32px',
   },
   statCard: {
     backgroundColor: 'white',
-    padding: '15px',
-    borderRadius: '12px',
+    padding: '20px',
+    borderRadius: '16px',
     textAlign: 'center' as const,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+    border: '1px solid #f3f4f6',
   },
   statValue: {
-    fontSize: 'clamp(20px, 4vw, 28px)',
-    fontWeight: 'bold' as const,
-    color: '#FF8C42',
-    marginBottom: '5px',
+    fontSize: '28px',
+    fontWeight: '600',
+    color: '#f97316',
+    marginBottom: '4px',
   },
   statLabel: {
-    fontSize: 'clamp(11px, 3vw, 13px)',
-    color: '#666',
-  },
-  mobileFilterToggle: {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #dee2e6',
-    borderRadius: '8px',
-    marginBottom: '15px',
-    fontSize: '14px',
-    color: '#495057',
-    cursor: 'pointer',
+    fontSize: '13px',
+    color: '#6b7280',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
   },
   filters: {
     display: 'flex',
-    gap: '15px',
-    marginBottom: '30px',
+    gap: '16px',
+    marginBottom: '32px',
     flexWrap: 'wrap' as const,
     alignItems: 'center',
   },
   searchBox: {
     flex: 1,
-    minWidth: '250px',
+    minWidth: '280px',
   },
   searchInput: {
     width: '100%',
-    padding: '12px 16px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: 'clamp(14px, 4vw, 15px)',
+    padding: '12px 20px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    fontSize: '15px',
     outline: 'none',
+    transition: 'all 0.2s',
+    backgroundColor: '#f9fafb',
   },
   filterSelect: {
-    padding: '12px 24px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: 'clamp(14px, 4vw, 15px)',
-    backgroundColor: 'white',
+    padding: '12px 28px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    fontSize: '15px',
+    backgroundColor: '#f9fafb',
     cursor: 'pointer',
     outline: 'none',
-    minWidth: '140px',
+    minWidth: '150px',
+    color: '#374151',
   },
   viewToggle: {
     display: 'flex',
-    gap: '5px',
+    gap: '8px',
   },
   viewButton: {
-    padding: '10px 16px',
-    border: '1px solid #ddd',
-    borderRadius: '6px',
+    padding: '12px 24px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
     cursor: 'pointer',
-    fontSize: 'clamp(12px, 3.5vw, 14px)',
+    fontSize: '14px',
+    fontWeight: '500',
     transition: 'all 0.2s',
+    backgroundColor: '#ffffff',
+    color: '#374151',
   },
   errorBanner: {
-    backgroundColor: '#f8d7da',
-    color: '#721c24',
-    padding: '12px 20px',
-    borderRadius: '8px',
-    marginBottom: '20px',
+    backgroundColor: '#fee2e2',
+    color: '#991b1b',
+    padding: '14px 20px',
+    borderRadius: '12px',
+    marginBottom: '24px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     flexWrap: 'wrap' as const,
-    gap: '10px',
+    gap: '12px',
+    border: '1px solid #fecaca',
   },
   retryButton: {
-    padding: '6px 16px',
-    backgroundColor: '#dc3545',
+    padding: '8px 20px',
+    backgroundColor: '#ef4444',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '14px',
+    fontWeight: '500',
   },
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '60px',
+    padding: '80px',
+    backgroundColor: 'white',
+    borderRadius: '24px',
   },
   loadingSpinner: {
-    width: '50px',
-    height: '50px',
-    border: '4px solid #f3f3f3',
-    borderTop: '4px solid #FF8C42',
+    width: '48px',
+    height: '48px',
+    border: '3px solid #f3f4f6',
+    borderTop: '3px solid #f97316',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     marginBottom: '20px',
   },
   form: {
-    backgroundColor: '#f8f9fa',
-    padding: '30px',
-    borderRadius: '16px',
-    marginBottom: '30px',
-    border: '2px solid #FF8C42',
+    backgroundColor: '#f9fafb',
+    padding: '32px',
+    borderRadius: '24px',
+    marginBottom: '32px',
+    border: '2px solid #f97316',
+    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
   },
   formTitle: {
-    margin: '0 0 20px 0',
-    fontSize: 'clamp(18px, 4vw, 20px)',
-    color: '#333',
+    margin: '0 0 24px 0',
+    fontSize: '22px',
+    color: '#111827',
+    fontWeight: '600',
   },
   formGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '15px',
-    marginBottom: '15px',
+    gap: '20px',
+    marginBottom: '20px',
+  },
+  formGroup: {
+    marginBottom: '20px',
+  },
+  label: {
+    display: 'block',
+    marginBottom: '8px',
+    fontWeight: '500',
+    color: '#374151',
+    fontSize: '14px',
+  },
+  input: {
+    width: '100%',
+    padding: '14px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    fontSize: '15px',
+    outline: 'none',
+    transition: 'all 0.2s',
+    backgroundColor: '#ffffff',
+    boxSizing: 'border-box' as const,
+  },
+  select: {
+    width: '100%',
+    padding: '14px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    fontSize: '15px',
+    backgroundColor: '#ffffff',
+    outline: 'none',
+    color: '#374151',
+  },
+  checkbox: {
+    marginRight: '10px',
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
   },
   formRow: {
     display: 'flex',
     gap: '20px',
     alignItems: 'center',
-    marginBottom: '15px',
+    marginBottom: '20px',
     flexWrap: 'wrap' as const,
-  },
-  formGroup: {
-    flex: 1,
-    minWidth: '200px',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '5px',
-    fontWeight: 500,
-    color: '#555',
-    fontSize: 'clamp(13px, 3.5vw, 14px)',
-  },
-  input: {
-    width: '100%',
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: 'clamp(14px, 4vw, 15px)',
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-  },
-  select: {
-    width: '100%',
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: 'clamp(14px, 4vw, 15px)',
-    backgroundColor: 'white',
-    outline: 'none',
-  },
-  checkbox: {
-    marginRight: '8px',
-    width: '18px',
-    height: '18px',
   },
   ratingContainer: {
     display: 'flex',
-    gap: '5px',
-    flexWrap: 'wrap' as const,
+    gap: '8px',
+    alignItems: 'center',
   },
   starButton: {
     background: 'none',
     border: 'none',
-    fontSize: '30px',
+    fontSize: '32px',
     cursor: 'pointer',
-    padding: '0',
+    padding: '0 4px',
+    transition: 'transform 0.1s',
   },
   pointsBuilder: {
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '12px',
-    marginBottom: '20px',
-    border: '1px solid #dee2e6',
+    backgroundColor: '#ffffff',
+    padding: '24px',
+    borderRadius: '16px',
+    marginBottom: '24px',
+    border: '1px solid #e5e7eb',
   },
   pointsTitle: {
-    margin: '0 0 15px 0',
-    fontSize: 'clamp(15px, 4vw, 16px)',
-    color: '#333',
+    margin: '0 0 16px 0',
+    fontSize: '16px',
+    color: '#111827',
+    fontWeight: '600',
   },
   pointInputGroup: {
     display: 'flex',
-    gap: '10px',
+    gap: '12px',
     marginBottom: '20px',
     flexWrap: 'wrap' as const,
   },
   pointTypeSelect: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '6px',
-    fontSize: 'clamp(13px, 3.5vw, 14px)',
-    minWidth: '100px',
+    padding: '12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '10px',
+    fontSize: '14px',
+    minWidth: '110px',
+    backgroundColor: '#f9fafb',
   },
   pointPrioritySelect: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '6px',
-    fontSize: 'clamp(13px, 3.5vw, 14px)',
-    minWidth: '100px',
+    padding: '12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '10px',
+    fontSize: '14px',
+    minWidth: '110px',
+    backgroundColor: '#f9fafb',
   },
   pointInput: {
     flex: 1,
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '6px',
-    fontSize: 'clamp(13px, 3.5vw, 14px)',
-    minWidth: '200px',
+    padding: '12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '10px',
+    fontSize: '14px',
+    minWidth: '240px',
+    backgroundColor: '#f9fafb',
   },
   addPointButton: {
-    padding: '10px 20px',
-    backgroundColor: '#28a745',
+    padding: '12px 24px',
+    backgroundColor: '#10b981',
     color: 'white',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: '10px',
     cursor: 'pointer',
-    fontSize: 'clamp(13px, 3.5vw, 14px)',
+    fontSize: '14px',
+    fontWeight: '500',
     whiteSpace: 'nowrap' as const,
   },
   pointsList: {
@@ -1497,26 +1803,27 @@ const styles = {
   pointItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '10px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    flexWrap: 'wrap' as const,
+    gap: '12px',
+    padding: '14px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '12px',
+    border: '1px solid #e5e7eb',
   },
   pointIcon: {
     fontSize: '18px',
   },
   pointPriority: {
-    padding: '2px 8px',
-    borderRadius: '12px',
+    padding: '4px 12px',
+    borderRadius: '20px',
     fontSize: '11px',
     color: 'white',
     textTransform: 'uppercase' as const,
+    fontWeight: '600',
   },
   pointText: {
     flex: 1,
-    fontSize: 'clamp(13px, 3.5vw, 14px)',
-    color: '#333',
+    fontSize: '14px',
+    color: '#374151',
     wordBreak: 'break-word' as const,
   },
   removePointButton: {
@@ -1524,34 +1831,37 @@ const styles = {
     border: 'none',
     fontSize: '16px',
     cursor: 'pointer',
-    color: '#dc3545',
-    padding: '5px',
+    color: '#ef4444',
+    padding: '6px',
+    borderRadius: '6px',
   },
   formButtons: {
     display: 'flex',
-    gap: '15px',
+    gap: '16px',
     justifyContent: 'flex-end',
-    marginTop: '20px',
-    flexWrap: 'wrap' as const,
+    marginTop: '24px',
   },
   submitButton: {
-    padding: '12px 30px',
-    backgroundColor: '#28a745',
+    padding: '14px 36px',
+    backgroundColor: '#10b981',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '12px',
     cursor: 'pointer',
-    fontSize: 'clamp(14px, 4vw, 16px)',
-    fontWeight: 500,
+    fontSize: '16px',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    boxShadow: '0 4px 6px -1px rgba(16,185,129,0.2)',
   },
   cancelButton: {
-    padding: '12px 30px',
-    backgroundColor: '#6c757d',
+    padding: '14px 36px',
+    backgroundColor: '#6b7280',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '12px',
     cursor: 'pointer',
-    fontSize: 'clamp(14px, 4vw, 16px)',
+    fontSize: '16px',
+    transition: 'all 0.2s',
   },
   reviewsContainer: {
     display: 'flex',
@@ -1561,15 +1871,16 @@ const styles = {
   },
   reviewsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '20px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+    gap: '24px',
   },
   reviewCard: {
     backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '25px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    border: '1px solid #eee',
+    borderRadius: '20px',
+    padding: '28px',
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+    border: '1px solid #f3f4f6',
+    transition: 'transform 0.2s',
   },
   gridCard: {
     height: 'fit-content',
@@ -1578,53 +1889,55 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: '10px',
+    marginBottom: '12px',
     flexWrap: 'wrap' as const,
-    gap: '10px',
+    gap: '12px',
   },
   reviewMeta: {
     flex: 1,
   },
   reviewTitle: {
-    fontSize: 'clamp(15px, 4vw, 18px)',
-    fontWeight: 600,
-    color: '#333',
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#111827',
     marginBottom: '8px',
     display: 'block',
-    wordBreak: 'break-word' as const,
+    lineHeight: '1.4',
   },
   badgeContainer: {
     display: 'flex',
-    gap: '5px',
+    gap: '6px',
     flexWrap: 'wrap' as const,
   },
   statusBadge: {
-    padding: '4px 8px',
-    borderRadius: '12px',
-    fontSize: 'clamp(10px, 2.5vw, 11px)',
-    fontWeight: 500,
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '500',
     color: 'white',
   },
   priorityBadge: {
-    padding: '4px 8px',
-    borderRadius: '12px',
-    fontSize: 'clamp(10px, 2.5vw, 11px)',
-    fontWeight: 500,
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '500',
     color: 'white',
   },
   typeBadge: {
-    padding: '4px 8px',
-    backgroundColor: '#e9ecef',
-    borderRadius: '12px',
-    fontSize: 'clamp(10px, 2.5vw, 11px)',
-    color: '#495057',
+    padding: '4px 12px',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '20px',
+    fontSize: '12px',
+    color: '#4b5563',
+    fontWeight: '500',
   },
   urgentBadge: {
-    padding: '4px 8px',
-    backgroundColor: '#dc3545',
-    borderRadius: '12px',
-    fontSize: 'clamp(10px, 2.5vw, 11px)',
+    padding: '4px 12px',
+    backgroundColor: '#ef4444',
+    borderRadius: '20px',
+    fontSize: '12px',
     color: 'white',
+    fontWeight: '500',
   },
   reviewActions: {
     display: 'flex',
@@ -1632,123 +1945,134 @@ const styles = {
     alignItems: 'center',
   },
   expandButton: {
-    padding: '6px 12px',
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #dee2e6',
-    borderRadius: '6px',
+    padding: '8px 16px',
+    backgroundColor: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '10px',
     cursor: 'pointer',
-    fontSize: 'clamp(12px, 3vw, 13px)',
-    color: '#495057',
+    fontSize: '13px',
+    color: '#4b5563',
+    transition: 'all 0.2s',
+    fontWeight: '500',
   },
   deleteButton: {
-    padding: '6px 12px',
-    backgroundColor: '#f8d7da',
-    border: '1px solid #f5c6cb',
-    borderRadius: '6px',
+    padding: '8px 16px',
+    backgroundColor: '#fee2e2',
+    border: '1px solid #fecaca',
+    borderRadius: '10px',
     cursor: 'pointer',
-    fontSize: 'clamp(12px, 3vw, 14px)',
+    fontSize: '14px',
+    color: '#ef4444',
+    transition: 'all 0.2s',
   },
   reviewDate: {
-    color: '#999',
-    fontSize: 'clamp(11px, 3vw, 12px)',
-    marginBottom: '10px',
+    color: '#9ca3af',
+    fontSize: '13px',
+    marginBottom: '12px',
   },
   summary: {
-    backgroundColor: '#f8f9fa',
-    padding: '10px',
-    borderRadius: '8px',
-    marginBottom: '10px',
-    fontSize: 'clamp(12px, 3.5vw, 14px)',
-    color: '#666',
+    backgroundColor: '#f9fafb',
+    padding: '14px',
+    borderRadius: '12px',
+    marginBottom: '16px',
+    fontSize: '14px',
+    color: '#4b5563',
+    border: '1px solid #f3f4f6',
   },
   rating: {
-    marginBottom: '15px',
+    marginBottom: '16px',
   },
   stars: {
-    color: '#ffc107',
-    fontSize: 'clamp(16px, 4vw, 18px)',
+    color: '#f59e0b',
+    fontSize: '18px',
     letterSpacing: '2px',
   },
   pointsDisplay: {
-    marginTop: '15px',
+    marginTop: '20px',
   },
   pointsDisplayTitle: {
-    fontSize: 'clamp(13px, 3.5vw, 14px)',
-    fontWeight: 600,
-    color: '#333',
-    marginBottom: '10px',
+    fontSize: '15px',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '12px',
   },
   pointsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '10px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+    gap: '12px',
   },
   displayPoint: {
-    padding: '12px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    border: '1px solid #eee',
+    padding: '16px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '12px',
+    border: '1px solid #f3f4f6',
     position: 'relative' as const,
   },
   pointHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    marginBottom: '8px',
-    flexWrap: 'wrap' as const,
+    marginBottom: '10px',
   },
   pointPriorityBadge: {
-    padding: '2px 6px',
-    borderRadius: '10px',
-    fontSize: '9px',
+    padding: '4px 10px',
+    borderRadius: '16px',
+    fontSize: '10px',
     color: 'white',
     textTransform: 'uppercase' as const,
+    fontWeight: '600',
   },
   resolveButton: {
-    padding: '4px 8px',
+    padding: '6px 12px',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     fontSize: '12px',
     color: 'white',
     cursor: 'pointer',
-    marginTop: '8px',
+    marginTop: '10px',
     width: '100%',
+    fontWeight: '500',
+    transition: 'opacity 0.2s',
   },
   showMoreButton: {
-    padding: '8px',
-    backgroundColor: '#f8f9fa',
-    border: '1px dashed #dee2e6',
-    borderRadius: '8px',
-    fontSize: '12px',
-    color: '#666',
+    padding: '12px',
+    backgroundColor: '#f9fafb',
+    border: '1px dashed #d1d5db',
+    borderRadius: '12px',
+    fontSize: '13px',
+    color: '#6b7280',
     cursor: 'pointer',
     textAlign: 'center' as const,
+    fontWeight: '500',
+    transition: 'all 0.2s',
   },
   adminActions: {
     display: 'flex',
-    gap: '8px',
-    marginTop: '15px',
-    paddingTop: '15px',
-    borderTop: '1px solid #eee',
+    gap: '10px',
+    marginTop: '20px',
+    paddingTop: '20px',
+    borderTop: '1px solid #f3f4f6',
     flexWrap: 'wrap' as const,
   },
   actionButton: {
-    padding: '8px 12px',
-    backgroundColor: '#ffc107',
-    color: '#333',
+    padding: '10px 16px',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: '10px',
     cursor: 'pointer',
-    fontSize: 'clamp(11px, 3vw, 12px)',
+    fontSize: '13px',
+    fontWeight: '500',
+    color: 'white',
     flex: 1,
+    transition: 'opacity 0.2s',
   },
   emptyState: {
     textAlign: 'center' as const,
-    padding: '40px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '16px',
-    color: '#6c757d',
-    fontSize: 'clamp(14px, 4vw, 16px)',
+    padding: '60px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '24px',
+    color: '#6b7280',
+    fontSize: '16px',
+    border: '2px dashed #e5e7eb',
   },
 };
 
