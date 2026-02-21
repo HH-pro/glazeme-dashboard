@@ -12,18 +12,25 @@ import {
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
-// Types
+// --- Types ---
+
 type ReviewStatus = 'pending' | 'in-review' | 'resolved';
 type FeedbackType = 'bug' | 'feature' | 'design' | 'general' | 'idea';
 
-interface ReviewPoint {
+// New Types for Requirements Form
+type RequirementSection = 'core' | 'monetization' | 'design' | 'technical' | 'privacy' | 'timeline' | 'bonus';
+
+interface RequirementSpec {
   id: string;
-  text: string;
-  type: 'praise' | 'issue' | 'suggestion' | 'question';
-  isResolved: boolean;
+  category: string;
+  label: string;
+  type: 'select' | 'text' | 'multiselect' | 'boolean';
+  options?: string[];
+  value: string | string[] | boolean;
+  required?: boolean;
 }
 
-interface ClientReview {
+interface ClientReviewData {
   id: string;
   updateId: string;
   updateTitle: string;
@@ -34,6 +41,15 @@ interface ClientReview {
   createdAt: Date;
   updatedAt?: Date;
   resolvedAt?: Date;
+  // New Field for Requirements
+  requirements?: Record<RequirementSection, RequirementSpec[]>;
+}
+
+interface ReviewPoint {
+  id: string;
+  text: string;
+  type: 'praise' | 'issue' | 'suggestion' | 'question';
+  isResolved: boolean;
 }
 
 interface BuildUpdate {
@@ -46,7 +62,7 @@ interface Props {
   isAdmin?: boolean;
 }
 
-// Icons
+// --- Icons ---
 const Icons = {
   Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
   X: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
@@ -63,19 +79,90 @@ const Icons = {
   ThumbsUp: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>,
   AlertCircle: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
   HelpCircle: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>,
-  MoreVertical: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+  MoreVertical: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>,
+  ChevronDown: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>,
+  FileText: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
 };
 
+// --- Initial Requirements Data ---
+const initialRequirements: Record<RequirementSection, RequirementSpec[]> = {
+  core: [
+    { id: 'daily_gen', category: 'AI Generation', label: 'Daily Generations', type: 'select', options: ['5', '10', 'Unlimited', 'Cooldown-based'], value: '', required: true },
+    { id: 'cooldown', category: 'AI Generation', label: 'Generation Cooldown', type: 'select', options: ['None', '30 sec', '1 min'], value: '' },
+    { id: 'text_len', category: 'AI Generation', label: 'Max Text Length', type: 'select', options: ['100', '280', '500'], value: '' },
+    { id: 'ai_model', category: 'AI Generation', label: 'AI Model Preference', type: 'select', options: ['GPT-4o mini', 'Claude 3 Haiku', 'Mix'], value: '' },
+    { id: 'free_styles', category: 'Styles', label: 'Free Styles Count', type: 'select', options: ['3 basic', '6', 'All 10+'], value: '' },
+    { id: 'intensity', category: 'Styles', label: 'Intensity Levels', type: 'select', options: ['3', '4', '5'], value: '' },
+    { id: 'glow_chat', category: 'Features', label: 'Glow Chat Daily Limit', type: 'select', options: ['3', '5', 'Unlimited'], value: '' },
+    { id: 'custom_prompts', category: 'Features', label: 'Custom User Prompts', type: 'boolean', value: false },
+    { id: 'kbd_gen', category: 'Keyboard', label: 'Keyboard AI Generation', type: 'boolean', value: false },
+    { id: 'kbd_recents', category: 'Keyboard', label: 'Recent Glazes in Keyboard', type: 'select', options: ['5', '10', '20'], value: '' },
+    { id: 'kbd_favs', category: 'Keyboard', label: 'Favorites in Keyboard', type: 'boolean', value: false },
+  ],
+  monetization: [
+    { id: 'ads', category: 'Ads', label: 'Ad Type', type: 'select', options: ['None', 'Rewarded only', 'Banner', 'Native'], value: '' },
+    { id: 'tip_jar', category: 'Revenue', label: 'Tip Jar / "Buy Coffee"', type: 'boolean', value: false },
+    { id: 'watermark', category: 'Branding', label: 'Share Watermark', type: 'select', options: ['None', 'via GlazeMe', 'Custom'], value: '' },
+    { id: 'pro_launch', category: 'Pro Version', label: 'Target Pro Launch', type: 'select', options: ['3mo', '6mo', '1yr', 'Undecided'], value: '' },
+    { id: 'pro_price', category: 'Pro Version', label: 'Pro Price Point', type: 'select', options: ['$2.99/mo', '$4.99/mo', '$29.99/yr', '$49.99 lifetime'], value: '' },
+  ],
+  design: [
+    { id: 'app_name', category: 'Branding', label: 'App Name Final', type: 'text', value: 'GlazeMe' },
+    { id: 'colors', category: 'Visual', label: 'Exact Colors', type: 'text', value: 'Yellow #FFE66D → Orange #FF8C42' },
+    { id: 'dark_mode', category: 'Visual', label: 'Dark Mode Support', type: 'select', options: ['Yes', 'No', 'Future'], value: '' },
+    { id: 'icon_style', category: 'Visual', label: 'App Icon Style', type: 'select', options: ['Text', 'Mascot', 'Abstract'], value: '' },
+    { id: 'lottie', category: 'Animations', label: 'Lottie Animations', type: 'select', options: ['Heavy', 'Medium', 'Minimal', 'None'], value: '' },
+    { id: 'haptics', category: 'UX', label: 'Haptic Feedback', type: 'select', options: ['Full', 'Basic', 'None'], value: '' },
+  ],
+  technical: [
+    { id: 'ios_min', category: 'Platform', label: 'Minimum iOS Version', type: 'select', options: ['15', '16', '17', '18'], value: '' },
+    { id: 'ipad', category: 'Platform', label: 'iPad Support', type: 'select', options: ['Yes', 'No', 'Future'], value: '' },
+    { id: 'offline', category: 'Performance', label: 'Offline Mode', type: 'select', options: ['Yes', 'No'], value: '' },
+    { id: 'app_size', category: 'Performance', label: 'App Size Target', type: 'select', options: ['<50MB', '<100MB', 'No limit'], value: '' },
+    { id: 'icloud', category: 'Data', label: 'iCloud Sync', type: 'select', options: ['Auto', 'Optional', 'None'], value: '' },
+  ],
+  privacy: [
+    { id: 'analytics', category: 'Data', label: 'Analytics Provider', type: 'select', options: ['Firebase', 'Mixpanel', 'None'], value: '' },
+    { id: 'crash_report', category: 'Data', label: 'Crash Reporting', type: 'select', options: ['Firebase Crashlytics', 'Sentry', 'None'], value: '' },
+    { id: 'age_rating', category: 'Compliance', label: 'Age Rating', type: 'select', options: ['4+', '9+', '12+', '17+'], value: '' },
+  ],
+  timeline: [
+    { id: 'mvp_date', category: 'Dev', label: 'MVP Deadline', type: 'text', value: '' },
+    { id: 'beta', category: 'Dev', label: 'Beta Testing', type: 'select', options: ['TestFlight', 'None'], value: '' },
+    { id: 'maintenance', category: 'Post-Launch', label: 'Maintenance Period', type: 'select', options: ['3mo', '6mo', '1yr included'], value: '' },
+  ],
+  bonus: [
+    { id: 'widgets', category: 'iOS Features', label: 'Widgets (iOS 14+)', type: 'boolean', value: false },
+    { id: 'siri', category: 'iOS Features', label: 'Siri Shortcuts', type: 'boolean', value: false },
+    { id: 'watch', category: 'iOS Features', label: 'Apple Watch App', type: 'boolean', value: false },
+    { id: 'dynamic_island', category: 'iOS Features', label: 'Dynamic Island Support', type: 'boolean', value: false },
+  ]
+};
+
+const sectionTitles: Record<RequirementSection, string> = {
+  core: '🎯 Core Features (Free Tier)',
+  monetization: '💰 Monetization & Ads',
+  design: '🎨 Design & Branding',
+  technical: '📱 Technical Specs',
+  privacy: '🔐 Privacy & Legal',
+  timeline: '⏰ Timeline & Deliverables',
+  bonus: '🌟 Bonus Features'
+};
+
+// --- Main Component ---
+
 const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
-  const [reviews, setReviews] = useState<ClientReview[]>([]);
+  // Existing State
+  const [reviews, setReviews] = useState<ClientReviewData[]>([]);
   const [updates, setUpdates] = useState<BuildUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingReview, setEditingReview] = useState<ClientReview | null>(null);
+  const [editingReview, setEditingReview] = useState<ClientReviewData | null>(null);
   const [filterStatus, setFilterStatus] = useState<ReviewStatus | 'all'>('all');
   const [filterType, setFilterType] = useState<FeedbackType | 'all'>('all');
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   
+  // Form State
   const [newReview, setNewReview] = useState({
     updateId: '',
     feedback: '',
@@ -86,6 +173,18 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
   const [currentPoint, setCurrentPoint] = useState({
     text: '',
     type: 'suggestion' as 'praise' | 'issue' | 'suggestion' | 'question'
+  });
+
+  // Requirements Form State
+  const [requirements, setRequirements] = useState<Record<RequirementSection, RequirementSpec[]>>(JSON.parse(JSON.stringify(initialRequirements)));
+  const [expandedSections, setExpandedSections] = useState<Record<RequirementSection, boolean>>({
+    core: true, // Start with first one open
+    monetization: false,
+    design: false,
+    technical: false,
+    privacy: false,
+    timeline: false,
+    bonus: false
   });
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
@@ -101,7 +200,6 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     fetchReviews();
   }, []);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (activeMenu && !(e.target as Element).closest('.review-actions')) {
@@ -111,6 +209,8 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, [activeMenu]);
+
+  // --- Data Fetching ---
 
   const fetchUpdates = async () => {
     try {
@@ -139,7 +239,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate(),
         updatedAt: doc.data().updatedAt?.toDate()
-      })) as ClientReview[];
+      })) as ClientReviewData[];
       setReviews(fetchedReviews);
     } catch (err) {
       console.error('Error fetching reviews:', err);
@@ -148,21 +248,47 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     }
   };
 
+  // --- Handlers ---
+
+  const handleRequirementChange = (section: RequirementSection, id: string, value: any) => {
+    setRequirements(prev => ({
+      ...prev,
+      [section]: prev[section].map(item => 
+        item.id === id ? { ...item, value } : item
+      )
+    }));
+  };
+
+  const toggleSection = (section: RequirementSection) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const calculateProgress = () => {
+    let total = 0;
+    let filled = 0;
+    Object.values(requirements).forEach(section => {
+      section.forEach(item => {
+        total++;
+        if (item.type === 'boolean' ? true : item.value !== '' && item.value !== false) {
+          filled++;
+        }
+      });
+    });
+    return Math.round((filled / total) * 100);
+  };
+
   const handleAddPoint = () => {
     if (!currentPoint.text.trim()) return;
-    
     const point: ReviewPoint = {
       id: Date.now().toString(),
       text: currentPoint.text.trim(),
       type: currentPoint.type,
       isResolved: false
     };
-
-    setNewReview(prev => ({
-      ...prev,
-      points: [...prev.points, point]
-    }));
-
+    setNewReview(prev => ({ ...prev, points: [...prev.points, point] }));
     setCurrentPoint({ text: '', type: 'suggestion' });
   };
 
@@ -188,11 +314,11 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
         points: newReview.points,
         type: newReview.type,
         status: 'pending' as ReviewStatus,
-        createdAt: Timestamp.now()
+        createdAt: Timestamp.now(),
+        requirements: requirements // Save the requirements checklist
       };
 
       await addDoc(collection(db, 'clientReviews'), reviewData);
-      
       resetForm();
       fetchReviews();
     } catch (err) {
@@ -209,14 +335,13 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     try {
       setLoading(true);
       const reviewRef = doc(db, 'clientReviews', editingReview.id);
-      
       await updateDoc(reviewRef, {
         feedback: newReview.feedback.trim(),
         points: newReview.points,
         type: newReview.type,
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
+        requirements: requirements // Update requirements too
       });
-
       resetForm();
       fetchReviews();
     } catch (err) {
@@ -226,7 +351,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     }
   };
 
-  const startEditing = (review: ClientReview) => {
+  const startEditing = (review: ClientReviewData) => {
     setEditingReview(review);
     setNewReview({
       updateId: review.updateId,
@@ -234,14 +359,19 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
       type: review.type,
       points: review.points || []
     });
+    // Load existing requirements if available
+    if (review.requirements) {
+      setRequirements(review.requirements);
+    } else {
+      setRequirements(JSON.parse(JSON.stringify(initialRequirements)));
+    }
     setShowForm(true);
     setActiveMenu(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (reviewId: string) => {
-    if (!window.confirm('Are you sure you want to delete this feedback? This action cannot be undone.')) return;
-    
+    if (!window.confirm('Are you sure?')) return;
     try {
       setLoading(true);
       await deleteDoc(doc(db, 'clientReviews', reviewId));
@@ -249,7 +379,6 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
       fetchReviews();
     } catch (err) {
       console.error('Error deleting review:', err);
-      alert('Failed to delete feedback. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -272,14 +401,11 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     try {
       const review = reviews.find(r => r.id === reviewId);
       if (!review) return;
-
       const updatedPoints = review.points.map(p => 
         p.id === pointId ? { ...p, isResolved: !p.isResolved } : p
       );
-
       const reviewRef = doc(db, 'clientReviews', reviewId);
       await updateDoc(reviewRef, { points: updatedPoints });
-      
       fetchReviews();
     } catch (err) {
       console.error('Error toggling point:', err);
@@ -287,13 +413,9 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
   };
 
   const resetForm = () => {
-    setNewReview({
-      updateId: '',
-      feedback: '',
-      type: 'general',
-      points: []
-    });
+    setNewReview({ updateId: '', feedback: '', type: 'general', points: [] });
     setCurrentPoint({ text: '', type: 'suggestion' });
+    setRequirements(JSON.parse(JSON.stringify(initialRequirements)));
     setShowForm(false);
     setEditingReview(null);
   };
@@ -302,6 +424,8 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     e.stopPropagation();
     setActiveMenu(activeMenu === reviewId ? null : reviewId);
   };
+
+  // --- Render Helpers ---
 
   const filteredReviews = reviews.filter(review => {
     const matchesStatus = filterStatus === 'all' || review.status === filterStatus;
@@ -314,9 +438,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
     pending: reviews.filter(r => r.status === 'pending').length,
     resolved: reviews.filter(r => r.status === 'resolved').length,
     totalPoints: reviews.reduce((acc, r) => acc + (r.points?.length || 0), 0),
-    resolvedPoints: reviews.reduce((acc, r) => 
-      acc + (r.points?.filter(p => p.isResolved).length || 0), 0
-    )
+    resolvedPoints: reviews.reduce((acc, r) => acc + (r.points?.filter(p => p.isResolved).length || 0), 0)
   };
 
   const typeConfig = {
@@ -466,6 +588,99 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
             />
           </div>
 
+          {/* --- REQUIREMENTS CHECKLIST SECTION --- */}
+          <div className="requirements-section">
+            <div className="requirements-header">
+              <div>
+                <label style={{marginBottom: '4px', display: 'block'}}>📋 Project Requirements Checklist</label>
+                <p className="points-hint">Help us define the scope by filling out the details below.</p>
+              </div>
+              <div className="progress-badge">
+                {calculateProgress()}% Complete
+              </div>
+            </div>
+
+            <div className="progress-bar-container">
+              <div 
+                className="progress-bar-fill" 
+                style={{ width: `${calculateProgress()}%` }}
+              ></div>
+            </div>
+
+            <div className="requirements-accordion">
+              {(Object.keys(requirements) as RequirementSection[]).map((sectionKey) => (
+                <div key={sectionKey} className="req-section">
+                  <button 
+                    type="button"
+                    className="req-section-header"
+                    onClick={() => toggleSection(sectionKey)}
+                  >
+                    <span>{sectionTitles[sectionKey]}</span>
+                    <span className={`chevron ${expandedSections[sectionKey] ? 'open' : ''}`}>
+                      <Icons.ChevronDown />
+                    </span>
+                  </button>
+                  
+                  {expandedSections[sectionKey] && (
+                    <div className="req-section-content">
+                      {requirements[sectionKey].map((field) => (
+                        <div key={field.id} className="req-field">
+                          <label className="req-label">
+                            {field.label}
+                            {field.required && <span className="required-star">*</span>}
+                          </label>
+                          
+                          {field.type === 'select' && (
+                            <select
+                              value={field.value as string}
+                              onChange={(e) => handleRequirementChange(sectionKey, field.id, e.target.value)}
+                              className="req-input"
+                            >
+                              <option value="">Select...</option>
+                              {field.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          )}
+
+                          {field.type === 'text' && (
+                            <input
+                              type="text"
+                              value={field.value as string}
+                              onChange={(e) => handleRequirementChange(sectionKey, field.id, e.target.value)}
+                              className="req-input"
+                              placeholder="Type answer here..."
+                            />
+                          )}
+
+                          {field.type === 'boolean' && (
+                            <div className="boolean-toggle">
+                              <button
+                                type="button"
+                                className={`toggle-btn ${field.value === true ? 'active-yes' : ''}`}
+                                onClick={() => handleRequirementChange(sectionKey, field.id, true)}
+                              >
+                                Yes
+                              </button>
+                              <button
+                                type="button"
+                                className={`toggle-btn ${field.value === false ? 'active-no' : ''}`}
+                                onClick={() => handleRequirementChange(sectionKey, field.id, false)}
+                              >
+                                No
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* --- END REQUIREMENTS SECTION --- */}
+
           {/* Points/Ideas Section */}
           <div className="points-section">
             <label>Detailed Points / Ideas</label>
@@ -598,6 +813,21 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
                   <h4 className="review-title">{review.updateTitle}</h4>
                   <p className="review-text">{review.feedback}</p>
                   
+                  {/* Display Requirements Summary if exists */}
+                  {review.requirements && (
+                    <div className="requirements-summary">
+                      <h5><Icons.FileText /> Requirements Confirmed</h5>
+                      <div className="req-tags">
+                        {Object.values(review.requirements).flat().filter(r => r.value !== '' && r.value !== false).slice(0, 5).map(r => (
+                          <span key={r.id} className="req-tag">{r.label}: {typeof r.value === 'boolean' ? (r.value ? 'Yes' : 'No') : r.value}</span>
+                        ))}
+                        {Object.values(review.requirements).flat().filter(r => r.value !== '' && r.value !== false).length > 5 && (
+                          <span className="req-tag more">+{Object.values(review.requirements).flat().filter(r => r.value !== '' && r.value !== false).length - 5} more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Display Points */}
                   {review.points && review.points.length > 0 && (
                     <div className="review-points">
@@ -659,6 +889,7 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
       </div>
 
       <style>{`
+        /* --- Existing Styles (Preserved) --- */
         .client-reviews {
           --primary: #f97316;
           --primary-light: #fff7ed;
@@ -1143,29 +1374,12 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
           background: var(--gray-50);
         }
 
-        .menu-item.edit {
-          color: #2563eb;
-        }
-
-        .menu-item.edit:hover {
-          background: #eff6ff;
-        }
-
-        .menu-item.resolve {
-          color: #059669;
-        }
-
-        .menu-item.resolve:hover {
-          background: #ecfdf5;
-        }
-
-        .menu-item.delete {
-          color: #ef4444;
-        }
-
-        .menu-item.delete:hover {
-          background: #fef2f2;
-        }
+        .menu-item.edit { color: #2563eb; }
+        .menu-item.edit:hover { background: #eff6ff; }
+        .menu-item.resolve { color: #059669; }
+        .menu-item.resolve:hover { background: #ecfdf5; }
+        .menu-item.delete { color: #ef4444; }
+        .menu-item.delete:hover { background: #fef2f2; }
 
         .review-title {
           margin: 0 0 12px;
@@ -1310,55 +1524,224 @@ const ClientReview: React.FC<Props> = ({ isAdmin = false }) => {
           to { transform: rotate(360deg); }
         }
 
+        /* --- NEW REQUIREMENTS FORM STYLES --- */
+        .requirements-section {
+          background: white;
+          border: 1px solid var(--gray-200);
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 24px;
+        }
+
+        .requirements-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 16px;
+        }
+
+        .progress-badge {
+          background: var(--primary);
+          color: white;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .progress-bar-container {
+          width: 100%;
+          height: 6px;
+          background: var(--gray-200);
+          border-radius: 3px;
+          margin-bottom: 24px;
+          overflow: hidden;
+        }
+
+        .progress-bar-fill {
+          height: 100%;
+          background: var(--primary);
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+
+        .requirements-accordion {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .req-section {
+          border: 1px solid var(--gray-200);
+          border-radius: 12px;
+          overflow: hidden;
+        }
+
+        .req-section-header {
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px;
+          background: var(--gray-50);
+          border: none;
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--gray-900);
+          cursor: pointer;
+          text-align: left;
+        }
+
+        .req-section-header:hover {
+          background: var(--gray-100);
+        }
+
+        .chevron {
+          transition: transform 0.2s;
+          color: var(--gray-400);
+        }
+
+        .chevron.open {
+          transform: rotate(180deg);
+        }
+
+        .req-section-content {
+          padding: 20px;
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 20px;
+          background: white;
+        }
+
+        .req-field {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .req-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--gray-700);
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .required-star {
+          color: #ef4444;
+        }
+
+        .req-input {
+          padding: 10px 12px;
+          border: 1px solid var(--gray-200);
+          border-radius: 8px;
+          font-size: 14px;
+          outline: none;
+          transition: all 0.2s;
+          width: 100%;
+        }
+
+        .req-input:focus {
+          border-color: var(--primary);
+          box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .boolean-toggle {
+          display: flex;
+          gap: 8px;
+        }
+
+        .toggle-btn {
+          flex: 1;
+          padding: 10px;
+          border: 1px solid var(--gray-200);
+          background: white;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--gray-600);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .toggle-btn:hover {
+          background: var(--gray-50);
+        }
+
+        .toggle-btn.active-yes {
+          background: #ecfdf5;
+          border-color: #059669;
+          color: #059669;
+          font-weight: 600;
+        }
+
+        .toggle-btn.active-no {
+          background: #fef2f2;
+          border-color: #ef4444;
+          color: #ef4444;
+          font-weight: 600;
+        }
+
+        /* Requirements Summary in Review Card */
+        .requirements-summary {
+          background: #f0f9ff;
+          border: 1px solid #bae6fd;
+          border-radius: 10px;
+          padding: 12px 16px;
+          margin-bottom: 16px;
+        }
+
+        .requirements-summary h5 {
+          margin: 0 0 8px;
+          font-size: 13px;
+          color: #0369a1;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .req-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .req-tag {
+          background: white;
+          border: 1px solid #7dd3fc;
+          color: #0c4a6e;
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .req-tag.more {
+          background: #e0f2fe;
+          border-color: transparent;
+        }
+
         @media (max-width: 640px) {
-          .client-reviews {
-            padding: 16px;
-          }
-
-          .reviews-header {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          .btn-primary {
-            width: 100%;
-            justify-content: center;
-          }
-
-          .type-buttons {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-          }
-
-          .point-input-row {
-            flex-wrap: wrap;
-          }
-
-          .point-input-row input {
-            width: 100%;
-            order: -1;
-          }
-
-          .form-actions {
-            flex-direction: column;
-          }
-
-          .form-actions button {
-            width: 100%;
-          }
-
-          .points-grid {
+          .client-reviews { padding: 16px; }
+          .reviews-header { flex-direction: column; align-items: stretch; }
+          .btn-primary { width: 100%; justify-content: center; }
+          .type-buttons { display: grid; grid-template-columns: repeat(2, 1fr); }
+          .point-input-row { flex-wrap: wrap; }
+          .point-input-row input { width: 100%; order: -1; }
+          .form-actions { flex-direction: column; }
+          .form-actions button { width: 100%; }
+          .points-grid { grid-template-columns: 1fr; }
+          .review-header-row { flex-wrap: wrap; }
+          .action-menu { right: -10px; left: auto; min-width: 160px; }
+          
+          .req-section-content {
             grid-template-columns: 1fr;
           }
-
-          .review-header-row {
-            flex-wrap: wrap;
-          }
-
-          .action-menu {
-            right: -10px;
-            left: auto;
-            min-width: 160px;
+          
+          .requirements-header {
+            flex-direction: column;
+            gap: 12px;
           }
         }
       `}</style>
