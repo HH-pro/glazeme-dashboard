@@ -70,7 +70,7 @@ const DynamicIsland: React.FC = () => (
   </div>
 );
 
-const iPhoneFrame: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const IPhoneFrame: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="iphone-17">
     <div className="titanium-frame"></div>
     <div className="action-button"></div>
@@ -662,7 +662,8 @@ const App: React.FC = () => {
                 ? 5
                 : 6}
             </div>
-            <iPhoneFrame>
+           <IPhoneFrame>
+  
               {currentScreen === 'splash' && <SplashScreen />}
               {currentScreen === 'home' && (
                 <HomeScreen
@@ -692,7 +693,8 @@ const App: React.FC = () => {
                   onSave={handleSaveGlaze}
                 />
               )}
-            </iPhoneFrame>
+           </IPhoneFrame>
+
             <div className="screen-info">
               <div className="screen-name">
                 {currentScreen === 'splash' && 'Splash Screen'}
