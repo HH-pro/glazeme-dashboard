@@ -294,8 +294,8 @@ const Dashboard: React.FC = () => {
         return (
           <div className="demo-container">
             <div className="demo-header">
-              <h2>GlazeMe App Preview</h2>
-              <p>Interactive demo showing all 10 screens of the GlazeMe iPhone app with titanium finish and Dynamic Island integration.</p>
+              <h2 className="demo-title">GlazeMe App Preview</h2>
+              <p className="demo-description">Interactive demo showing all 10 screens of the GlazeMe iPhone app with titanium finish and Dynamic Island integration.</p>
               <div className="demo-controls">
                 <select 
                   value={selectedDemoScreen} 
@@ -322,15 +322,17 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
             </div>
-            <GlazeMeDemo 
-              variant={selectedDemoScreen === 0 ? 'full' : 'screens-only'}
-              showHeader={selectedDemoScreen === 0}
-              showFeatures={selectedDemoScreen === 0}
-              showCTA={selectedDemoScreen === 0}
-              selectedScreen={selectedDemoScreen !== 0 ? selectedDemoScreen : undefined}
-              embedded={selectedDemoScreen !== 0}
-              onScreenSelect={(screenNumber) => setSelectedDemoScreen(screenNumber)}
-            />
+            <div className="demo-content">
+              <GlazeMeDemo 
+                variant={selectedDemoScreen === 0 ? 'full' : 'screens-only'}
+                showHeader={selectedDemoScreen === 0}
+                showFeatures={selectedDemoScreen === 0}
+                showCTA={selectedDemoScreen === 0}
+                selectedScreen={selectedDemoScreen !== 0 ? selectedDemoScreen : undefined}
+                embedded={selectedDemoScreen !== 0}
+                onScreenSelect={(screenNumber) => setSelectedDemoScreen(screenNumber)}
+              />
+            </div>
           </div>
         );
       default: 
@@ -617,20 +619,23 @@ const Dashboard: React.FC = () => {
         .demo-container {
           width: 100%;
           min-height: 500px;
+          display: flex;
+          flex-direction: column;
         }
 
         .demo-header {
           margin-bottom: var(--space-6);
+          width: 100%;
         }
 
-        .demo-header h2 {
+        .demo-title {
           font-size: 24px;
           font-weight: 700;
           color: var(--gray-900);
           margin-bottom: var(--space-2);
         }
 
-        .demo-header p {
+        .demo-description {
           color: var(--gray-600);
           font-size: 14px;
           margin-bottom: var(--space-4);
@@ -693,25 +698,33 @@ const Dashboard: React.FC = () => {
           transform: translateY(0);
         }
 
+        .demo-content {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
         /* Mobile Responsive Demo Styles */
         @media (max-width: 639px) {
           .demo-container {
             min-height: auto;
-            padding: var(--space-2);
+            padding: 0;
           }
 
           .demo-header {
             margin-bottom: var(--space-4);
           }
 
-          .demo-header h2 {
+          .demo-title {
             font-size: 20px;
             margin-bottom: var(--space-1);
+            padding: 0 var(--space-2);
           }
 
-          .demo-header p {
+          .demo-description {
             font-size: 13px;
             margin-bottom: var(--space-3);
+            padding: 0 var(--space-2);
           }
 
           .demo-controls {
@@ -720,6 +733,9 @@ const Dashboard: React.FC = () => {
             gap: var(--space-3);
             padding: var(--space-3);
             margin-bottom: var(--space-4);
+            margin-left: var(--space-2);
+            margin-right: var(--space-2);
+            width: calc(100% - var(--space-4));
           }
 
           .demo-select {
@@ -734,18 +750,18 @@ const Dashboard: React.FC = () => {
             font-size: 14px;
           }
 
-          /* Adjust GlazeMeDemo component for mobile */
-          .demo-container .glazemedemo-container {
-            padding: var(--space-2);
+          .demo-content {
+            padding: 0;
+            width: 100%;
           }
         }
 
         @media (min-width: 640px) and (max-width: 1023px) {
-          .demo-header h2 {
+          .demo-title {
             font-size: 22px;
           }
 
-          .demo-header p {
+          .demo-description {
             font-size: 14px;
           }
 
@@ -774,11 +790,11 @@ const Dashboard: React.FC = () => {
             margin-bottom: var(--space-3);
           }
 
-          .demo-header h2 {
+          .demo-title {
             font-size: 18px;
           }
 
-          .demo-header p {
+          .demo-description {
             font-size: 12px;
             margin-bottom: var(--space-2);
           }
