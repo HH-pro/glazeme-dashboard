@@ -711,9 +711,10 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
   const [time, setTime] = useState("");
   const windowWidth = useWindowWidth();
 
-  // Responsive phone scale
+  // Responsive phone scale with improved mobile handling
   const getPhoneScale = () => {
-    if (embedded) return 0.5; // Fixed smaller scale for embedded view
+    if (embedded) return 0.45; // Smaller scale for embedded view on mobile
+    if (windowWidth < 380) return 0.45;
     if (windowWidth < 480) return 0.52;
     if (windowWidth < 640) return 0.62;
     if (windowWidth < 900) return 0.72;
@@ -774,7 +775,7 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
 
   const screensToShow = getScreensToShow();
 
-  // Embedded view (single screen preview)
+  // Embedded view (single screen preview) with improved mobile responsiveness
   if (embedded && selectedScreen) {
     const screen = screens.find(s => s.number === selectedScreen);
     if (!screen) return null;
@@ -782,17 +783,19 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
     return (
       <div className={className} style={{
         background: "linear-gradient(135deg,#0f0f23 0%,#1a1a2e 50%,#16213e 100%)",
-        padding: '20px',
+        padding: isMobile ? '12px' : '20px',
         borderRadius: '16px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '500px',
+        minHeight: isMobile ? '400px' : '500px',
+        width: '100%',
+        overflow: 'hidden',
         ...style
       }}>
         <ScreenCard 
           {...screen} 
-          scale={phoneScale}
+          scale={isMobile ? 0.4 : 0.5}
           embedded={true}
         >
           <screen.Screen time={time} />
@@ -805,12 +808,23 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
     <div className={className} style={{
       fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
       background: "linear-gradient(135deg,#0f0f23 0%,#1a1a2e 50%,#16213e 100%)",
-      minHeight: "100vh", color: "white", overflowX: "hidden",
+      minHeight: "100vh", 
+      color: "white", 
+      overflowX: "hidden",
+      width: '100%',
       ...style
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        * { 
+          box-sizing: border-box; 
+          margin: 0; 
+          padding: 0; 
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Animation Keyframes */
         @keyframes glow-pulse { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.2);opacity:.8} }
         @keyframes sparkle-float { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-10px) rotate(10deg)} }
         @keyframes spin { to{transform:rotate(360deg)} }
@@ -824,83 +838,244 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
         @keyframes float-ambient { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(50px,-50px) scale(1.1)} 66%{transform:translate(-30px,30px) scale(.9)} }
         @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.5} }
         @keyframes modal-up { from{transform:translateY(100%)} to{transform:translateY(0)} }
-        ::-webkit-scrollbar { display: none; }
+        
+        ::-webkit-scrollbar { 
+          display: none; 
+        }
 
+        /* Phone Scroll Container - Mobile Optimized */
         .phones-scroll {
           display: flex;
           overflow-x: auto;
-          gap: 32px;
-          padding: 40px 24px 160px;
+          gap: 16px;
+          padding: 20px 16px 120px;
           scroll-snap-type: x mandatory;
           -webkit-overflow-scrolling: touch;
           scrollbar-width: none;
+          width: 100%;
         }
-        .phones-scroll::-webkit-scrollbar { display: none; }
+
+        .phones-scroll::-webkit-scrollbar { 
+          display: none; 
+        }
+
         .phone-snap-item {
           scroll-snap-align: center;
           flex-shrink: 0;
         }
 
+        /* Phone Grid - Desktop Optimized */
         .phones-grid {
           display: flex;
           flex-wrap: wrap;
-          gap: 80px;
+          gap: 40px;
           justify-content: center;
-          padding: 60px 40px 160px;
+          padding: 40px 20px 120px;
           max-width: 1700px;
           margin: 0 auto;
+          width: 100%;
         }
 
-        @media (max-width: 640px) {
-          .header-stats { gap: 20px !important; }
-          .header-stats > div > span:first-child { font-size: 36px !important; }
-          .features-grid { grid-template-columns: 1fr !important; }
-          .specs-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .section-pad { padding: 0 16px !important; }
-          .cta-btn { padding: 16px 28px !important; font-size: 16px !important; }
+        /* Responsive Breakpoints */
+        @media (max-width: 480px) {
+          .phones-scroll {
+            gap: 12px;
+            padding: 16px 12px 100px;
+          }
+          
+          .header-stats { 
+            gap: 16px !important; 
+          }
+          
+          .header-stats > div > span:first-child { 
+            font-size: 28px !important; 
+          }
+          
+          .features-grid { 
+            grid-template-columns: 1fr !important; 
+            gap: 16px !important;
+          }
+          
+          .specs-grid { 
+            grid-template-columns: repeat(2, 1fr) !important; 
+            gap: 12px !important;
+          }
+          
+          .section-pad { 
+            padding: 0 12px !important; 
+          }
+          
+          .cta-btn { 
+            padding: 14px 24px !important; 
+            font-size: 15px !important; 
+          }
+        }
+
+        @media (min-width: 481px) and (max-width: 640px) {
+          .phones-scroll {
+            gap: 20px;
+            padding: 24px 16px 120px;
+          }
+          
+          .features-grid { 
+            grid-template-columns: 1fr !important; 
+          }
+          
+          .specs-grid { 
+            grid-template-columns: repeat(2, 1fr) !important; 
+          }
         }
 
         @media (min-width: 641px) and (max-width: 1023px) {
-          .features-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .specs-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .phones-scroll {
+            gap: 24px;
+            padding: 30px 20px 140px;
+          }
+          
+          .features-grid { 
+            grid-template-columns: repeat(2, 1fr) !important; 
+          }
+          
+          .specs-grid { 
+            grid-template-columns: repeat(3, 1fr) !important; 
+          }
+        }
+
+        @media (min-width: 1024px) and (max-width: 1400px) {
+          .phones-grid {
+            gap: 60px;
+            padding: 50px 30px 140px;
+          }
+        }
+
+        /* Touch Optimization */
+        @media (hover: none) {
+          .phones-scroll {
+            -webkit-overflow-scrolling: touch;
+          }
+        }
+
+        /* Safe Area Support */
+        @supports (padding: max(0px)) {
+          .phones-scroll {
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+          }
         }
       `}</style>
 
-      {/* Ambient BG Orbs - only in full mode */}
-      {variant === 'full' && [
+      {/* Ambient BG Orbs - Hidden on mobile for performance */}
+      {variant === 'full' && !isMobile && [
         { w: 600, h: 600, color: "#FF8C42", top: -200, left: -200, delay: 0 },
         { w: 500, h: 500, color: "#FFE66D", bottom: -150, right: -150, delay: -5 },
         { w: 400, h: 400, color: "#FF2D55", top: "50%", left: "50%", delay: -10 },
       ].map((orb, i) => (
         <div key={i} style={{
-          position: "fixed", width: orb.w, height: orb.h, borderRadius: "50%",
-          filter: "blur(80px)", opacity: .3, pointerEvents: "none", zIndex: 0,
+          position: "fixed", 
+          width: orb.w, 
+          height: orb.h, 
+          borderRadius: "50%",
+          filter: "blur(80px)", 
+          opacity: .3, 
+          pointerEvents: "none", 
+          zIndex: 0,
           background: `radial-gradient(circle,${orb.color},transparent 70%)`,
           animation: `float-ambient 20s ${orb.delay}s infinite ease-in-out`,
-          top: (orb as any).top ?? "auto", left: (orb as any).left ?? "auto",
-          bottom: (orb as any).bottom ?? "auto", right: (orb as any).right ?? "auto",
+          top: (orb as any).top ?? "auto", 
+          left: (orb as any).left ?? "auto",
+          bottom: (orb as any).bottom ?? "auto", 
+          right: (orb as any).right ?? "auto",
           transform: i === 2 ? "translate(-50%,-50%)" : undefined
         }} />
       ))}
 
-      {/* Header */}
+      {/* Header - Mobile Optimized */}
       {showHeader && (
-        <header style={{ position: "relative", zIndex: 10, textAlign: "center", padding: isMobile ? "40px 16px 30px" : "60px 20px 40px", maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.1)", backdropFilter: "blur(20px)", padding: "8px 20px", borderRadius: 50, fontSize: isMobile ? 11 : 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: 2, marginBottom: 24, border: "1px solid rgba(255,255,255,.1)" }}>
-            <div style={{ width: 8, height: 8, background: "#34C759", borderRadius: "50%", animation: "pulse-dot 2s infinite" }} />
+        <header style={{ 
+          position: "relative", 
+          zIndex: 10, 
+          textAlign: "center", 
+          padding: isMobile ? "30px 12px 20px" : "60px 20px 40px", 
+          maxWidth: 1200, 
+          margin: "0 auto",
+          width: '100%'
+        }}>
+          <div style={{ 
+            display: "inline-flex", 
+            alignItems: "center", 
+            gap: 8, 
+            background: "rgba(255,255,255,.1)", 
+            backdropFilter: "blur(20px)", 
+            padding: isMobile ? "6px 16px" : "8px 20px", 
+            borderRadius: 50, 
+            fontSize: isMobile ? 10 : 13, 
+            fontWeight: 600, 
+            textTransform: "uppercase", 
+            letterSpacing: 2, 
+            marginBottom: isMobile ? 16 : 24, 
+            border: "1px solid rgba(255,255,255,.1)" 
+          }}>
+            <div style={{ 
+              width: 8, 
+              height: 8, 
+              background: "#34C759", 
+              borderRadius: "50%", 
+              animation: "pulse-dot 2s infinite" 
+            }} />
             <span>Client Preview Ready</span>
           </div>
-          <h1 style={{ fontSize: isMobile ? "36px" : "clamp(42px,8vw,72px)", fontWeight: 900, marginBottom: 16, background: "linear-gradient(135deg,#fff 0%,#FFE66D 50%,#FF8C42 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: -2, lineHeight: 1.1 }}>
+          
+          <h1 style={{ 
+            fontSize: isMobile ? "32px" : "clamp(42px,8vw,72px)", 
+            fontWeight: 900, 
+            marginBottom: isMobile ? 12 : 16, 
+            background: "linear-gradient(135deg,#fff 0%,#FFE66D 50%,#FF8C42 100%)", 
+            WebkitBackgroundClip: "text", 
+            WebkitTextFillColor: "transparent", 
+            letterSpacing: isMobile ? -1 : -2, 
+            lineHeight: 1.1,
+            padding: isMobile ? '0 8px' : 0
+          }}>
             GlazeMe Premium
           </h1>
-          <p style={{ fontSize: isMobile ? 16 : 22, opacity: .8, maxWidth: 600, margin: "0 auto 32px", lineHeight: 1.6, fontWeight: 400, padding: "0 8px" }}>
+          
+          <p style={{ 
+            fontSize: isMobile ? 14 : 22, 
+            opacity: .8, 
+            maxWidth: 600, 
+            margin: "0 auto 24px", 
+            lineHeight: 1.6, 
+            fontWeight: 400, 
+            padding: isMobile ? "0 12px" : "0 8px" 
+          }}>
             The ultimate "over the top" compliment experience. Designed for iPhone 17 Pro with titanium finish, Dynamic Island integration, and pro-grade animations.
           </p>
-          <div className="header-stats" style={{ display: "flex", justifyContent: "center", gap: isMobile ? 24 : 60, marginTop: 32, flexWrap: "wrap" }}>
+          
+          <div className="header-stats" style={{ 
+            display: "flex", 
+            justifyContent: "center", 
+            gap: isMobile ? 16 : 60, 
+            marginTop: isMobile ? 20 : 32, 
+            flexWrap: "wrap",
+            padding: isMobile ? '0 8px' : 0
+          }}>
             {[["10", "Screens"], ["50+", "Features"], ["4", "Intensity Levels"], ["0s", "Load Time"]].map(([num, label]) => (
               <div key={label} style={{ textAlign: "center" }}>
-                <span style={{ fontSize: isMobile ? 36 : 48, fontWeight: 900, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "block" }}>{num}</span>
-                <div style={{ fontSize: isMobile ? 11 : 14, opacity: .6, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 }}>{label}</div>
+                <span style={{ 
+                  fontSize: isMobile ? 28 : 48, 
+                  fontWeight: 900, 
+                  background: "linear-gradient(135deg,#FFE66D,#FF8C42)", 
+                  WebkitBackgroundClip: "text", 
+                  WebkitTextFillColor: "transparent", 
+                  display: "block" 
+                }}>{num}</span>
+                <div style={{ 
+                  fontSize: isMobile ? 10 : 14, 
+                  opacity: .6, 
+                  textTransform: "uppercase", 
+                  letterSpacing: 1, 
+                  marginTop: 4 
+                }}>{label}</div>
               </div>
             ))}
           </div>
@@ -909,7 +1084,14 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
 
       {/* Scroll hint on mobile */}
       {isMobile && variant === 'full' && (
-        <div style={{ textAlign: "center", color: "rgba(255,255,255,.5)", fontSize: 13, marginBottom: 8, letterSpacing: 1 }}>
+        <div style={{ 
+          textAlign: "center", 
+          color: "rgba(255,255,255,.5)", 
+          fontSize: 12, 
+          marginBottom: 4, 
+          letterSpacing: 1,
+          padding: '0 16px'
+        }}>
           ← Swipe to browse all screens →
         </div>
       )}
@@ -918,7 +1100,7 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
       {isTablet ? (
         <div className="phones-scroll">
           {screensToShow.map(({ Screen, ...meta }) => (
-            <div key={meta.number} className="phone-snap-item" style={{ height: phoneHeight + 140 }}>
+            <div key={meta.number} className="phone-snap-item" style={{ height: phoneHeight + (isMobile ? 100 : 140) }}>
               <ScreenCard 
                 {...meta} 
                 scale={phoneScale}
@@ -948,44 +1130,123 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
         </div>
       )}
 
-      {/* Features Section */}
+      {/* Features Section - Mobile Optimized */}
       {showFeatures && variant !== 'screens-only' && (
-        <section className="section-pad" style={{ position: "relative", zIndex: 10, maxWidth: 1400, margin: "0 auto 80px", padding: isMobile ? "0 16px" : "0 40px" }}>
-          <div style={{ textAlign: "center", marginBottom: isMobile ? 40 : 60 }}>
-            <h2 style={{ fontSize: isMobile ? "28px" : "clamp(32px,5vw,48px)", fontWeight: 900, marginBottom: 16, background: "linear-gradient(135deg,#fff,#FFE66D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Premium Features</h2>
-            <p style={{ fontSize: isMobile ? 16 : 20, opacity: .8, maxWidth: 600, margin: "0 auto", lineHeight: 1.6 }}>Every detail crafted for the ultimate compliment experience. From AI generation to keyboard integration.</p>
+        <section className="section-pad" style={{ 
+          position: "relative", 
+          zIndex: 10, 
+          maxWidth: 1400, 
+          margin: isMobile ? "0 auto 40px" : "0 auto 80px", 
+          padding: isMobile ? "0 16px" : "0 40px",
+          width: '100%'
+        }}>
+          <div style={{ 
+            textAlign: "center", 
+            marginBottom: isMobile ? 30 : 60 
+          }}>
+            <h2 style={{ 
+              fontSize: isMobile ? "24px" : "clamp(32px,5vw,48px)", 
+              fontWeight: 900, 
+              marginBottom: 12, 
+              background: "linear-gradient(135deg,#fff,#FFE66D)", 
+              WebkitBackgroundClip: "text", 
+              WebkitTextFillColor: "transparent" 
+            }}>Premium Features</h2>
+            <p style={{ 
+              fontSize: isMobile ? 14 : 20, 
+              opacity: .8, 
+              maxWidth: 600, 
+              margin: "0 auto", 
+              lineHeight: 1.6,
+              padding: isMobile ? '0 12px' : 0
+            }}>
+              Every detail crafted for the ultimate compliment experience. From AI generation to keyboard integration.
+            </p>
           </div>
-          <div className="features-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2,1fr)" : "repeat(auto-fit,minmax(300px,1fr))", gap: 20 }}>
+          
+          <div className="features-grid" style={{ 
+            display: "grid", 
+            gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2,1fr)" : "repeat(auto-fit,minmax(300px,1fr))", 
+            gap: isMobile ? 16 : 20 
+          }}>
             {features.map(f => (
               <div key={f.title} style={{
-                background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)",
-                borderRadius: 24, padding: isMobile ? 24 : 32, backdropFilter: "blur(20px)",
-                transition: "all .4s ease", cursor: "default",
-                position: "relative", overflow: "hidden"
-              }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(-8px)";
-                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.05)";
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.transform = "none";
-                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.03)";
-                }}>
-                <div style={{ width: 52, height: 52, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 16, boxShadow: "0 8px 20px rgba(255,140,66,.3)" }}>{f.icon}</div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 10, color: "white" }}>{f.title}</h3>
-                <p style={{ fontSize: 14, lineHeight: 1.6, opacity: .7, color: "rgba(255,255,255,.8)" }}>{f.desc}</p>
+                background: "rgba(255,255,255,.03)", 
+                border: "1px solid rgba(255,255,255,.1)",
+                borderRadius: 24, 
+                padding: isMobile ? 20 : 32, 
+                backdropFilter: "blur(20px)",
+                transition: "all .4s ease", 
+                cursor: "default",
+                position: "relative", 
+                overflow: "hidden"
+              }}>
+                <div style={{ 
+                  width: isMobile ? 44 : 52, 
+                  height: isMobile ? 44 : 52, 
+                  background: "linear-gradient(135deg,#FFE66D,#FF8C42)", 
+                  borderRadius: 14, 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center", 
+                  fontSize: isMobile ? 20 : 24, 
+                  marginBottom: 16, 
+                  boxShadow: "0 8px 20px rgba(255,140,66,.3)" 
+                }}>{f.icon}</div>
+                <h3 style={{ 
+                  fontSize: isMobile ? 16 : 18, 
+                  fontWeight: 800, 
+                  marginBottom: 8, 
+                  color: "white" 
+                }}>{f.title}</h3>
+                <p style={{ 
+                  fontSize: isMobile ? 13 : 14, 
+                  lineHeight: 1.6, 
+                  opacity: .7, 
+                  color: "rgba(255,255,255,.8)" 
+                }}>{f.desc}</p>
               </div>
             ))}
           </div>
 
-          {/* Tech Specs */}
-          <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 28, padding: isMobile ? 24 : 40, marginTop: 48, border: "1px solid rgba(255,255,255,.1)" }}>
-            <h3 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, marginBottom: 24, textAlign: "center" }}>Technical Specifications</h3>
-            <div className="specs-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(auto-fit,minmax(180px,1fr))", gap: 16 }}>
+          {/* Tech Specs - Mobile Optimized */}
+          <div style={{ 
+            background: "rgba(0,0,0,.3)", 
+            borderRadius: 24, 
+            padding: isMobile ? 20 : 40, 
+            marginTop: isMobile ? 32 : 48, 
+            border: "1px solid rgba(255,255,255,.1)" 
+          }}>
+            <h3 style={{ 
+              fontSize: isMobile ? 18 : 24, 
+              fontWeight: 800, 
+              marginBottom: 20, 
+              textAlign: "center" 
+            }}>Technical Specifications</h3>
+            <div className="specs-grid" style={{ 
+              display: "grid", 
+              gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(auto-fit,minmax(180px,1fr))", 
+              gap: isMobile ? 12 : 16 
+            }}>
               {specs.map(([label, val]) => (
-                <div key={label} style={{ textAlign: "center", padding: isMobile ? 16 : 20, background: "rgba(255,255,255,.05)", borderRadius: 16 }}>
-                  <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: .6, marginBottom: 6 }}>{label}</div>
-                  <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 800, color: "#FFE66D" }}>{val}</div>
+                <div key={label} style={{ 
+                  textAlign: "center", 
+                  padding: isMobile ? 12 : 20, 
+                  background: "rgba(255,255,255,.05)", 
+                  borderRadius: 16 
+                }}>
+                  <div style={{ 
+                    fontSize: isMobile ? 10 : 11, 
+                    textTransform: "uppercase", 
+                    letterSpacing: 1, 
+                    opacity: .6, 
+                    marginBottom: 4 
+                  }}>{label}</div>
+                  <div style={{ 
+                    fontSize: isMobile ? 14 : 20, 
+                    fontWeight: 800, 
+                    color: "#FFE66D" 
+                  }}>{val}</div>
                 </div>
               ))}
             </div>
@@ -993,15 +1254,38 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
         </section>
       )}
 
-      {/* CTA */}
+      {/* CTA - Mobile Optimized */}
       {showCTA && variant !== 'screens-only' && (
-        <section style={{ textAlign: "center", padding: isMobile ? "40px 16px 80px" : "60px 20px 100px", position: "relative", zIndex: 10 }}>
-          <h2 style={{ fontSize: isMobile ? "28px" : "clamp(32px,5vw,48px)", fontWeight: 900, marginBottom: 24 }}>Ready to Glaze?</h2>
+        <section style={{ 
+          textAlign: "center", 
+          padding: isMobile ? "30px 16px 60px" : "60px 20px 100px", 
+          position: "relative", 
+          zIndex: 10 
+        }}>
+          <h2 style={{ 
+            fontSize: isMobile ? "24px" : "clamp(32px,5vw,48px)", 
+            fontWeight: 900, 
+            marginBottom: isMobile ? 16 : 24 
+          }}>Ready to Glaze?</h2>
           <button
             className="cta-btn"
-            style={{ display: "inline-flex", alignItems: "center", gap: 12, padding: "18px 36px", background: "linear-gradient(135deg,#FFE66D,#FF8C42)", color: "white", fontSize: 18, fontWeight: 800, borderRadius: 30, border: "none", boxShadow: "0 10px 30px rgba(255,140,66,.4)", cursor: "pointer", transition: "all .4s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-4px) scale(1.05)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 20px 40px rgba(255,140,66,.5)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "0 10px 30px rgba(255,140,66,.4)"; }}
+            style={{ 
+              display: "inline-flex", 
+              alignItems: "center", 
+              gap: isMobile ? 8 : 12, 
+              padding: isMobile ? "14px 24px" : "18px 36px", 
+              background: "linear-gradient(135deg,#FFE66D,#FF8C42)", 
+              color: "white", 
+              fontSize: isMobile ? 16 : 18, 
+              fontWeight: 800, 
+              borderRadius: 30, 
+              border: "none", 
+              boxShadow: "0 10px 30px rgba(255,140,66,.4)", 
+              cursor: "pointer", 
+              transition: "all .4s",
+              width: isMobile ? '100%' : 'auto',
+              justifyContent: 'center'
+            }}
           >
             <span>🚀</span><span>Start Development</span>
           </button>
