@@ -152,7 +152,7 @@ const ScreenCard: React.FC<ScreenProps & {
         transition: "all .5s cubic-bezier(.34,1.56,.64,1)",
         transform: hovered && !embedded ? "translateY(-12px) scale(1.02)" : "none",
         zIndex: hovered ? 100 : 1,
-        height: scaledHeight + 120,
+        height: scaledHeight + (embedded ? 0 : 120),
         width: 393 * scale + 4,
         flexShrink: 0,
         cursor: onClick ? 'pointer' : 'default',
@@ -165,20 +165,22 @@ const ScreenCard: React.FC<ScreenProps & {
       onMouseLeave={() => !embedded && setHovered(false)}
       onClick={onClick}
     >
-      {/* Screen Number Badge */}
-      <div style={{
-        position: "absolute", top: -16, right: 10, width: 38, height: 38, zIndex: 10,
-        background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: "50%",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontWeight: 900, fontSize: 17, color: "white",
-        boxShadow: "0 4px 15px rgba(0,0,0,.3)"
-      }}>{number}</div>
+      {/* Screen Number Badge - Hide in embedded mode */}
+      {!embedded && (
+        <div style={{
+          position: "absolute", top: -16, right: 10, width: 38, height: 38, zIndex: 10,
+          background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: "50%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontWeight: 900, fontSize: 17, color: "white",
+          boxShadow: "0 4px 15px rgba(0,0,0,.3)"
+        }}>{number}</div>
+      )}
 
       <IPhoneShell scale={scale}>
         <ScreenContent time={time}>{children}</ScreenContent>
       </IPhoneShell>
 
-      {/* Label */}
+      {/* Label - Hide in embedded mode */}
       {!embedded && (
         <div style={{ position: "absolute", top: scaledHeight + 16, left: "50%", transform: "translateX(-50%)", textAlign: "center", width: "100%" }}>
           <div style={{ fontSize: scale < 0.7 ? 15 : 18, fontWeight: 800, marginBottom: 6, color: "white", whiteSpace: "nowrap" }}>{name}</div>
@@ -232,7 +234,7 @@ const SplashScreen: React.FC<{ time: string }> = ({ time }) => (
       @keyframes dot-pulse { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
       @keyframes float-icon { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
       @keyframes loading-bounce { 0%,100%{transform:translateY(0) rotate(0deg) scale(1)} 25%{transform:translateY(-30px) rotate(10deg) scale(1.1)} 50%{transform:translateY(0) rotate(0deg) scale(1)} 75%{transform:translateY(-15px) rotate(-5deg) scale(1.05)} }
-      @keyframes float-ambient { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(50px,-50px) scale(1.1)} 66%{transform:translate(-30px,30px) scale(0.9)} }
+      @keyframes float-ambient { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(50px,-50px) scale(1.1)} 66%{transform:translate(-30px,30px) scale(.9)} }
       @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.5} }
     `}</style>
     <div style={{
@@ -713,18 +715,22 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
 
   // Responsive phone scale with improved mobile handling
   const getPhoneScale = () => {
-    if (embedded) return 0.45; // Smaller scale for embedded view on mobile
-    if (windowWidth < 380) return 0.45;
-    if (windowWidth < 480) return 0.52;
-    if (windowWidth < 640) return 0.62;
-    if (windowWidth < 900) return 0.72;
-    if (windowWidth < 1200) return 0.82;
-    return 1;
+    if (embedded) {
+      if (windowWidth < 380) return 0.35;
+      if (windowWidth < 480) return 0.4;
+      if (windowWidth < 640) return 0.45;
+      return 0.5;
+    }
+    if (windowWidth < 380) return 0.4;
+    if (windowWidth < 480) return 0.45;
+    if (windowWidth < 640) return 0.52;
+    if (windowWidth < 900) return 0.62;
+    if (windowWidth < 1200) return 0.72;
+    return 0.82;
   };
 
   const phoneScale = getPhoneScale();
   const phoneHeight = 852 * phoneScale;
-  const phoneWidth = 393 * phoneScale + 4;
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }));
@@ -759,8 +765,8 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
   ];
 
   const specs = [
-    ["Platform", "iOS 17+"], ["Device", "iPhones"], ["AI Model", "GPT-4 Turbo"],
-    ["Storage", "Local Storage"], ["Security", "End-to-End"], ["Languages", "English"],
+    ["Platform", "iOS 17+"], ["Device", "iPhone 17 Pro"], ["AI Model", "GPT-4 Turbo"],
+    ["Storage", "iCloud Sync"], ["Security", "End-to-End"], ["Languages", "English"],
   ];
 
   const isMobile = windowWidth < 640;
@@ -769,33 +775,35 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
   // Filter screens based on variant
   const getScreensToShow = () => {
     if (variant === 'screens-only') return screens;
-    if (variant === 'minimal') return screens.slice(0, 5); // Show first 5 screens in minimal mode
-    return screens; // full mode shows all
+    if (variant === 'minimal') return screens.slice(0, 5);
+    return screens;
   };
 
   const screensToShow = getScreensToShow();
 
-  // Embedded view (single screen preview) with improved mobile responsiveness
+  // Embedded view (single screen preview)
   if (embedded && selectedScreen) {
     const screen = screens.find(s => s.number === selectedScreen);
     if (!screen) return null;
 
+    const embeddedScale = isMobile ? 0.4 : 0.5;
+
     return (
       <div className={className} style={{
         background: "linear-gradient(135deg,#0f0f23 0%,#1a1a2e 50%,#16213e 100%)",
-        padding: isMobile ? '12px' : '20px',
+        padding: isMobile ? '8px' : '20px',
         borderRadius: '16px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: isMobile ? '400px' : '500px',
+        minHeight: isMobile ? '350px' : '500px',
         width: '100%',
         overflow: 'hidden',
         ...style
       }}>
         <ScreenCard 
           {...screen} 
-          scale={isMobile ? 0.4 : 0.5}
+          scale={embeddedScale}
           embedded={true}
         >
           <screen.Screen time={time} />
@@ -847,8 +855,8 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
         .phones-scroll {
           display: flex;
           overflow-x: auto;
-          gap: 16px;
-          padding: 20px 16px 120px;
+          gap: 12px;
+          padding: 16px 12px 100px;
           scroll-snap-type: x mandatory;
           -webkit-overflow-scrolling: touch;
           scrollbar-width: none;
@@ -876,45 +884,53 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           width: 100%;
         }
 
-        /* Responsive Breakpoints */
+        /* Mobile Responsive Styles */
         @media (max-width: 480px) {
           .phones-scroll {
-            gap: 12px;
-            padding: 16px 12px 100px;
+            gap: 8px;
+            padding: 12px 8px 80px;
           }
           
           .header-stats { 
-            gap: 16px !important; 
+            gap: 12px !important; 
           }
           
           .header-stats > div > span:first-child { 
-            font-size: 28px !important; 
+            font-size: 24px !important; 
           }
           
           .features-grid { 
             grid-template-columns: 1fr !important; 
-            gap: 16px !important;
+            gap: 12px !important;
           }
           
           .specs-grid { 
             grid-template-columns: repeat(2, 1fr) !important; 
-            gap: 12px !important;
+            gap: 8px !important;
           }
           
           .section-pad { 
-            padding: 0 12px !important; 
+            padding: 0 8px !important; 
           }
           
           .cta-btn { 
-            padding: 14px 24px !important; 
-            font-size: 15px !important; 
+            padding: 12px 20px !important; 
+            font-size: 14px !important; 
+          }
+
+          h1 {
+            font-size: 28px !important;
+          }
+
+          p {
+            font-size: 13px !important;
           }
         }
 
         @media (min-width: 481px) and (max-width: 640px) {
           .phones-scroll {
-            gap: 20px;
-            padding: 24px 16px 120px;
+            gap: 16px;
+            padding: 20px 16px 100px;
           }
           
           .features-grid { 
@@ -928,8 +944,8 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
 
         @media (min-width: 641px) and (max-width: 1023px) {
           .phones-scroll {
-            gap: 24px;
-            padding: 30px 20px 140px;
+            gap: 20px;
+            padding: 24px 20px 120px;
           }
           
           .features-grid { 
@@ -938,13 +954,6 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           
           .specs-grid { 
             grid-template-columns: repeat(3, 1fr) !important; 
-          }
-        }
-
-        @media (min-width: 1024px) and (max-width: 1400px) {
-          .phones-grid {
-            gap: 60px;
-            padding: 50px 30px 140px;
           }
         }
 
@@ -958,8 +967,8 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
         /* Safe Area Support */
         @supports (padding: max(0px)) {
           .phones-scroll {
-            padding-left: max(16px, env(safe-area-inset-left));
-            padding-right: max(16px, env(safe-area-inset-right));
+            padding-left: max(12px, env(safe-area-inset-left));
+            padding-right: max(12px, env(safe-area-inset-right));
           }
         }
       `}</style>
@@ -995,7 +1004,7 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           position: "relative", 
           zIndex: 10, 
           textAlign: "center", 
-          padding: isMobile ? "30px 12px 20px" : "60px 20px 40px", 
+          padding: isMobile ? "20px 8px 16px" : "60px 20px 40px", 
           maxWidth: 1200, 
           margin: "0 auto",
           width: '100%'
@@ -1003,21 +1012,21 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           <div style={{ 
             display: "inline-flex", 
             alignItems: "center", 
-            gap: 8, 
+            gap: 6, 
             background: "rgba(255,255,255,.1)", 
             backdropFilter: "blur(20px)", 
-            padding: isMobile ? "6px 16px" : "8px 20px", 
+            padding: isMobile ? "4px 12px" : "8px 20px", 
             borderRadius: 50, 
-            fontSize: isMobile ? 10 : 13, 
+            fontSize: isMobile ? 9 : 13, 
             fontWeight: 600, 
             textTransform: "uppercase", 
-            letterSpacing: 2, 
-            marginBottom: isMobile ? 16 : 24, 
+            letterSpacing: 1, 
+            marginBottom: isMobile ? 12 : 24, 
             border: "1px solid rgba(255,255,255,.1)" 
           }}>
             <div style={{ 
-              width: 8, 
-              height: 8, 
+              width: 6, 
+              height: 6, 
               background: "#34C759", 
               borderRadius: "50%", 
               animation: "pulse-dot 2s infinite" 
@@ -1026,27 +1035,27 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           </div>
           
           <h1 style={{ 
-            fontSize: isMobile ? "32px" : "clamp(42px,8vw,72px)", 
+            fontSize: isMobile ? "28px" : "clamp(42px,8vw,72px)", 
             fontWeight: 900, 
-            marginBottom: isMobile ? 12 : 16, 
+            marginBottom: isMobile ? 8 : 16, 
             background: "linear-gradient(135deg,#fff 0%,#FFE66D 50%,#FF8C42 100%)", 
             WebkitBackgroundClip: "text", 
             WebkitTextFillColor: "transparent", 
-            letterSpacing: isMobile ? -1 : -2, 
+            letterSpacing: isMobile ? -0.5 : -2, 
             lineHeight: 1.1,
-            padding: isMobile ? '0 8px' : 0
+            padding: isMobile ? '0 4px' : 0
           }}>
             GlazeMe Premium
           </h1>
           
           <p style={{ 
-            fontSize: isMobile ? 14 : 22, 
+            fontSize: isMobile ? 13 : 22, 
             opacity: .8, 
             maxWidth: 600, 
-            margin: "0 auto 24px", 
-            lineHeight: 1.6, 
+            margin: "0 auto 16px", 
+            lineHeight: 1.5, 
             fontWeight: 400, 
-            padding: isMobile ? "0 12px" : "0 8px" 
+            padding: isMobile ? "0 8px" : "0 8px" 
           }}>
             The ultimate "over the top" compliment experience. Designed for iPhone 17 Pro with titanium finish, Dynamic Island integration, and pro-grade animations.
           </p>
@@ -1054,15 +1063,15 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           <div className="header-stats" style={{ 
             display: "flex", 
             justifyContent: "center", 
-            gap: isMobile ? 16 : 60, 
-            marginTop: isMobile ? 20 : 32, 
+            gap: isMobile ? 12 : 60, 
+            marginTop: isMobile ? 12 : 32, 
             flexWrap: "wrap",
-            padding: isMobile ? '0 8px' : 0
+            padding: isMobile ? '0 4px' : 0
           }}>
-            {[["10", "Screens"], ["20+", "Features"], ["4", "Intensity Levels"], ["0s", "Load Time"]].map(([num, label]) => (
+            {[["10", "Screens"], ["20+", "Features"], ["4", "Intensity"], ["0s", "Load Time"]].map(([num, label]) => (
               <div key={label} style={{ textAlign: "center" }}>
                 <span style={{ 
-                  fontSize: isMobile ? 28 : 48, 
+                  fontSize: isMobile ? 22 : 48, 
                   fontWeight: 900, 
                   background: "linear-gradient(135deg,#FFE66D,#FF8C42)", 
                   WebkitBackgroundClip: "text", 
@@ -1070,11 +1079,11 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
                   display: "block" 
                 }}>{num}</span>
                 <div style={{ 
-                  fontSize: isMobile ? 10 : 14, 
+                  fontSize: isMobile ? 9 : 14, 
                   opacity: .6, 
                   textTransform: "uppercase", 
-                  letterSpacing: 1, 
-                  marginTop: 4 
+                  letterSpacing: 0.5, 
+                  marginTop: 2 
                 }}>{label}</div>
               </div>
             ))}
@@ -1087,10 +1096,10 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
         <div style={{ 
           textAlign: "center", 
           color: "rgba(255,255,255,.5)", 
-          fontSize: 12, 
-          marginBottom: 4, 
-          letterSpacing: 1,
-          padding: '0 16px'
+          fontSize: 11, 
+          marginBottom: 2, 
+          letterSpacing: 0.5,
+          padding: '0 8px'
         }}>
           ← Swipe to browse all screens →
         </div>
@@ -1100,7 +1109,7 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
       {isTablet ? (
         <div className="phones-scroll">
           {screensToShow.map(({ Screen, ...meta }) => (
-            <div key={meta.number} className="phone-snap-item" style={{ height: phoneHeight + (isMobile ? 100 : 140) }}>
+            <div key={meta.number} className="phone-snap-item" style={{ height: phoneHeight + (isMobile ? 80 : 140) }}>
               <ScreenCard 
                 {...meta} 
                 scale={phoneScale}
@@ -1136,29 +1145,29 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           position: "relative", 
           zIndex: 10, 
           maxWidth: 1400, 
-          margin: isMobile ? "0 auto 40px" : "0 auto 80px", 
-          padding: isMobile ? "0 16px" : "0 40px",
+          margin: isMobile ? "0 auto 24px" : "0 auto 80px", 
+          padding: isMobile ? "0 8px" : "0 40px",
           width: '100%'
         }}>
           <div style={{ 
             textAlign: "center", 
-            marginBottom: isMobile ? 30 : 60 
+            marginBottom: isMobile ? 20 : 60 
           }}>
             <h2 style={{ 
-              fontSize: isMobile ? "24px" : "clamp(32px,5vw,48px)", 
+              fontSize: isMobile ? "22px" : "clamp(32px,5vw,48px)", 
               fontWeight: 900, 
-              marginBottom: 12, 
+              marginBottom: 8, 
               background: "linear-gradient(135deg,#fff,#FFE66D)", 
               WebkitBackgroundClip: "text", 
               WebkitTextFillColor: "transparent" 
             }}>Premium Features</h2>
             <p style={{ 
-              fontSize: isMobile ? 14 : 20, 
+              fontSize: isMobile ? 13 : 20, 
               opacity: .8, 
               maxWidth: 600, 
               margin: "0 auto", 
-              lineHeight: 1.6,
-              padding: isMobile ? '0 12px' : 0
+              lineHeight: 1.5,
+              padding: isMobile ? '0 8px' : 0
             }}>
               Every detail crafted for the ultimate compliment experience. From AI generation to keyboard integration.
             </p>
@@ -1167,14 +1176,14 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           <div className="features-grid" style={{ 
             display: "grid", 
             gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2,1fr)" : "repeat(auto-fit,minmax(300px,1fr))", 
-            gap: isMobile ? 16 : 20 
+            gap: isMobile ? 12 : 20 
           }}>
             {features.map(f => (
               <div key={f.title} style={{
                 background: "rgba(255,255,255,.03)", 
                 border: "1px solid rgba(255,255,255,.1)",
-                borderRadius: 24, 
-                padding: isMobile ? 20 : 32, 
+                borderRadius: 20, 
+                padding: isMobile ? 16 : 32, 
                 backdropFilter: "blur(20px)",
                 transition: "all .4s ease", 
                 cursor: "default",
@@ -1182,26 +1191,26 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
                 overflow: "hidden"
               }}>
                 <div style={{ 
-                  width: isMobile ? 44 : 52, 
-                  height: isMobile ? 44 : 52, 
+                  width: isMobile ? 40 : 52, 
+                  height: isMobile ? 40 : 52, 
                   background: "linear-gradient(135deg,#FFE66D,#FF8C42)", 
-                  borderRadius: 14, 
+                  borderRadius: 12, 
                   display: "flex", 
                   alignItems: "center", 
                   justifyContent: "center", 
-                  fontSize: isMobile ? 20 : 24, 
-                  marginBottom: 16, 
+                  fontSize: isMobile ? 18 : 24, 
+                  marginBottom: 12, 
                   boxShadow: "0 8px 20px rgba(255,140,66,.3)" 
                 }}>{f.icon}</div>
                 <h3 style={{ 
-                  fontSize: isMobile ? 16 : 18, 
+                  fontSize: isMobile ? 15 : 18, 
                   fontWeight: 800, 
-                  marginBottom: 8, 
+                  marginBottom: 6, 
                   color: "white" 
                 }}>{f.title}</h3>
                 <p style={{ 
-                  fontSize: isMobile ? 13 : 14, 
-                  lineHeight: 1.6, 
+                  fontSize: isMobile ? 12 : 14, 
+                  lineHeight: 1.5, 
                   opacity: .7, 
                   color: "rgba(255,255,255,.8)" 
                 }}>{f.desc}</p>
@@ -1212,38 +1221,38 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
           {/* Tech Specs - Mobile Optimized */}
           <div style={{ 
             background: "rgba(0,0,0,.3)", 
-            borderRadius: 24, 
-            padding: isMobile ? 20 : 40, 
-            marginTop: isMobile ? 32 : 48, 
+            borderRadius: 20, 
+            padding: isMobile ? 16 : 40, 
+            marginTop: isMobile ? 24 : 48, 
             border: "1px solid rgba(255,255,255,.1)" 
           }}>
             <h3 style={{ 
               fontSize: isMobile ? 18 : 24, 
               fontWeight: 800, 
-              marginBottom: 20, 
+              marginBottom: 16, 
               textAlign: "center" 
             }}>Technical Specifications</h3>
             <div className="specs-grid" style={{ 
               display: "grid", 
               gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(auto-fit,minmax(180px,1fr))", 
-              gap: isMobile ? 12 : 16 
+              gap: isMobile ? 8 : 16 
             }}>
               {specs.map(([label, val]) => (
                 <div key={label} style={{ 
                   textAlign: "center", 
-                  padding: isMobile ? 12 : 20, 
+                  padding: isMobile ? 10 : 20, 
                   background: "rgba(255,255,255,.05)", 
-                  borderRadius: 16 
+                  borderRadius: 12 
                 }}>
                   <div style={{ 
-                    fontSize: isMobile ? 10 : 11, 
+                    fontSize: isMobile ? 9 : 11, 
                     textTransform: "uppercase", 
-                    letterSpacing: 1, 
+                    letterSpacing: 0.5, 
                     opacity: .6, 
-                    marginBottom: 4 
+                    marginBottom: 2 
                   }}>{label}</div>
                   <div style={{ 
-                    fontSize: isMobile ? 14 : 20, 
+                    fontSize: isMobile ? 13 : 20, 
                     fontWeight: 800, 
                     color: "#FFE66D" 
                   }}>{val}</div>
@@ -1258,34 +1267,37 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
       {showCTA && variant !== 'screens-only' && (
         <section style={{ 
           textAlign: "center", 
-          padding: isMobile ? "30px 16px 60px" : "60px 20px 100px", 
+          padding: isMobile ? "20px 8px 40px" : "60px 20px 100px", 
           position: "relative", 
           zIndex: 10 
         }}>
           <h2 style={{ 
-            fontSize: isMobile ? "24px" : "clamp(32px,5vw,48px)", 
+            fontSize: isMobile ? "22px" : "clamp(32px,5vw,48px)", 
             fontWeight: 900, 
-            marginBottom: isMobile ? 16 : 24 
+            marginBottom: isMobile ? 12 : 24 
           }}>Ready to Glaze?</h2>
           <button
             className="cta-btn"
             style={{ 
               display: "inline-flex", 
               alignItems: "center", 
-              gap: isMobile ? 8 : 12, 
-              padding: isMobile ? "14px 24px" : "18px 36px", 
+              gap: isMobile ? 6 : 12, 
+              padding: isMobile ? "10px 20px" : "18px 36px", 
               background: "linear-gradient(135deg,#FFE66D,#FF8C42)", 
               color: "white", 
-              fontSize: isMobile ? 16 : 18, 
+              fontSize: isMobile ? 14 : 18, 
               fontWeight: 800, 
               borderRadius: 30, 
               border: "none", 
               boxShadow: "0 10px 30px rgba(255,140,66,.4)", 
               cursor: "pointer", 
               transition: "all .4s",
-              width: isMobile ? '100%' : 'auto',
+              width: isMobile ? '90%' : 'auto',
+              maxWidth: '300px',
               justifyContent: 'center'
             }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-4px) scale(1.05)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 20px 40px rgba(255,140,66,.5)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "0 10px 30px rgba(255,140,66,.4)"; }}
           >
             <span>🚀</span><span>Start Development</span>
           </button>
