@@ -759,8 +759,8 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
   ];
 
   const specs = [
-    ["Platform", "iOS 17+"], ["Device", "iPhone 17 Pro"], ["AI Model", "GPT-4 Turbo"],
-    ["Storage", "iCloud Sync"], ["Security", "End-to-End"], ["Languages", "English"],
+    ["Platform", "iOS 17+"], ["Device", "iPhones"], ["AI Model", "GPT-4 Turbo"],
+    ["Storage", "Local Storage"], ["Security", "End-to-End"], ["Languages", "English"],
   ];
 
   const isMobile = windowWidth < 640;
