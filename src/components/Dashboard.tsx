@@ -94,6 +94,8 @@ const BottomNav: React.FC<{ activeTab: TabType; onTabChange: (tab: TabType) => v
   const tabs = [
     { id: 'updates' as TabType, label: 'Updates', icon: <Icons.LayoutGrid /> },
     { id: 'reviews' as TabType, label: 'Reviews', icon: <Icons.Star /> },
+    { id: 'demo' as TabType, label: 'Demo', icon: <Icons.Star /> },
+
     { id: 'screens' as TabType, label: 'Screens', icon: <Icons.Smartphone /> },
     { id: 'more' as TabType, label: 'More', icon: <Icons.MoreHorizontal /> },
   ];
