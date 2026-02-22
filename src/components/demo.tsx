@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -19,6 +19,7 @@ interface GlazeMeDemoProps {
   style?: React.CSSProperties;
   onScreenSelect?: (screenNumber: number) => void;
   selectedScreen?: number;
+  embedded?: boolean;
 }
 
 // ─── Responsive Hook ────────────────────────────────────────────────────────
@@ -131,7 +132,8 @@ const ScreenCard: React.FC<ScreenProps & {
   scale?: number; 
   onClick?: () => void;
   isSelected?: boolean;
-}> = ({ number, name, desc, tags, children, scale = 1, onClick, isSelected }) => {
+  embedded?: boolean;
+}> = ({ number, name, desc, tags, children, scale = 1, onClick, isSelected, embedded }) => {
   const [hovered, setHovered] = useState(false);
   const [time, setTime] = useState("");
   const scaledHeight = 852 * scale;
@@ -148,7 +150,7 @@ const ScreenCard: React.FC<ScreenProps & {
       style={{
         position: "relative",
         transition: "all .5s cubic-bezier(.34,1.56,.64,1)",
-        transform: hovered ? "translateY(-12px) scale(1.02)" : "none",
+        transform: hovered && !embedded ? "translateY(-12px) scale(1.02)" : "none",
         zIndex: hovered ? 100 : 1,
         height: scaledHeight + 120,
         width: 393 * scale + 4,
@@ -157,9 +159,10 @@ const ScreenCard: React.FC<ScreenProps & {
         outline: isSelected ? '4px solid #FF8C42' : 'none',
         outlineOffset: '4px',
         borderRadius: '12px',
+        margin: embedded ? '0 auto' : '0',
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => !embedded && setHovered(true)}
+      onMouseLeave={() => !embedded && setHovered(false)}
       onClick={onClick}
     >
       {/* Screen Number Badge */}
@@ -176,19 +179,21 @@ const ScreenCard: React.FC<ScreenProps & {
       </IPhoneShell>
 
       {/* Label */}
-      <div style={{ position: "absolute", top: scaledHeight + 16, left: "50%", transform: "translateX(-50%)", textAlign: "center", width: "100%" }}>
-        <div style={{ fontSize: scale < 0.7 ? 15 : 18, fontWeight: 800, marginBottom: 6, color: "white", whiteSpace: "nowrap" }}>{name}</div>
-        <div style={{ fontSize: 12, opacity: 0.7, color: "rgba(255,255,255,.8)", padding: "0 8px" }}>{desc}</div>
-        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
-          {tags.map(t => (
-            <span key={t} style={{
-              background: "rgba(255,255,255,.1)", padding: "4px 10px", borderRadius: 20,
-              fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: .5,
-              border: "1px solid rgba(255,255,255,.1)", color: "white"
-            }}>{t}</span>
-          ))}
+      {!embedded && (
+        <div style={{ position: "absolute", top: scaledHeight + 16, left: "50%", transform: "translateX(-50%)", textAlign: "center", width: "100%" }}>
+          <div style={{ fontSize: scale < 0.7 ? 15 : 18, fontWeight: 800, marginBottom: 6, color: "white", whiteSpace: "nowrap" }}>{name}</div>
+          <div style={{ fontSize: 12, opacity: 0.7, color: "rgba(255,255,255,.8)", padding: "0 8px" }}>{desc}</div>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
+            {tags.map(t => (
+              <span key={t} style={{
+                background: "rgba(255,255,255,.1)", padding: "4px 10px", borderRadius: 20,
+                fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: .5,
+                border: "1px solid rgba(255,255,255,.1)", color: "white"
+              }}>{t}</span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -692,7 +697,7 @@ const HistoryScreen: React.FC<{ time: string }> = ({ time }) => (
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function GlazeMeDemo({
+const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
   variant = 'full',
   showHeader = true,
   showFeatures = true,
@@ -700,13 +705,15 @@ export default function GlazeMeDemo({
   className = '',
   style = {},
   onScreenSelect,
-  selectedScreen
-}: GlazeMeDemoProps) {
+  selectedScreen,
+  embedded = false
+}) => {
   const [time, setTime] = useState("");
   const windowWidth = useWindowWidth();
 
   // Responsive phone scale
   const getPhoneScale = () => {
+    if (embedded) return 0.5; // Fixed smaller scale for embedded view
     if (windowWidth < 480) return 0.52;
     if (windowWidth < 640) return 0.62;
     if (windowWidth < 900) return 0.72;
@@ -766,6 +773,33 @@ export default function GlazeMeDemo({
   };
 
   const screensToShow = getScreensToShow();
+
+  // Embedded view (single screen preview)
+  if (embedded && selectedScreen) {
+    const screen = screens.find(s => s.number === selectedScreen);
+    if (!screen) return null;
+
+    return (
+      <div className={className} style={{
+        background: "linear-gradient(135deg,#0f0f23 0%,#1a1a2e 50%,#16213e 100%)",
+        padding: '20px',
+        borderRadius: '16px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '500px',
+        ...style
+      }}>
+        <ScreenCard 
+          {...screen} 
+          scale={phoneScale}
+          embedded={true}
+        >
+          <screen.Screen time={time} />
+        </ScreenCard>
+      </div>
+    );
+  }
 
   return (
     <div className={className} style={{
@@ -832,7 +866,7 @@ export default function GlazeMeDemo({
         }
       `}</style>
 
-      {/* Ambient BG Orbs */}
+      {/* Ambient BG Orbs - only in full mode */}
       {variant === 'full' && [
         { w: 600, h: 600, color: "#FF8C42", top: -200, left: -200, delay: 0 },
         { w: 500, h: 500, color: "#FFE66D", bottom: -150, right: -150, delay: -5 },
@@ -890,6 +924,7 @@ export default function GlazeMeDemo({
                 scale={phoneScale}
                 onClick={onScreenSelect ? () => onScreenSelect(meta.number) : undefined}
                 isSelected={selectedScreen === meta.number}
+                embedded={embedded}
               >
                 <Screen time={time} />
               </ScreenCard>
@@ -905,6 +940,7 @@ export default function GlazeMeDemo({
               scale={phoneScale}
               onClick={onScreenSelect ? () => onScreenSelect(meta.number) : undefined}
               isSelected={selectedScreen === meta.number}
+              embedded={embedded}
             >
               <Screen time={time} />
             </ScreenCard>
@@ -973,4 +1009,6 @@ export default function GlazeMeDemo({
       )}
     </div>
   );
-}
+};
+
+export default GlazeMeDemo;
