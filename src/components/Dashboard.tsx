@@ -134,7 +134,7 @@ const Dashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [selectedDemoScreen, setSelectedDemoScreen] = useState<number>(0); // 0 means show all screens
+  const [selectedDemoScreen, setSelectedDemoScreen] = useState<number>(0);
 
   // Specs Data
   const glazemeSpecs: GlazeMeSpecs = {
@@ -611,6 +611,184 @@ const Dashboard: React.FC = () => {
           }}
         />
       )}
+
+      {/* Demo Container Styles */}
+      <style>{`
+        .demo-container {
+          width: 100%;
+          min-height: 500px;
+        }
+
+        .demo-header {
+          margin-bottom: var(--space-6);
+        }
+
+        .demo-header h2 {
+          font-size: 24px;
+          font-weight: 700;
+          color: var(--gray-900);
+          margin-bottom: var(--space-2);
+        }
+
+        .demo-header p {
+          color: var(--gray-600);
+          font-size: 14px;
+          margin-bottom: var(--space-4);
+        }
+
+        .demo-controls {
+          display: flex;
+          gap: var(--space-4);
+          align-items: center;
+          flex-wrap: wrap;
+          margin-bottom: var(--space-6);
+          background: var(--gray-50);
+          padding: var(--space-4);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--gray-200);
+        }
+
+        .demo-select {
+          padding: var(--space-3) var(--space-4);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--gray-200);
+          background: white;
+          color: var(--gray-900);
+          font-size: 14px;
+          font-weight: 500;
+          min-width: 200px;
+          cursor: pointer;
+          transition: var(--transition-fast);
+        }
+
+        .demo-select:hover {
+          border-color: var(--primary-300);
+        }
+
+        .demo-select:focus {
+          outline: none;
+          border-color: var(--primary-500);
+          box-shadow: 0 0 0 3px var(--primary-100);
+        }
+
+        .demo-refresh-btn {
+          padding: var(--space-3) var(--space-5);
+          background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+          border: none;
+          border-radius: var(--radius-md);
+          color: white;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: var(--transition-fast);
+          white-space: nowrap;
+        }
+
+        .demo-refresh-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+        }
+
+        .demo-refresh-btn:active {
+          transform: translateY(0);
+        }
+
+        /* Mobile Responsive Demo Styles */
+        @media (max-width: 639px) {
+          .demo-container {
+            min-height: auto;
+            padding: var(--space-2);
+          }
+
+          .demo-header {
+            margin-bottom: var(--space-4);
+          }
+
+          .demo-header h2 {
+            font-size: 20px;
+            margin-bottom: var(--space-1);
+          }
+
+          .demo-header p {
+            font-size: 13px;
+            margin-bottom: var(--space-3);
+          }
+
+          .demo-controls {
+            flex-direction: column;
+            align-items: stretch;
+            gap: var(--space-3);
+            padding: var(--space-3);
+            margin-bottom: var(--space-4);
+          }
+
+          .demo-select {
+            width: 100%;
+            padding: var(--space-3);
+            font-size: 14px;
+          }
+
+          .demo-refresh-btn {
+            width: 100%;
+            padding: var(--space-3);
+            font-size: 14px;
+          }
+
+          /* Adjust GlazeMeDemo component for mobile */
+          .demo-container .glazemedemo-container {
+            padding: var(--space-2);
+          }
+        }
+
+        @media (min-width: 640px) and (max-width: 1023px) {
+          .demo-header h2 {
+            font-size: 22px;
+          }
+
+          .demo-header p {
+            font-size: 14px;
+          }
+
+          .demo-controls {
+            padding: var(--space-3);
+            gap: var(--space-3);
+          }
+
+          .demo-select {
+            min-width: 180px;
+            padding: var(--space-3);
+          }
+
+          .demo-refresh-btn {
+            padding: var(--space-3) var(--space-4);
+          }
+        }
+
+        /* Landscape mode on mobile */
+        @media (max-height: 480px) and (orientation: landscape) {
+          .demo-container {
+            min-height: auto;
+          }
+
+          .demo-header {
+            margin-bottom: var(--space-3);
+          }
+
+          .demo-header h2 {
+            font-size: 18px;
+          }
+
+          .demo-header p {
+            font-size: 12px;
+            margin-bottom: var(--space-2);
+          }
+
+          .demo-controls {
+            margin-bottom: var(--space-3);
+          }
+        }
+      `}</style>
+
       {/* Light Theme Styles */}
       <style>{`
         /* ============================================
