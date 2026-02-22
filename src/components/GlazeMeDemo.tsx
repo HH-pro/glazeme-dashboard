@@ -1059,7 +1059,7 @@ const GlazeMeDemo: React.FC<GlazeMeDemoProps> = ({
             flexWrap: "wrap",
             padding: isMobile ? '0 8px' : 0
           }}>
-            {[["10", "Screens"], ["50+", "Features"], ["4", "Intensity Levels"], ["0s", "Load Time"]].map(([num, label]) => (
+            {[["10", "Screens"], ["20+", "Features"], ["4", "Intensity Levels"], ["0s", "Load Time"]].map(([num, label]) => (
               <div key={label} style={{ textAlign: "center" }}>
                 <span style={{ 
                   fontSize: isMobile ? 28 : 48, 
