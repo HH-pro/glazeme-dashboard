@@ -1,6 +1,6 @@
 // App.tsx
 import React, { useState, useEffect } from 'react';
-import './App.css';
+import './demo.css';
 
 // Types
 interface Friend {
