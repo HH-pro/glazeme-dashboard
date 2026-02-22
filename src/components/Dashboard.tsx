@@ -356,6 +356,8 @@ const Dashboard: React.FC = () => {
           {[ 
             { id: 'updates' as TabType, label: 'Updates', icon: <Icons.LayoutGrid /> },
             { id: 'reviews' as TabType, label: 'Reviews', icon: <Icons.Star /> },
+            { id: 'demo' as TabType, label: 'Demo', icon: <Icons.Star /> },
+
             { id: 'screens' as TabType, label: 'Screens', icon: <Icons.Smartphone /> },
             { id: 'progress' as TabType, label: 'Progress', icon: <Icons.BarChart /> },
             { id: 'tech' as TabType, label: 'Tech Log', icon: <Icons.Code /> },
