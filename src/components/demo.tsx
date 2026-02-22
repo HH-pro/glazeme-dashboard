@@ -327,20 +327,22 @@ const HomeScreen: React.FC<{ time: string }> = ({ time }) => (
 // ─── Screen 3: Add Friend Modal ─────────────────────────────────────────────
 
 const AddFriendScreen: React.FC<{ time: string }> = ({ time }) => (
+  <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden" }}>
   <AppGradient style={{ overflow: "hidden" }}>
     <StatusBar time={time} />
     <div style={{ filter: "blur(3px) brightness(0.7)", padding: "70px 24px 24px" }}>
       <div style={{ fontSize: 32, fontWeight: 900, color: "white", marginBottom: 20 }}>GlazeMe 🔥</div>
       <div style={{ background: "rgba(255,255,255,.15)", borderRadius: 24, padding: 20, height: 80 }} />
     </div>
+  </AppGradient>
+  <div style={{
+    position: "absolute", inset: 0, background: "rgba(0,0,0,.5)", backdropFilter: "blur(8px)",
+    display: "flex", alignItems: "flex-end", zIndex: 1000
+  }}>
     <div style={{
-      position: "absolute", inset: 0, background: "rgba(0,0,0,.5)", backdropFilter: "blur(8px)",
-      display: "flex", alignItems: "flex-end", zIndex: 1000
+      background: "white", borderRadius: "40px 40px 0 0", padding: 32, width: "100%",
+      animation: "modal-up .4s cubic-bezier(.34,1.56,.64,1)"
     }}>
-      <div style={{
-        background: "white", borderRadius: "40px 40px 0 0", padding: 32, width: "100%",
-        animation: "modal-up .4s cubic-bezier(.34,1.56,.64,1)"
-      }}>
         <div style={{ width: 40, height: 5, background: "rgba(0,0,0,.2)", borderRadius: 3, margin: "0 auto 28px" }} />
         <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 24, color: "#1a1a1a" }}>Add Friend</div>
         {[{ label: "Friend's Name", placeholder: "e.g., Jessica" }, { label: "What makes them awesome?", placeholder: "e.g., Always supportive" }].map(field => (
@@ -358,7 +360,7 @@ const AddFriendScreen: React.FC<{ time: string }> = ({ time }) => (
         }}>💛 Add Friend</button>
       </div>
     </div>
-  </AppGradient>
+  </div>
 );
 
 // ─── Screen 4: Generator ─────────────────────────────────────────────────────
@@ -516,13 +518,15 @@ const PreviewScreen: React.FC<{ time: string }> = ({ time }) => (
 // ─── Screen 7: Share Sheet ───────────────────────────────────────────────────
 
 const ShareSheetScreen: React.FC<{ time: string }> = ({ time }) => (
-  <AppGradient style={{ overflow: "hidden" }}>
-    <StatusBar time={time} />
-    <div style={{ filter: "blur(4px) brightness(.6)", transform: "scale(.95)", padding: "70px 24px" }}>
-      <div style={{ background: "white", borderRadius: 32, padding: 40, textAlign: "center" }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: "#1a1a1a" }}>"SARAH YOU ABSOLUTE..."</div>
+  <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden" }}>
+    <AppGradient style={{ overflow: "hidden" }}>
+      <StatusBar time={time} />
+      <div style={{ filter: "blur(4px) brightness(.6)", transform: "scale(.95)", padding: "70px 24px" }}>
+        <div style={{ background: "white", borderRadius: 32, padding: 40, textAlign: "center" }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#1a1a1a" }}>"SARAH YOU ABSOLUTE..."</div>
+        </div>
       </div>
-    </div>
+    </AppGradient>
     <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.6)", backdropFilter: "blur(10px)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 20, zIndex: 1000 }}>
       <div style={{ background: "rgba(255,255,255,.95)", borderRadius: 28, padding: 28, width: "100%", maxWidth: 360 }}>
         <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, textAlign: "center", color: "#1a1a1a" }}>Share Glaze</div>
@@ -546,7 +550,7 @@ const ShareSheetScreen: React.FC<{ time: string }> = ({ time }) => (
         <button style={{ width: "100%", padding: 16, background: "rgba(0,0,0,.05)", border: "none", borderRadius: 16, fontWeight: 700, fontSize: 17, color: "#1a1a1a", cursor: "pointer" }}>Cancel</button>
       </div>
     </div>
-  </AppGradient>
+  </div>
 );
 
 // ─── Screen 8: Keyboard Setup ────────────────────────────────────────────────
