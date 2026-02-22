@@ -3,6 +3,8 @@ import { db } from '../services/firebase';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
 import ClientReview from './ClientReview';
+import Demo from './demo';
+
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
 import TechnicalLog from './TechnicalLog';
@@ -17,7 +19,7 @@ interface Notification {
   type: 'success' | 'error' | 'info';
 }
 
-type TabType = 'updates' | 'reviews' | 'screens' | 'progress' | 'tech' | 'deploy' | 'more';
+type TabType = 'updates' | 'reviews' |'demo' | 'screens' | 'progress' | 'tech' | 'deploy' | 'more';
 
 // --- Icons (Lucide-style, optimized for light theme) ---
 const Icons = {
@@ -92,6 +94,8 @@ const BottomNav: React.FC<{ activeTab: TabType; onTabChange: (tab: TabType) => v
   const tabs = [
     { id: 'updates' as TabType, label: 'Updates', icon: <Icons.LayoutGrid /> },
     { id: 'reviews' as TabType, label: 'Reviews', icon: <Icons.Star /> },
+    { id: 'demo' as TabType, label: 'Demo', icon: <Icons.Star /> },
+
     { id: 'screens' as TabType, label: 'Screens', icon: <Icons.Smartphone /> },
     { id: 'more' as TabType, label: 'More', icon: <Icons.MoreHorizontal /> },
   ];
@@ -276,6 +280,8 @@ const Dashboard: React.FC = () => {
     switch (activeTab) {
       case 'updates': return <BuildUpdates initialEditMode={isEditMode} />;
       case 'reviews': return <ClientReview />;
+      case 'demo': return <Demo />;
+
       case 'screens': return <ScreenGallery screens={filteredScreens} isEditMode={isEditMode} />;
       case 'progress': return <WeeklyProgress isEditMode={isEditMode} />;
       case 'tech': return <TechnicalLog isEditMode={isEditMode} />;
