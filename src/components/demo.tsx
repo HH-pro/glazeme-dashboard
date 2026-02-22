@@ -10,9 +10,21 @@ interface ScreenProps {
   children: React.ReactNode;
 }
 
+// ─── Responsive Hook ────────────────────────────────────────────────────────
+
+const useWindowWidth = () => {
+  const [width, setWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1200);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+};
+
 // ─── Reusable iPhone Shell ──────────────────────────────────────────────────
 
-const IPhoneShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const IPhoneShell: React.FC<{ children: React.ReactNode; scale?: number }> = ({ children, scale = 1 }) => {
   const [time, setTime] = useState("");
 
   useEffect(() => {
@@ -31,7 +43,7 @@ const IPhoneShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, []);
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", transform: `scale(${scale})`, transformOrigin: "top center" }}>
       {/* Titanium frame */}
       <div style={{
         position: "absolute", inset: -2, borderRadius: 67, zIndex: 0,
@@ -80,7 +92,6 @@ const IPhoneShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         {/* Screen */}
         <div style={{ width: "100%", height: "100%", background: "#000", borderRadius: 55, overflow: "hidden", position: "relative" }}>
-          {/* Status Bar injected per screen via context, but we pass time down */}
           {children}
         </div>
       </div>
@@ -105,9 +116,10 @@ const StatusBar: React.FC<{ time: string; light?: boolean }> = ({ time, light = 
 
 // ─── Screen Wrapper Card ────────────────────────────────────────────────────
 
-const ScreenCard: React.FC<ScreenProps> = ({ number, name, desc, tags, children }) => {
+const ScreenCard: React.FC<ScreenProps & { scale?: number }> = ({ number, name, desc, tags, children, scale = 1 }) => {
   const [hovered, setHovered] = useState(false);
   const [time, setTime] = useState("");
+  const scaledHeight = 852 * scale;
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }));
@@ -118,34 +130,40 @@ const ScreenCard: React.FC<ScreenProps> = ({ number, name, desc, tags, children 
 
   return (
     <div
-      style={{ position: "relative", transition: "all .5s cubic-bezier(.34,1.56,.64,1)", transform: hovered ? "translateY(-20px) scale(1.02)" : "none", zIndex: hovered ? 100 : 1 }}
+      style={{
+        position: "relative",
+        transition: "all .5s cubic-bezier(.34,1.56,.64,1)",
+        transform: hovered ? "translateY(-12px) scale(1.02)" : "none",
+        zIndex: hovered ? 100 : 1,
+        height: scaledHeight + 120,
+        width: 393 * scale + 4,
+        flexShrink: 0,
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Screen Number Badge */}
       <div style={{
-        position: "absolute", top: -20, right: 20, width: 44, height: 44, zIndex: 10,
+        position: "absolute", top: -16, right: 10, width: 38, height: 38, zIndex: 10,
         background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: "50%",
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontWeight: 900, fontSize: 20, color: "white",
+        fontWeight: 900, fontSize: 17, color: "white",
         boxShadow: "0 4px 15px rgba(0,0,0,.3)"
       }}>{number}</div>
 
-      <IPhoneShell>
-        {/* Pass time via inline rendering in each screen */}
-        {/* Screens handle their own status bar with local time */}
+      <IPhoneShell scale={scale}>
         <ScreenContent time={time}>{children}</ScreenContent>
       </IPhoneShell>
 
       {/* Label */}
-      <div style={{ position: "absolute", bottom: -90, left: "50%", transform: "translateX(-50%)", textAlign: "center", width: "100%" }}>
-        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: "white" }}>{name}</div>
-        <div style={{ fontSize: 14, opacity: 0.7, color: "rgba(255,255,255,.8)" }}>{desc}</div>
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
+      <div style={{ position: "absolute", top: scaledHeight + 16, left: "50%", transform: "translateX(-50%)", textAlign: "center", width: "100%" }}>
+        <div style={{ fontSize: scale < 0.7 ? 15 : 18, fontWeight: 800, marginBottom: 6, color: "white", whiteSpace: "nowrap" }}>{name}</div>
+        <div style={{ fontSize: 12, opacity: 0.7, color: "rgba(255,255,255,.8)", padding: "0 8px" }}>{desc}</div>
+        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
           {tags.map(t => (
             <span key={t} style={{
-              background: "rgba(255,255,255,.1)", padding: "6px 14px", borderRadius: 20,
-              fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: .5,
+              background: "rgba(255,255,255,.1)", padding: "4px 10px", borderRadius: 20,
+              fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: .5,
               border: "1px solid rgba(255,255,255,.1)", color: "white"
             }}>{t}</span>
           ))}
@@ -240,7 +258,6 @@ const HomeScreen: React.FC<{ time: string }> = ({ time }) => (
         ))}
       </div>
     </div>
-    {/* Limit Bar */}
     <div style={{
       background: "rgba(255,255,255,.15)", backdropFilter: "blur(20px)", borderRadius: 24,
       padding: 20, margin: "0 24px 24px", border: "1px solid rgba(255,255,255,.2)"
@@ -255,7 +272,6 @@ const HomeScreen: React.FC<{ time: string }> = ({ time }) => (
         </div>
       </div>
     </div>
-    {/* Friends */}
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 24px 20px", color: "white" }}>
       <div style={{ fontSize: 22, fontWeight: 800 }}>Who deserves love?</div>
       <div style={{ fontSize: 14, fontWeight: 700, padding: "8px 16px", background: "rgba(255,255,255,.15)", borderRadius: 20 }}>+ Add</div>
@@ -280,7 +296,6 @@ const HomeScreen: React.FC<{ time: string }> = ({ time }) => (
         </div>
       ))}
     </div>
-    {/* Recent */}
     <div style={{ background: "white", margin: "0 24px", borderRadius: 28, padding: 24, boxShadow: "0 8px 32px rgba(0,0,0,.1)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a" }}>Recent Glazes</div>
@@ -369,24 +384,22 @@ const GeneratorScreen: React.FC<{ time: string }> = ({ time }) => {
         <div style={{ width: 40, height: 40, background: "rgba(255,255,255,.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", marginLeft: "auto", fontSize: 18 }}>ℹ️</div>
       </div>
       <div style={{ padding: "0 24px 100px" }}>
-        {/* Target */}
         <div style={{ background: "white", borderRadius: 28, padding: 30, marginBottom: 24, textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,.1)", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg,#FFE66D,#FF8C42)" }} />
           <div style={{ fontSize: 13, color: "#666", textTransform: "uppercase", letterSpacing: 2, fontWeight: 700, marginBottom: 8 }}>Glazing Target</div>
           <div style={{ fontSize: 32, fontWeight: 900, background: "linear-gradient(135deg,#FF8C42,#FF6B35)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Sarah 💛</div>
         </div>
-        {/* Intensity */}
         <div style={{ background: "white", borderRadius: 28, padding: 24, marginBottom: 20, boxShadow: "0 4px 20px rgba(0,0,0,.08)" }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: "#666", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 16 }}>🔥 How "over the top"?</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {intensities.map((btn, i) => (
               <div key={btn.name} onClick={() => setActiveIntensity(i)} style={{
-                padding: "20px 12px", border: `2px solid ${activeIntensity === i ? "transparent" : btn.wild ? "#FF2D55" : "rgba(0,0,0,.08)"}`,
+                padding: "20px 12px", border: `2px solid ${activeIntensity === i ? "transparent" : (btn as any).wild ? "#FF2D55" : "rgba(0,0,0,.08)"}`,
                 borderRadius: 20, textAlign: "center", cursor: "pointer",
-                background: activeIntensity === i ? (btn.wild ? "linear-gradient(135deg,#FF2D55,#ff1a1a)" : "linear-gradient(135deg,#FFE66D,#FF8C42)") : "white",
-                color: activeIntensity === i ? "white" : btn.wild ? "#FF2D55" : "inherit",
+                background: activeIntensity === i ? ((btn as any).wild ? "linear-gradient(135deg,#FF2D55,#ff1a1a)" : "linear-gradient(135deg,#FFE66D,#FF8C42)") : "white",
+                color: activeIntensity === i ? "white" : (btn as any).wild ? "#FF2D55" : "inherit",
                 transform: activeIntensity === i ? "scale(1.05)" : "none",
-                boxShadow: activeIntensity === i ? `0 8px 25px ${btn.wild ? "rgba(255,45,85,.4)" : "rgba(255,140,66,.4)"}` : "none",
+                boxShadow: activeIntensity === i ? `0 8px 25px ${(btn as any).wild ? "rgba(255,45,85,.4)" : "rgba(255,140,66,.4)"}` : "none",
                 transition: "all .3s cubic-bezier(.34,1.56,.64,1)"
               }}>
                 <span style={{ fontSize: 32, display: "block", marginBottom: 8 }}>{btn.emoji}</span>
@@ -396,7 +409,6 @@ const GeneratorScreen: React.FC<{ time: string }> = ({ time }) => {
             ))}
           </div>
         </div>
-        {/* Style */}
         <div style={{ background: "white", borderRadius: 28, padding: 24, marginBottom: 20, boxShadow: "0 4px 20px rgba(0,0,0,.08)" }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: "#666", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 16 }}>🎨 Meme Vibe</div>
           <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 5, scrollbarWidth: "none" }}>
@@ -412,7 +424,6 @@ const GeneratorScreen: React.FC<{ time: string }> = ({ time }) => {
             ))}
           </div>
         </div>
-        {/* Context */}
         <div style={{ background: "white", borderRadius: 28, padding: 24, marginBottom: 20, boxShadow: "0 4px 20px rgba(0,0,0,.08)" }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: "#666", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 16 }}>📝 Context</div>
           <textarea readOnly placeholder="Why are you glazing them?" rows={2} style={{
@@ -486,7 +497,6 @@ const PreviewScreen: React.FC<{ time: string }> = ({ time }) => (
           <button style={{ padding: 22, borderRadius: 20, border: "none", fontWeight: 800, fontSize: 17, cursor: "pointer", background: "linear-gradient(135deg,#34C759,#30D158)", color: "white", gridColumn: "span 2", boxShadow: "0 8px 25px rgba(52,199,89,.4)" }}>📤 SHARE TO MAKE THEM SMILE</button>
         </div>
       </div>
-      {/* Keyboard Preview */}
       <div style={{ marginTop: 24, background: "#F2F2F7", borderRadius: 24, padding: 20 }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
           {["Recent", "⭐ Fav", "⚡ Quick"].map((t, i) => (
@@ -579,19 +589,16 @@ const KeyboardSetupScreen: React.FC<{ time: string }> = ({ time }) => (
 
 const KeyboardActiveScreen: React.FC<{ time: string }> = ({ time }) => (
   <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "white" }}>
-    {/* iMessage header */}
     <div style={{ padding: "60px 20px 15px", background: "#F2F2F7", borderBottom: "1px solid rgba(0,0,0,.1)", display: "flex", alignItems: "center", gap: 12 }}>
       <div style={{ fontSize: 22, color: "#007AFF" }}>←</div>
       <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "white", fontSize: 16 }}>S</div>
       <div style={{ fontWeight: 700, flex: 1, color: "#1a1a1a" }}>Sarah</div>
     </div>
-    {/* Chat */}
     <div style={{ flex: 1, background: "white", padding: 20 }}>
       <div style={{ background: "#E9E9EB", padding: "12px 16px", borderRadius: "20px 20px 20px 4px", display: "inline-block", maxWidth: "75%", marginBottom: 12, color: "#1a1a1a", fontSize: 15 }}>Hey! How's it going? 👋</div>
       <div style={{ background: "#34C759", padding: "12px 16px", borderRadius: "20px 20px 4px 20px", display: "inline-block", maxWidth: "75%", marginLeft: "auto", color: "white", float: "right", clear: "both", fontSize: 15 }}>Good! Just wanted to say...</div>
       <div style={{ clear: "both" }} />
     </div>
-    {/* GlazeMe Keyboard */}
     <div style={{ background: "#F2F2F7", padding: 12, borderTop: "1px solid rgba(0,0,0,.1)" }}>
       <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
         {["Recent", "⭐ Fav", "⚡ Quick"].map((t, i) => (
@@ -625,7 +632,6 @@ const HistoryScreen: React.FC<{ time: string }> = ({ time }) => (
       <div style={{ fontSize: 20, fontWeight: 800 }}>History</div>
     </div>
     <div style={{ padding: "0 24px" }}>
-      {/* Favorites */}
       <div style={{ background: "linear-gradient(135deg,rgba(255,230,109,.1),rgba(255,140,66,.1))", border: "2px solid rgba(255,140,66,.2)", borderRadius: 24, padding: 24, marginBottom: 16 }}>
         <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 16, color: "#1a1a1a" }}>⭐ Favorites</div>
         <div style={{ fontSize: 16, color: "#1a1a1a", fontWeight: 700, lineHeight: 1.5, marginBottom: 12 }}>"You're absolutely legendary and I'm not even exaggerating!!"</div>
@@ -664,6 +670,20 @@ const HistoryScreen: React.FC<{ time: string }> = ({ time }) => (
 
 export default function GlazeMeDemo() {
   const [time, setTime] = useState("");
+  const windowWidth = useWindowWidth();
+
+  // Responsive phone scale
+  const getPhoneScale = () => {
+    if (windowWidth < 480) return 0.52;
+    if (windowWidth < 640) return 0.62;
+    if (windowWidth < 900) return 0.72;
+    if (windowWidth < 1200) return 0.82;
+    return 1;
+  };
+
+  const phoneScale = getPhoneScale();
+  const phoneHeight = 852 * phoneScale;
+  const phoneWidth = 393 * phoneScale + 4;
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }));
@@ -702,13 +722,15 @@ export default function GlazeMeDemo() {
     ["Storage", "iCloud Sync"], ["Security", "End-to-End"], ["Languages", "English"],
   ];
 
+  const isMobile = windowWidth < 640;
+  const isTablet = windowWidth < 1024;
+
   return (
     <div style={{
       fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
       background: "linear-gradient(135deg,#0f0f23 0%,#1a1a2e 50%,#16213e 100%)",
       minHeight: "100vh", color: "white", overflowX: "hidden"
     }}>
-      {/* Animations */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -726,6 +748,45 @@ export default function GlazeMeDemo() {
         @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.5} }
         @keyframes modal-up { from{transform:translateY(100%)} to{transform:translateY(0)} }
         ::-webkit-scrollbar { display: none; }
+
+        .phones-scroll {
+          display: flex;
+          overflow-x: auto;
+          gap: 32px;
+          padding: 40px 24px 160px;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .phones-scroll::-webkit-scrollbar { display: none; }
+        .phone-snap-item {
+          scroll-snap-align: center;
+          flex-shrink: 0;
+        }
+
+        .phones-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 80px;
+          justify-content: center;
+          padding: 60px 40px 160px;
+          max-width: 1700px;
+          margin: 0 auto;
+        }
+
+        @media (max-width: 640px) {
+          .header-stats { gap: 20px !important; }
+          .header-stats > div > span:first-child { font-size: 36px !important; }
+          .features-grid { grid-template-columns: 1fr !important; }
+          .specs-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .section-pad { padding: 0 16px !important; }
+          .cta-btn { padding: 16px 28px !important; font-size: 16px !important; }
+        }
+
+        @media (min-width: 641px) and (max-width: 1023px) {
+          .features-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .specs-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
       `}</style>
 
       {/* Ambient BG Orbs */}
@@ -736,7 +797,7 @@ export default function GlazeMeDemo() {
       ].map((orb, i) => (
         <div key={i} style={{
           position: "fixed", width: orb.w, height: orb.h, borderRadius: "50%",
-          filter: "blur(80px)", opacity: .4, pointerEvents: "none", zIndex: 0,
+          filter: "blur(80px)", opacity: .3, pointerEvents: "none", zIndex: 0,
           background: `radial-gradient(circle,${orb.color},transparent 70%)`,
           animation: `float-ambient 20s ${orb.delay}s infinite ease-in-out`,
           top: (orb as any).top ?? "auto", left: (orb as any).left ?? "auto",
@@ -746,49 +807,66 @@ export default function GlazeMeDemo() {
       ))}
 
       {/* Header */}
-      <header style={{ position: "relative", zIndex: 10, textAlign: "center", padding: "60px 20px 40px", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.1)", backdropFilter: "blur(20px)", padding: "10px 24px", borderRadius: 50, fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: 2, marginBottom: 30, border: "1px solid rgba(255,255,255,.1)" }}>
+      <header style={{ position: "relative", zIndex: 10, textAlign: "center", padding: isMobile ? "40px 16px 30px" : "60px 20px 40px", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.1)", backdropFilter: "blur(20px)", padding: "8px 20px", borderRadius: 50, fontSize: isMobile ? 11 : 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: 2, marginBottom: 24, border: "1px solid rgba(255,255,255,.1)" }}>
           <div style={{ width: 8, height: 8, background: "#34C759", borderRadius: "50%", animation: "pulse-dot 2s infinite" }} />
           <span>Client Preview Ready</span>
         </div>
-        <h1 style={{ fontSize: "clamp(42px,8vw,72px)", fontWeight: 900, marginBottom: 20, background: "linear-gradient(135deg,#fff 0%,#FFE66D 50%,#FF8C42 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: -3, lineHeight: 1.1 }}>
+        <h1 style={{ fontSize: isMobile ? "36px" : "clamp(42px,8vw,72px)", fontWeight: 900, marginBottom: 16, background: "linear-gradient(135deg,#fff 0%,#FFE66D 50%,#FF8C42 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: -2, lineHeight: 1.1 }}>
           GlazeMe Premium
         </h1>
-        <p style={{ fontSize: 22, opacity: .8, maxWidth: 600, margin: "0 auto 40px", lineHeight: 1.6, fontWeight: 400 }}>
+        <p style={{ fontSize: isMobile ? 16 : 22, opacity: .8, maxWidth: 600, margin: "0 auto 32px", lineHeight: 1.6, fontWeight: 400, padding: "0 8px" }}>
           The ultimate "over the top" compliment experience. Designed for iPhone 17 Pro with titanium finish, Dynamic Island integration, and pro-grade animations.
         </p>
-        <div style={{ display: "flex", justifyContent: "center", gap: "clamp(20px,5vw,60px)", marginTop: 40, flexWrap: "wrap" }}>
+        <div className="header-stats" style={{ display: "flex", justifyContent: "center", gap: isMobile ? 24 : 60, marginTop: 32, flexWrap: "wrap" }}>
           {[["10", "Screens"], ["50+", "Features"], ["4", "Intensity Levels"], ["0s", "Load Time"]].map(([num, label]) => (
             <div key={label} style={{ textAlign: "center" }}>
-              <span style={{ fontSize: 48, fontWeight: 900, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "block" }}>{num}</span>
-              <div style={{ fontSize: 14, opacity: .6, textTransform: "uppercase", letterSpacing: 1, marginTop: 5 }}>{label}</div>
+              <span style={{ fontSize: isMobile ? 36 : 48, fontWeight: 900, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "block" }}>{num}</span>
+              <div style={{ fontSize: isMobile ? 11 : 14, opacity: .6, textTransform: "uppercase", letterSpacing: 1, marginTop: 4 }}>{label}</div>
             </div>
           ))}
         </div>
       </header>
 
-      {/* Phones Grid */}
-      <div style={{ position: "relative", zIndex: 10, padding: "60px 40px 160px", maxWidth: 1700, margin: "0 auto" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 100, justifyContent: "center" }}>
+      {/* Scroll hint on mobile */}
+      {isMobile && (
+        <div style={{ textAlign: "center", color: "rgba(255,255,255,.5)", fontSize: 13, marginBottom: 8, letterSpacing: 1 }}>
+          ← Swipe to browse all screens →
+        </div>
+      )}
+
+      {/* Phones — horizontal scroll on mobile/tablet, grid on desktop */}
+      {isTablet ? (
+        <div className="phones-scroll">
           {screens.map(({ Screen, ...meta }) => (
-            <ScreenCard key={meta.number} {...meta}>
+            <div key={meta.number} className="phone-snap-item" style={{ height: phoneHeight + 140 }}>
+              <ScreenCard {...meta} scale={phoneScale}>
+                <Screen time={time} />
+              </ScreenCard>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="phones-grid">
+          {screens.map(({ Screen, ...meta }) => (
+            <ScreenCard key={meta.number} {...meta} scale={phoneScale}>
               <Screen time={time} />
             </ScreenCard>
           ))}
         </div>
-      </div>
+      )}
 
       {/* Features Section */}
-      <section style={{ position: "relative", zIndex: 10, maxWidth: 1400, margin: "0 auto 80px", padding: "0 40px" }}>
-        <div style={{ textAlign: "center", marginBottom: 60 }}>
-          <h2 style={{ fontSize: "clamp(32px,5vw,48px)", fontWeight: 900, marginBottom: 20, background: "linear-gradient(135deg,#fff,#FFE66D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Premium Features</h2>
-          <p style={{ fontSize: 20, opacity: .8, maxWidth: 600, margin: "0 auto", lineHeight: 1.6 }}>Every detail crafted for the ultimate compliment experience. From AI generation to keyboard integration.</p>
+      <section className="section-pad" style={{ position: "relative", zIndex: 10, maxWidth: 1400, margin: "0 auto 80px", padding: isMobile ? "0 16px" : "0 40px" }}>
+        <div style={{ textAlign: "center", marginBottom: isMobile ? 40 : 60 }}>
+          <h2 style={{ fontSize: isMobile ? "28px" : "clamp(32px,5vw,48px)", fontWeight: 900, marginBottom: 16, background: "linear-gradient(135deg,#fff,#FFE66D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Premium Features</h2>
+          <p style={{ fontSize: isMobile ? 16 : 20, opacity: .8, maxWidth: 600, margin: "0 auto", lineHeight: 1.6 }}>Every detail crafted for the ultimate compliment experience. From AI generation to keyboard integration.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 24 }}>
+        <div className="features-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2,1fr)" : "repeat(auto-fit,minmax(300px,1fr))", gap: 20 }}>
           {features.map(f => (
             <div key={f.title} style={{
               background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)",
-              borderRadius: 24, padding: 32, backdropFilter: "blur(20px)",
+              borderRadius: 24, padding: isMobile ? 24 : 32, backdropFilter: "blur(20px)",
               transition: "all .4s ease", cursor: "default",
               position: "relative", overflow: "hidden"
             }}
@@ -800,21 +878,21 @@ export default function GlazeMeDemo() {
                 (e.currentTarget as HTMLElement).style.transform = "none";
                 (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.03)";
               }}>
-              <div style={{ width: 60, height: 60, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 20, boxShadow: "0 8px 20px rgba(255,140,66,.3)" }}>{f.icon}</div>
-              <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12, color: "white" }}>{f.title}</h3>
-              <p style={{ fontSize: 15, lineHeight: 1.6, opacity: .7, color: "rgba(255,255,255,.8)" }}>{f.desc}</p>
+              <div style={{ width: 52, height: 52, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 16, boxShadow: "0 8px 20px rgba(255,140,66,.3)" }}>{f.icon}</div>
+              <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 10, color: "white" }}>{f.title}</h3>
+              <p style={{ fontSize: 14, lineHeight: 1.6, opacity: .7, color: "rgba(255,255,255,.8)" }}>{f.desc}</p>
             </div>
           ))}
         </div>
 
         {/* Tech Specs */}
-        <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 32, padding: 40, marginTop: 60, border: "1px solid rgba(255,255,255,.1)" }}>
-          <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24, textAlign: "center" }}>Technical Specifications</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 20 }}>
+        <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 28, padding: isMobile ? 24 : 40, marginTop: 48, border: "1px solid rgba(255,255,255,.1)" }}>
+          <h3 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, marginBottom: 24, textAlign: "center" }}>Technical Specifications</h3>
+          <div className="specs-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(auto-fit,minmax(180px,1fr))", gap: 16 }}>
             {specs.map(([label, val]) => (
-              <div key={label} style={{ textAlign: "center", padding: 20, background: "rgba(255,255,255,.05)", borderRadius: 16 }}>
-                <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1, opacity: .6, marginBottom: 8 }}>{label}</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#FFE66D" }}>{val}</div>
+              <div key={label} style={{ textAlign: "center", padding: isMobile ? 16 : 20, background: "rgba(255,255,255,.05)", borderRadius: 16 }}>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, opacity: .6, marginBottom: 6 }}>{label}</div>
+                <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 800, color: "#FFE66D" }}>{val}</div>
               </div>
             ))}
           </div>
@@ -822,10 +900,11 @@ export default function GlazeMeDemo() {
       </section>
 
       {/* CTA */}
-      <section style={{ textAlign: "center", padding: "60px 20px 100px", position: "relative", zIndex: 10 }}>
-        <h2 style={{ fontSize: "clamp(32px,5vw,48px)", fontWeight: 900, marginBottom: 30 }}>Ready to Glaze?</h2>
+      <section style={{ textAlign: "center", padding: isMobile ? "40px 16px 80px" : "60px 20px 100px", position: "relative", zIndex: 10 }}>
+        <h2 style={{ fontSize: isMobile ? "28px" : "clamp(32px,5vw,48px)", fontWeight: 900, marginBottom: 24 }}>Ready to Glaze?</h2>
         <button
-          style={{ display: "inline-flex", alignItems: "center", gap: 12, padding: "20px 40px", background: "linear-gradient(135deg,#FFE66D,#FF8C42)", color: "white", fontSize: 18, fontWeight: 800, borderRadius: 30, border: "none", boxShadow: "0 10px 30px rgba(255,140,66,.4)", cursor: "pointer", transition: "all .4s" }}
+          className="cta-btn"
+          style={{ display: "inline-flex", alignItems: "center", gap: 12, padding: "18px 36px", background: "linear-gradient(135deg,#FFE66D,#FF8C42)", color: "white", fontSize: 18, fontWeight: 800, borderRadius: 30, border: "none", boxShadow: "0 10px 30px rgba(255,140,66,.4)", cursor: "pointer", transition: "all .4s" }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-4px) scale(1.05)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 20px 40px rgba(255,140,66,.5)"; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "0 10px 30px rgba(255,140,66,.4)"; }}
         >
