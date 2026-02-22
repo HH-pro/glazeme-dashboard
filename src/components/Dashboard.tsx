@@ -7,6 +7,8 @@ import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
 import TechnicalLog from './TechnicalLog';
 import DeploymentTracker from './DeploymentTracker';
+import Demo from './demo';
+
 import PasswordModal from './PasswordModal';
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, ClientReview as ClientReviewType } from '../types';
 
@@ -17,7 +19,7 @@ interface Notification {
   type: 'success' | 'error' | 'info';
 }
 
-type TabType = 'updates' | 'reviews' | 'screens' | 'progress' | 'tech' | 'deploy' | 'more';
+type TabType = 'updates' | 'reviews' | 'demo' | 'screens' | 'progress' | 'tech' | 'deploy' | 'more';
 
 // --- Icons (Lucide-style, optimized for light theme) ---
 const Icons = {
@@ -276,10 +278,13 @@ const Dashboard: React.FC = () => {
     switch (activeTab) {
       case 'updates': return <BuildUpdates initialEditMode={isEditMode} />;
       case 'reviews': return <ClientReview />;
+      case 'demo': return <Demo />;
+
       case 'screens': return <ScreenGallery screens={filteredScreens} isEditMode={isEditMode} />;
       case 'progress': return <WeeklyProgress isEditMode={isEditMode} />;
       case 'tech': return <TechnicalLog isEditMode={isEditMode} />;
       case 'deploy': return <DeploymentTracker isEditMode={isEditMode} />;
+      
       default: return null;
     }
   };
