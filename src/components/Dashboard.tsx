@@ -3,13 +3,12 @@ import { db } from '../services/firebase';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import BuildUpdates from './BuildUpdates';
 import ClientReview from './ClientReview';
-import Demo from './demo';
-
 import ScreenGallery from './ScreenGallery';
 import WeeklyProgress from './WeeklyProgress';
 import TechnicalLog from './TechnicalLog';
 import DeploymentTracker from './DeploymentTracker';
 import PasswordModal from './PasswordModal';
+import GlazeMeDemo from './GlazeMeDemo'; // Import the GlazeMeDemo component
 import { BuildUpdate, ScreenCapture, GlazeMeSpecs, CodeCommit, ClientReview as ClientReviewType } from '../types';
 
 // --- Types ---
@@ -19,7 +18,7 @@ interface Notification {
   type: 'success' | 'error' | 'info';
 }
 
-type TabType = 'updates' | 'reviews' |'demo' | 'screens' | 'progress' | 'tech' | 'deploy' | 'more';
+type TabType = 'updates' | 'reviews' | 'screens' | 'progress' | 'tech' | 'deploy' | 'more' | 'demo'; // Added 'demo' tab
 
 // --- Icons (Lucide-style, optimized for light theme) ---
 const Icons = {
@@ -44,7 +43,8 @@ const Icons = {
   Unlock: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>,
   MoreHorizontal: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>,
   TrendingUp: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
-  Clock: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  Clock: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  Eye: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="2"/><path d="M22 12c-2.667 4.667-6 7-10 7s-7.333-2.333-10-7c2.667-4.667 6-7 10-7s7.333 2.333 10 7z"/></svg>,
 };
 
 // --- Sub-Components ---
@@ -94,9 +94,8 @@ const BottomNav: React.FC<{ activeTab: TabType; onTabChange: (tab: TabType) => v
   const tabs = [
     { id: 'updates' as TabType, label: 'Updates', icon: <Icons.LayoutGrid /> },
     { id: 'reviews' as TabType, label: 'Reviews', icon: <Icons.Star /> },
-    { id: 'demo' as TabType, label: 'Demo', icon: <Icons.Star /> },
-
     { id: 'screens' as TabType, label: 'Screens', icon: <Icons.Smartphone /> },
+    { id: 'demo' as TabType, label: 'Demo', icon: <Icons.Eye /> },
     { id: 'more' as TabType, label: 'More', icon: <Icons.MoreHorizontal /> },
   ];
 
@@ -135,6 +134,7 @@ const Dashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [selectedDemoScreen, setSelectedDemoScreen] = useState<number>(1); // For demo screen selection
 
   // Specs Data
   const glazemeSpecs: GlazeMeSpecs = {
@@ -278,15 +278,62 @@ const Dashboard: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'updates': return <BuildUpdates initialEditMode={isEditMode} />;
-      case 'reviews': return <ClientReview />;
-      case 'demo': return <Demo />;
-
-      case 'screens': return <ScreenGallery screens={filteredScreens} isEditMode={isEditMode} />;
-      case 'progress': return <WeeklyProgress isEditMode={isEditMode} />;
-      case 'tech': return <TechnicalLog isEditMode={isEditMode} />;
-      case 'deploy': return <DeploymentTracker isEditMode={isEditMode} />;
-      default: return null;
+      case 'updates': 
+        return <BuildUpdates initialEditMode={isEditMode} />;
+      case 'reviews': 
+        return <ClientReview />;
+      case 'screens': 
+        return <ScreenGallery screens={filteredScreens} isEditMode={isEditMode} />;
+      case 'demo':
+        return (
+          <div className="demo-container">
+            <div className="demo-header">
+              <h2>GlazeMe App Preview</h2>
+              <p>Interactive demo of the GlazeMe iPhone app - 10 screens showing the complete user journey</p>
+              <div className="demo-controls">
+                <select 
+                  value={selectedDemoScreen} 
+                  onChange={(e) => setSelectedDemoScreen(Number(e.target.value))}
+                  className="demo-select"
+                >
+                  <option value={1}>Splash Screen</option>
+                  <option value={2}>Home Dashboard</option>
+                  <option value={3}>Add Friend Modal</option>
+                  <option value={4}>AI Generator</option>
+                  <option value={5}>AI Processing</option>
+                  <option value={6}>Result Preview</option>
+                  <option value={7}>iOS Share Sheet</option>
+                  <option value={8}>Keyboard Setup</option>
+                  <option value={9}>Keyboard Active</option>
+                  <option value={10}>History & Favorites</option>
+                </select>
+                <button 
+                  className="demo-view-all-btn"
+                  onClick={() => setSelectedDemoScreen(0)} // 0 means show all screens
+                >
+                  Show All Screens
+                </button>
+              </div>
+            </div>
+            <GlazeMeDemo 
+              variant={selectedDemoScreen === 0 ? 'full' : 'screens-only'}
+              showHeader={selectedDemoScreen === 0}
+              showFeatures={selectedDemoScreen === 0}
+              showCTA={selectedDemoScreen === 0}
+              selectedScreen={selectedDemoScreen !== 0 ? selectedDemoScreen : undefined}
+              embedded={selectedDemoScreen !== 0}
+              onScreenSelect={(screenNumber) => setSelectedDemoScreen(screenNumber)}
+            />
+          </div>
+        );
+      case 'progress': 
+        return <WeeklyProgress isEditMode={isEditMode} />;
+      case 'tech': 
+        return <TechnicalLog isEditMode={isEditMode} />;
+      case 'deploy': 
+        return <DeploymentTracker isEditMode={isEditMode} />;
+      default: 
+        return null;
     }
   };
 
@@ -356,9 +403,8 @@ const Dashboard: React.FC = () => {
           {[ 
             { id: 'updates' as TabType, label: 'Updates', icon: <Icons.LayoutGrid /> },
             { id: 'reviews' as TabType, label: 'Reviews', icon: <Icons.Star /> },
-            { id: 'demo' as TabType, label: 'Demo', icon: <Icons.Star /> },
-
             { id: 'screens' as TabType, label: 'Screens', icon: <Icons.Smartphone /> },
+            { id: 'demo' as TabType, label: 'App Demo', icon: <Icons.Eye /> },
             { id: 'progress' as TabType, label: 'Progress', icon: <Icons.BarChart /> },
             { id: 'tech' as TabType, label: 'Tech Log', icon: <Icons.Code /> },
             { id: 'deploy' as TabType, label: 'Deploy', icon: <Icons.Cloud /> },
@@ -413,56 +459,60 @@ const Dashboard: React.FC = () => {
           ))}
         </div>
 
-        {/* Top Bar */}
-        <div className="top-bar">
-          <div className="search-box">
-            <Icons.Search />
-            <input 
-              type="text" 
-              placeholder={isMobile ? "Search..." : "Search updates, reviews..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button className="clear-search" onClick={() => setSearchQuery('')}>
-                <Icons.X />
-              </button>
+        {/* Top Bar - Hide when in demo mode on mobile to save space */}
+        {!(isMobile && activeTab === 'demo') && (
+          <div className="top-bar">
+            <div className="search-box">
+              <Icons.Search />
+              <input 
+                type="text" 
+                placeholder={isMobile ? "Search..." : "Search updates, reviews..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="clear-search" onClick={() => setSearchQuery('')}>
+                  <Icons.X />
+                </button>
+              )}
+            </div>
+
+            {!isMobile && (
+              <div className="actions">
+                <button className="icon-btn filter-btn"><Icons.Filter /></button>
+                <button 
+                  className={`edit-toggle ${isEditMode ? 'active' : ''}`}
+                  onClick={toggleEditMode}
+                >
+                  {isEditMode ? <Icons.Unlock /> : <Icons.Lock />}
+                  <span>{isEditMode ? 'Exit Edit' : 'Edit'}</span>
+                </button>
+              </div>
             )}
           </div>
+        )}
 
-          {!isMobile && (
-            <div className="actions">
-              <button className="icon-btn filter-btn"><Icons.Filter /></button>
-              <button 
-                className={`edit-toggle ${isEditMode ? 'active' : ''}`}
-                onClick={toggleEditMode}
-              >
-                {isEditMode ? <Icons.Unlock /> : <Icons.Lock />}
-                <span>{isEditMode ? 'Exit Edit' : 'Edit'}</span>
-              </button>
+        {/* Welcome Card - Hide in demo mode */}
+        {activeTab !== 'demo' && (
+          <div className="welcome-card">
+            <div className="welcome-content">
+              <h2>Welcome back, Developer</h2>
+              <p>Here's what's happening with your GlazeMe project today.</p>
             </div>
-          )}
-        </div>
-
-        {/* Welcome Card */}
-        <div className="welcome-card">
-          <div className="welcome-content">
-            <h2>Welcome back, Developer</h2>
-            <p>Here's what's happening with your GlazeMe project today.</p>
-          </div>
-          <div className="welcome-stats">
-            <div className="welcome-stat">
-              <span className="welcome-stat-value">{updates.length}</span>
-              <span className="welcome-stat-label">Updates</span>
-            </div>
-            <div className="welcome-stat">
-              <span className="welcome-stat-value">{screens.length}</span>
-              <span className="welcome-stat-label">Screens</span>
+            <div className="welcome-stats">
+              <div className="welcome-stat">
+                <span className="welcome-stat-value">{updates.length}</span>
+                <span className="welcome-stat-label">Updates</span>
+              </div>
+              <div className="welcome-stat">
+                <span className="welcome-stat-value">{screens.length}</span>
+                <span className="welcome-stat-label">Screens</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Stats Overview */}
+        {/* Stats Overview - Only show on updates tab */}
         {activeTab === 'updates' && (
           <div className="stats-grid">
             <StatCard 
@@ -513,8 +563,8 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Activity Feed */}
-        {!isMobile && (
+        {/* Activity Feed - Hide in demo mode */}
+        {!isMobile && activeTab !== 'demo' && (
           <div className="activity-feed">
             <div className="activity-feed-header">
               <h3>Live Activity</h3>
@@ -537,8 +587,8 @@ const Dashboard: React.FC = () => {
                   icon={<Icons.Star />} 
                   time={new Date(r.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 
                   text={`New Review: ${r.updateTitle || 'General'}`}
-                 subtext={`Rating: ${r.rating ? `${r.rating}/5` : 'No rating'}`}
-highlight={r.rating ? r.rating >= 4 : false}
+                  subtext={`Rating: ${r.rating ? `${r.rating}/5` : 'No rating'}`}
+                  highlight={r.rating ? r.rating >= 4 : false}
                 />
               ))}
             </div>
@@ -547,19 +597,119 @@ highlight={r.rating ? r.rating >= 4 : false}
       </main>
 
       {/* Mobile Bottom Navigation */}
-     {isMobile && (
-  <BottomNav
-    activeTab={activeTab}
-    onTabChange={(tab: TabType) => {
-      if (tab === 'more') {
-        setShowMobileMenu(true);
-      } else {
-        setActiveTab(tab);
-        setShowMobileMenu(false);
-      }
-    }}
-  />
-)}
+      {isMobile && (
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={(tab: TabType) => {
+            if (tab === 'more') {
+              setShowMobileMenu(true);
+            } else {
+              setActiveTab(tab);
+              setShowMobileMenu(false);
+            }
+          }}
+        />
+      )}
+
+      {/* Additional styles for demo container */}
+      <style>{`
+        .demo-container {
+          width: 100%;
+        }
+
+        .demo-header {
+          margin-bottom: var(--space-6);
+        }
+
+        .demo-header h2 {
+          font-size: 24px;
+          font-weight: 700;
+          color: var(--gray-900);
+          margin-bottom: var(--space-2);
+        }
+
+        .demo-header p {
+          color: var(--gray-600);
+          font-size: 14px;
+          margin-bottom: var(--space-4);
+        }
+
+        .demo-controls {
+          display: flex;
+          gap: var(--space-4);
+          align-items: center;
+          flex-wrap: wrap;
+          margin-bottom: var(--space-6);
+          background: var(--gray-50);
+          padding: var(--space-4);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--gray-200);
+        }
+
+        .demo-select {
+          padding: var(--space-3) var(--space-4);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--gray-200);
+          background: white;
+          color: var(--gray-900);
+          font-size: 14px;
+          font-weight: 500;
+          min-width: 200px;
+          cursor: pointer;
+          transition: var(--transition-fast);
+        }
+
+        .demo-select:hover {
+          border-color: var(--primary-300);
+        }
+
+        .demo-select:focus {
+          outline: none;
+          border-color: var(--primary-500);
+          box-shadow: 0 0 0 3px var(--primary-100);
+        }
+
+        .demo-view-all-btn {
+          padding: var(--space-3) var(--space-5);
+          background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+          border: none;
+          border-radius: var(--radius-md);
+          color: white;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: var(--transition-fast);
+          white-space: nowrap;
+        }
+
+        .demo-view-all-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+        }
+
+        .demo-view-all-btn:active {
+          transform: translateY(0);
+        }
+
+        @media (max-width: 639px) {
+          .demo-controls {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .demo-select {
+            width: 100%;
+          }
+
+          .demo-view-all-btn {
+            width: 100%;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
+
       {/* Light Theme Styles */}
       <style>{`
         /* ============================================
