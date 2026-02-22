@@ -1,892 +1,837 @@
-// App.tsx
-import React, { useState, useEffect } from 'react';
-import './demo.css';
+import { useState, useEffect } from "react";
 
-// Types
-interface Friend {
-  id: string;
+// ─── Types ─────────────────────────────────────────────────────────────────
+
+interface ScreenProps {
+  number: number;
   name: string;
-  initial: string;
-  streak: number;
-  context?: string;
+  desc: string;
+  tags: string[];
+  children: React.ReactNode;
 }
 
-interface Glaze {
-  id: string;
-  text: string;
-  friendId: string;
-  friendName: string;
-  intensity: IntensityLevel;
-  style: GlazeStyle;
-  timestamp: Date;
-  isFavorite?: boolean;
-}
+// ─── Reusable iPhone Shell ──────────────────────────────────────────────────
 
-type IntensityLevel = 'nice' | 'hype' | 'legendary' | 'unhinged';
-type GlazeStyle = 'bestie' | 'poetic' | 'ceo' | 'chaos';
-
-interface IntensityConfig {
-  level: IntensityLevel;
-  emoji: string;
-  name: string;
-  description: string;
-  color: string;
-}
-
-// Constants
-const INTENSITY_LEVELS: IntensityConfig[] = [
-  { level: 'nice', emoji: '😊', name: 'Nice', description: 'Subtle', color: '#34C759' },
-  { level: 'hype', emoji: '🚀', name: 'Hype', description: 'High energy', color: '#FF8C42' },
-  { level: 'legendary', emoji: '👑', name: 'LEGENDARY', description: 'All caps', color: '#FFD700' },
-  { level: 'unhinged', emoji: '🤪', name: 'UNHINGED', description: 'Chaos mode', color: '#FF2D55' }
-];
-
-const GLAZE_STYLES: { value: GlazeStyle; label: string; emoji: string }[] = [
-  { value: 'bestie', label: 'Bestie', emoji: '👯' },
-  { value: 'poetic', label: 'Poetic', emoji: '📜' },
-  { value: 'ceo', label: 'CEO', emoji: '💼' },
-  { value: 'chaos', label: 'Chaos', emoji: '🌪️' }
-];
-
-// Mock Data
-const MOCK_FRIENDS: Friend[] = [
-  { id: '1', name: 'Sarah', initial: 'S', streak: 5 },
-  { id: '2', name: 'Mike', initial: 'M', streak: 2 }
-];
-
-// Components
-const AmbientBackground: React.FC = () => (
-  <div className="ambient-bg">
-    <div className="ambient-orb orb-1"></div>
-    <div className="ambient-orb orb-2"></div>
-    <div className="ambient-orb orb-3"></div>
-  </div>
-);
-
-const DynamicIsland: React.FC = () => (
-  <div className="dynamic-island">
-    <div className="island-camera"></div>
-    <div className="island-speaker"></div>
-  </div>
-);
-
-const IPhoneFrame: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="iphone-17">
-    <div className="titanium-frame"></div>
-    <div className="action-button"></div>
-    <div className="camera-control"></div>
-    <div className="volume-up"></div>
-    <div className="volume-down"></div>
-    <DynamicIsland />
-    <div className="iphone-screen">{children}</div>
-  </div>
-);
-
-const StatusBar: React.FC = () => {
-  const [currentTime, setCurrentTime] = useState('9:41');
+const IPhoneShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [time, setTime] = useState("");
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const timeString = now.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-      setCurrentTime(timeString);
+    const update = () => {
+      setTime(
+        new Date().toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+      );
     };
-
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
   }, []);
 
   return (
-    <div className="status-bar">
-      <span>{currentTime}</span>
-      <span className="status-time">{currentTime}</span>
-      <span>5G 100%</span>
-    </div>
-  );
-};
+    <div style={{ position: "relative" }}>
+      {/* Titanium frame */}
+      <div style={{
+        position: "absolute", inset: -2, borderRadius: 67, zIndex: 0,
+        background: "linear-gradient(145deg,#d4d4d4 0%,#8b8b8b 20%,#d4d4d4 40%,#8b8b8b 60%,#d4d4d4 80%,#8b8b8b 100%)",
+        boxShadow: "0 0 0 1px rgba(0,0,0,.5),0 20px 60px rgba(0,0,0,.4)"
+      }} />
 
-// Screen Components
-const SplashScreen: React.FC = () => (
-  <div className="app-content splash-screen">
-    <StatusBar />
-    <div className="splash-glow"></div>
-    <div className="splash-logo">GlazeMe</div>
-    <div className="splash-tagline">
-      Make someone's day,
-      <br />
-      over the top
-    </div>
-    <div className="splash-loader">
-      <div className="loader-ring"></div>
-      <div className="loader-core"></div>
-    </div>
-  </div>
-);
-
-const HomeScreen: React.FC<{
-  friends: Friend[];
-  dailyLimit: number;
-  usedToday: number;
-  onAddFriend: () => void;
-  onSelectFriend: (friend: Friend) => void;
-}> = ({ friends, dailyLimit, usedToday, onAddFriend, onSelectFriend }) => {
-  const remaining = dailyLimit - usedToday;
-
-  return (
-    <div className="app-content">
-      <StatusBar />
-      <div className="home-header">
-        <div className="home-title">GlazeMe 🔥</div>
-        <div className="header-actions">
-          <button className="icon-btn" aria-label="Keyboard">
-            ⌨️
-          </button>
-          <button className="icon-btn" aria-label="Settings">
-            ⚙️
-          </button>
-        </div>
-      </div>
-
-      <div className="glass-card">
-        <div className="limit-header">
-          <div className="limit-title">
-            🌟 <span className="limit-number">{remaining}</span>/{dailyLimit} left
-          </div>
-          <div className="limit-badge">Daily</div>
-        </div>
-        <div className="limit-bar-bg">
-          <div
-            className="limit-bar-fill"
-            style={{ width: `${(usedToday / dailyLimit) * 100}%` }}
-          ></div>
-        </div>
-      </div>
-
-      <div className="section-header">
-        <div className="section-title">Who deserves love?</div>
-        <button className="section-action" onClick={onAddFriend}>
-          + Add
-        </button>
-      </div>
-
-      <div className="friends-grid">
-        {friends.map((friend) => (
-          <button
-            key={friend.id}
-            className="friend-card"
-            onClick={() => onSelectFriend(friend)}
-          >
-            <div className="friend-avatar">{friend.initial}</div>
-            <div className="friend-name">{friend.name}</div>
-            <div className="friend-streak">🔥 {friend.streak}</div>
-          </button>
+      {/* Body */}
+      <div style={{
+        width: 393, height: 852, borderRadius: 65,
+        background: "linear-gradient(145deg,#1a1a1a,#0a0a0a)",
+        padding: 12, position: "relative", zIndex: 1,
+        boxShadow: "0 25px 50px -12px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.1)",
+        transition: "box-shadow .5s ease",
+      }}>
+        {/* Buttons */}
+        {[
+          { right: -3, top: 180, width: 4, height: 100, radius: "0 2px 2px 0" },
+          { right: -3, top: 300, width: 4, height: 80, radius: "0 2px 2px 0" },
+          { left: -3, top: 180, width: 4, height: 60, radius: "2px 0 0 2px" },
+          { left: -3, top: 250, width: 4, height: 60, radius: "2px 0 0 2px" },
+        ].map((b, i) => (
+          <div key={i} style={{
+            position: "absolute", ...b as any,
+            borderRadius: b.radius,
+            background: "linear-gradient(180deg,#d4d4d4,#8b8b8b)"
+          }} />
         ))}
-        <button className="friend-card add-friend-card" onClick={onAddFriend}>
-          <div className="friend-avatar">+</div>
-          <div className="friend-name">Add</div>
-        </button>
-      </div>
 
-      <RecentGlazes />
-      <KeyboardPromo />
-    </div>
-  );
-};
-
-const RecentGlazes: React.FC = () => {
-  const recentGlazes = [
-    { text: "You're absolutely legendary...", friend: 'Sarah', time: '2m ago' },
-    { text: 'Main character energy fr fr...', friend: 'Mike', time: '1h ago' }
-  ];
-
-  return (
-    <div className="recent-container">
-      <div className="recent-header">
-        <div className="recent-title">Recent Glazes</div>
-        <button className="text-button">See All →</button>
-      </div>
-      <div className="recent-list">
-        {recentGlazes.map((glaze, index) => (
-          <div key={index} className="recent-item">
-            <div className="recent-icon">💬</div>
-            <div className="recent-content">
-              <div className="recent-text">{glaze.text}</div>
-              <div className="recent-meta">
-                {glaze.friend} • {glaze.time}
-              </div>
-            </div>
+        {/* Dynamic Island */}
+        <div style={{
+          position: "absolute", top: 18, left: "50%", transform: "translateX(-50%)",
+          width: 90, height: 28, background: "#000", borderRadius: 20, zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px",
+          transition: "all .3s ease"
+        }}>
+          <div style={{ width: 10, height: 10, background: "#1a1a2a", borderRadius: "50%", position: "relative" }}>
+            <div style={{
+              position: "absolute", top: "50%", left: "50%",
+              transform: "translate(-50%,-50%)", width: 4, height: 4,
+              background: "#0d3b66", borderRadius: "50%"
+            }} />
           </div>
-        ))}
+          <div style={{ width: 40, height: 4, background: "#333", borderRadius: 2 }} />
+        </div>
+
+        {/* Screen */}
+        <div style={{ width: "100%", height: "100%", background: "#000", borderRadius: 55, overflow: "hidden", position: "relative" }}>
+          {/* Status Bar injected per screen via context, but we pass time down */}
+          {children}
+        </div>
       </div>
     </div>
   );
 };
 
-const KeyboardPromo: React.FC = () => (
-  <div className="promo-card">
-    <div className="promo-icon">⌨️</div>
-    <div className="promo-content">
-      <div className="promo-title">Add to Keyboard</div>
-      <div className="promo-desc">Glaze anywhere, anytime</div>
-    </div>
-    <div className="promo-arrow">→</div>
+// ─── Status Bar ─────────────────────────────────────────────────────────────
+
+const StatusBar: React.FC<{ time: string; light?: boolean }> = ({ time, light = true }) => (
+  <div style={{
+    position: "absolute", top: 0, left: 0, right: 0, height: 54,
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    padding: "0 35px", fontSize: 15, fontWeight: 700,
+    color: light ? "white" : "#1a1a1a", zIndex: 100,
+  }}>
+    <span style={{ fontVariantNumeric: "tabular-nums" }}>{time}</span>
+    <span style={{ fontVariantNumeric: "tabular-nums" }}>{time}</span>
+    <span>5G 100%</span>
   </div>
 );
 
-const AddFriendModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onAdd: (name: string, context: string) => void;
-}> = ({ isOpen, onClose, onAdd }) => {
-  const [name, setName] = useState('');
-  const [context, setContext] = useState('');
+// ─── Screen Wrapper Card ────────────────────────────────────────────────────
 
-  if (!isOpen) return null;
+const ScreenCard: React.FC<ScreenProps> = ({ number, name, desc, tags, children }) => {
+  const [hovered, setHovered] = useState(false);
+  const [time, setTime] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) {
-      onAdd(name.trim(), context.trim());
-      setName('');
-      setContext('');
-      onClose();
-    }
-  };
+  useEffect(() => {
+    const update = () => setTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }));
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-handle"></div>
-        <h2 className="modal-title">Add Friend</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label className="input-label">Friend's Name</label>
-            <input
-              type="text"
-              className="text-input"
-              placeholder="e.g., Jessica"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="input-group">
-            <label className="input-label">What makes them awesome?</label>
-            <input
-              type="text"
-              className="text-input"
-              placeholder="e.g., Always supportive"
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
-            />
-          </div>
-          <button type="submit" className="modal-submit">
-            💛 Add Friend
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
+    <div
+      style={{ position: "relative", transition: "all .5s cubic-bezier(.34,1.56,.64,1)", transform: hovered ? "translateY(-20px) scale(1.02)" : "none", zIndex: hovered ? 100 : 1 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Screen Number Badge */}
+      <div style={{
+        position: "absolute", top: -20, right: 20, width: 44, height: 44, zIndex: 10,
+        background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: "50%",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: 900, fontSize: 20, color: "white",
+        boxShadow: "0 4px 15px rgba(0,0,0,.3)"
+      }}>{number}</div>
 
-const GeneratorScreen: React.FC<{
-  friend: Friend;
-  onBack: () => void;
-  onGenerate: (intensity: IntensityLevel, style: GlazeStyle, context: string) => void;
-}> = ({ friend, onBack, onGenerate }) => {
-  const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('legendary');
-  const [selectedStyle, setSelectedStyle] = useState<GlazeStyle>('bestie');
-  const [context, setContext] = useState('');
+      <IPhoneShell>
+        {/* Pass time via inline rendering in each screen */}
+        {/* Screens handle their own status bar with local time */}
+        <ScreenContent time={time}>{children}</ScreenContent>
+      </IPhoneShell>
 
-  return (
-    <div className="app-content">
-      <StatusBar />
-      <div className="nav-header">
-        <button className="back-btn" onClick={onBack} aria-label="Go back">
-          ←
-        </button>
-        <div className="nav-title">New Glaze</div>
-        <button className="icon-btn" style={{ marginLeft: 'auto' }} aria-label="Info">
-          ℹ️
-        </button>
-      </div>
-
-      <div className="generator-content">
-        <div className="target-card">
-          <div className="target-label">Glazing Target</div>
-          <div className="target-name">{friend.name} 💛</div>
-        </div>
-
-        <div className="control-card">
-          <div className="control-label">🔥 How "over the top"?</div>
-          <div className="intensity-grid">
-            {INTENSITY_LEVELS.map((intensity) => (
-              <button
-                key={intensity.level}
-                className={`intensity-btn ${selectedIntensity === intensity.level ? 'active' : ''} ${
-                  intensity.level === 'unhinged' ? 'wild' : ''
-                }`}
-                onClick={() => setSelectedIntensity(intensity.level)}
-              >
-                <span className="intensity-emoji">{intensity.emoji}</span>
-                <span className="intensity-name">{intensity.name}</span>
-                <span className="intensity-desc">{intensity.description}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="control-card">
-          <div className="control-label">🎨 Meme Vibe</div>
-          <div className="style-scroll">
-            {GLAZE_STYLES.map((style) => (
-              <button
-                key={style.value}
-                className={`style-btn ${selectedStyle === style.value ? 'active' : ''}`}
-                onClick={() => setSelectedStyle(style.value)}
-              >
-                <span>{style.emoji}</span> {style.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="control-card">
-          <div className="control-label">📝 Context</div>
-          <textarea
-            className="context-input"
-            rows={2}
-            placeholder="Why are you glazing them?"
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-          />
-        </div>
-
-        <button
-          className="generate-btn"
-          onClick={() => onGenerate(selectedIntensity, selectedStyle, context)}
-        >
-          ✨ GENERATE GLAZE
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const LoadingScreen: React.FC<{ message?: string }> = ({ message = 'Creating your glaze...' }) => (
-  <div className="app-content loading-screen">
-    <StatusBar />
-    <div className="loading-sparkle">✨🔥✨</div>
-    <div className="loading-title">{message}</div>
-    <div className="loading-subtitle">AI is cooking up something legendary</div>
-    <div className="loading-dots">
-      <div className="loading-dot"></div>
-      <div className="loading-dot"></div>
-      <div className="loading-dot"></div>
-    </div>
-  </div>
-);
-
-const ResultScreen: React.FC<{
-  glaze: string;
-  intensity: IntensityLevel;
-  style: GlazeStyle;
-  onBack: () => void;
-  onShare: () => void;
-  onNew: () => void;
-  onSave: () => void;
-}> = ({ glaze, intensity, style, onBack, onShare, onNew, onSave }) => {
-  const intensityLabel = INTENSITY_LEVELS.find((i) => i.level === intensity)?.name || intensity;
-  const styleLabel = GLAZE_STYLES.find((s) => s.value === style)?.label || style;
-
-  return (
-    <div className="app-content">
-      <StatusBar />
-      <div className="nav-header">
-        <button className="back-btn" onClick={onBack} aria-label="Go back">
-          ←
-        </button>
-        <div className="nav-title">Your Glaze</div>
-        <button className="icon-btn" style={{ marginLeft: 'auto' }} onClick={onShare} aria-label="Share">
-          📤
-        </button>
-      </div>
-
-      <div className="preview-content">
-        <div className="result-card">
-          <div className="result-badge">✨ THE GLAZE ✨</div>
-          <div className="glaze-result">{glaze}</div>
-          <div className="result-meta">
-            <div className="meta-tag">🔥 {intensityLabel}</div>
-            <div className="meta-tag">👯 {styleLabel}</div>
-            <div className="meta-tag">🤖 AI</div>
-          </div>
-          <div className="action-grid">
-            <button className="action-btn action-secondary" onClick={onNew}>
-              🔄 New
-            </button>
-            <button className="action-btn action-secondary" onClick={onSave}>
-              ⭐ Save
-            </button>
-            <button className="action-btn share-main" onClick={onShare}>
-              📤 SHARE TO MAKE THEM SMILE
-            </button>
-          </div>
-        </div>
-
-        <div className="keyboard-demo">
-          <div className="keyboard-tabs">
-            <button className="keyboard-tab active">Recent</button>
-            <button className="keyboard-tab">⭐ Fav</button>
-            <button className="keyboard-tab">⚡ Quick</button>
-          </div>
-          <div className="daily-counter">🌟 8 of 9 left today</div>
-          <div className="keyboard-item">
-            <div className="keyboard-item-text">{glaze.slice(0, 30)}...</div>
-            <div className="keyboard-item-meta">Available in keyboard extension</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ShareSheet: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onShare: (platform: string) => void;
-}> = ({ isOpen, onClose, onShare }) => {
-  if (!isOpen) return null;
-
-  const shareApps = [
-    { id: 'imessage', icon: '💬', label: 'iMessage', color: '#34C759' },
-    { id: 'whatsapp', icon: '📱', label: 'WhatsApp', color: '#25D366' },
-    { id: 'instagram', icon: '📸', label: 'Instagram', color: '#E4405F' },
-    { id: 'twitter', icon: '𝕏', label: 'Twitter', color: '#000' },
-    { id: 'linkedin', icon: '💼', label: 'LinkedIn', color: '#0A66C2' },
-    { id: 'email', icon: '📧', label: 'Email', color: '#FF4500' },
-    { id: 'copy', icon: '📋', label: 'Copy', color: '#636E72' },
-    { id: 'more', icon: '⋯', label: 'More', color: '#636E72' }
-  ];
-
-  return (
-    <div className="share-overlay" onClick={onClose}>
-      <div className="share-sheet" onClick={(e) => e.stopPropagation()}>
-        <h3 className="share-title">Share Glaze</h3>
-        <div className="share-grid">
-          {shareApps.map((app) => (
-            <button key={app.id} className="share-app" onClick={() => onShare(app.id)}>
-              <div className="share-icon" style={{ background: app.color }}>
-                {app.icon}
-              </div>
-              <span className="share-label">{app.label}</span>
-            </button>
+      {/* Label */}
+      <div style={{ position: "absolute", bottom: -90, left: "50%", transform: "translateX(-50%)", textAlign: "center", width: "100%" }}>
+        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: "white" }}>{name}</div>
+        <div style={{ fontSize: 14, opacity: 0.7, color: "rgba(255,255,255,.8)" }}>{desc}</div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
+          {tags.map(t => (
+            <span key={t} style={{
+              background: "rgba(255,255,255,.1)", padding: "6px 14px", borderRadius: 20,
+              fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: .5,
+              border: "1px solid rgba(255,255,255,.1)", color: "white"
+            }}>{t}</span>
           ))}
         </div>
-        <button className="share-cancel" onClick={onClose}>
-          Cancel
-        </button>
       </div>
     </div>
   );
 };
 
-// Main App Component
-const App: React.FC = () => {
-  const [currentScreen, setCurrentScreen] = useState<
-    'splash' | 'home' | 'generator' | 'loading' | 'result'
-  >('splash');
-  const [friends, setFriends] = useState<Friend[]>(MOCK_FRIENDS);
-  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
-  const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
-  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
-  const [generatedGlaze, setGeneratedGlaze] = useState<{
-    text: string;
-    intensity: IntensityLevel;
-    style: GlazeStyle;
-  } | null>(null);
-  const [dailyUsed, setDailyUsed] = useState(0);
-  const DAILY_LIMIT = 9;
+const ScreenContent: React.FC<{ time: string; children: React.ReactNode }> = ({ time, children }) => (
+  <>{children}</>
+);
 
-  useEffect(() => {
-    // Simulate splash screen
-    const timer = setTimeout(() => {
-      setCurrentScreen('home');
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
+// ─── App Gradient Wrapper ───────────────────────────────────────────────────
 
-  const handleAddFriend = (name: string, context: string) => {
-    const newFriend: Friend = {
-      id: Date.now().toString(),
-      name,
-      initial: name.charAt(0).toUpperCase(),
-      streak: 0,
-      context
-    };
-    setFriends((prev) => [...prev, newFriend]);
-  };
+const AppGradient: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => (
+  <div style={{
+    width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden",
+    background: "linear-gradient(180deg,#FFE66D 0%,#FF8C42 50%,#FF6B35 100%)",
+    position: "relative", paddingTop: 60,
+    scrollbarWidth: "none",
+    ...style
+  }}>
+    {children}
+  </div>
+);
 
-  const handleSelectFriend = (friend: Friend) => {
-    setSelectedFriend(friend);
-    setCurrentScreen('generator');
-  };
+// ─── Screen 1: Splash ───────────────────────────────────────────────────────
 
-  const handleGenerate = (intensity: IntensityLevel, style: GlazeStyle, context: string) => {
-    if (dailyUsed >= DAILY_LIMIT) {
-      alert('Daily limit reached! Upgrade to premium for unlimited glazes.');
-      return;
-    }
+const SplashScreen: React.FC<{ time: string }> = ({ time }) => (
+  <AppGradient>
+    <StatusBar time={time} />
+    <style>{`
+      @keyframes glow-pulse { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.2);opacity:.8} }
+      @keyframes sparkle-float { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-10px) rotate(10deg)} }
+      @keyframes spin { to{transform:rotate(360deg)} }
+      @keyframes core-pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.2)} }
+      @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+      @keyframes badge-glow { 0%,100%{box-shadow:0 4px 15px rgba(255,140,66,.3)} 50%{box-shadow:0 4px 30px rgba(255,140,66,.6)} }
+      @keyframes bounce-right { 0%,100%{transform:translateX(0)} 50%{transform:translateX(5px)} }
+      @keyframes dot-pulse { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
+      @keyframes float-icon { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+      @keyframes loading-bounce { 0%,100%{transform:translateY(0) rotate(0deg) scale(1)} 25%{transform:translateY(-30px) rotate(10deg) scale(1.1)} 50%{transform:translateY(0) rotate(0deg) scale(1)} 75%{transform:translateY(-15px) rotate(-5deg) scale(1.05)} }
+      @keyframes float-ambient { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(50px,-50px) scale(1.1)} 66%{transform:translate(-30px,30px) scale(0.9)} }
+      @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.5} }
+    `}</style>
+    <div style={{
+      height: "100%", display: "flex", flexDirection: "column",
+      justifyContent: "center", alignItems: "center", textAlign: "center",
+      color: "white", padding: 40, position: "relative", overflow: "hidden"
+    }}>
+      <div style={{
+        position: "absolute", width: 300, height: 300,
+        background: "radial-gradient(circle,rgba(255,255,255,.3),transparent 70%)",
+        borderRadius: "50%", animation: "glow-pulse 3s infinite"
+      }} />
+      <div style={{
+        fontSize: 52, fontWeight: 900, marginBottom: 20, position: "relative", zIndex: 1,
+        textShadow: "0 4px 30px rgba(0,0,0,.2)"
+      }}>
+        GlazeMe
+        <span style={{
+          position: "absolute", top: -20, right: -40, fontSize: 40,
+          animation: "sparkle-float 3s infinite"
+        }}>✨</span>
+      </div>
+      <div style={{ fontSize: 18, opacity: .95, fontWeight: 500, marginBottom: 50, position: "relative", zIndex: 1 }}>
+        Make someone's day,<br />over the top
+      </div>
+      <div style={{ width: 60, height: 60, position: "relative", zIndex: 1 }}>
+        <div style={{ position: "absolute", inset: 0, border: "4px solid rgba(255,255,255,.2)", borderTopColor: "white", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+        <div style={{ position: "absolute", top: "50%", left: "50%", width: 20, height: 20, background: "white", borderRadius: "50%", animation: "core-pulse 1s infinite", transform: "translate(-50%,-50%)" }} />
+      </div>
+    </div>
+  </AppGradient>
+);
 
-    setCurrentScreen('loading');
+// ─── Screen 2: Home ─────────────────────────────────────────────────────────
 
-    // Simulate AI generation
-    setTimeout(() => {
-      const mockGlazes: Record<IntensityLevel, string[]> = {
-        nice: [
-          "You're pretty great, you know that?",
-          "Thanks for being you!",
-          "You make the world a little brighter."
-        ],
-        hype: [
-          "ABSOLUTELY KILLING IT TODAY!! 🔥",
-          "YOU'RE ON FIRE!! CAN'T STOP WON'T STOP!!",
-          "EVERYONE NEEDS TO KNOW HOW AMAZING YOU ARE!!"
-        ],
-        legendary: [
-          `${selectedFriend?.name} YOU ABSOLUTE LEGENDARY QUEEN!! 👑✨🔥 The way you just exist is absolutely ICONIC!! NO ONE is doing it like you!! MAIN CHARACTER ENERGY FR FR!! 💅✨`,
-          `LEGENDARY STATUS: ${selectedFriend?.name} is literally the main character of life!! No debate!! Everyone else is just living in their world!! 🌟👑`,
-          `FACT: ${selectedFriend?.name} didn't just wake up and choose violence, they woke up and chose GREATNESS!! Absolutely unmatched energy!! 🔥💫`
-        ],
-        unhinged: [
-          `⚠️⚠️⚠️ EMERGENCY ALERT ⚠️⚠️⚠️ ${selectedFriend?.name} just broke the scale of being awesome!! SEND HELP!! CAN'T HANDLE THIS MUCH COOLNESS!! 🚨🚨🚨`,
-          `💀💀💀 I'm deceased!! ${selectedFriend?.name} just ended the whole game!! No one else even needs to try!! This is the peak of existence right here!! 💀💀💀`,
-          `THE UNIVERSE LITERALLY REARRANGED ITSELF TO CREATE ${selectedFriend?.name?.toUpperCase()}!! This is actual perfection we're witnessing!! Pinch me I'm dreaming!! 🌌✨`
-        ]
-      };
+const HomeScreen: React.FC<{ time: string }> = ({ time }) => (
+  <AppGradient>
+    <StatusBar time={time} />
+    <div style={{ padding: "70px 24px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "white" }}>
+      <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: -1 }}>GlazeMe 🔥</div>
+      <div style={{ display: "flex", gap: 12 }}>
+        {["⌨️", "⚙️"].map(icon => (
+          <div key={icon} style={{
+            width: 44, height: 44, background: "rgba(255,255,255,.15)", backdropFilter: "blur(20px)",
+            borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 20, border: "1px solid rgba(255,255,255,.2)", cursor: "pointer"
+          }}>{icon}</div>
+        ))}
+      </div>
+    </div>
+    {/* Limit Bar */}
+    <div style={{
+      background: "rgba(255,255,255,.15)", backdropFilter: "blur(20px)", borderRadius: 24,
+      padding: 20, margin: "0 24px 24px", border: "1px solid rgba(255,255,255,.2)"
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, color: "white" }}>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>🌟 <span style={{ fontSize: 28, fontWeight: 900 }}>9</span>/9 left</div>
+        <div style={{ background: "rgba(255,255,255,.2)", padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, color: "white" }}>Daily</div>
+      </div>
+      <div style={{ height: 8, background: "rgba(0,0,0,.2)", borderRadius: 4, overflow: "hidden" }}>
+        <div style={{ height: "100%", background: "linear-gradient(90deg,#fff,#FFE66D)", borderRadius: 4, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent)", animation: "shimmer 2s infinite" }} />
+        </div>
+      </div>
+    </div>
+    {/* Friends */}
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 24px 20px", color: "white" }}>
+      <div style={{ fontSize: 22, fontWeight: 800 }}>Who deserves love?</div>
+      <div style={{ fontSize: 14, fontWeight: 700, padding: "8px 16px", background: "rgba(255,255,255,.15)", borderRadius: 20 }}>+ Add</div>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, padding: "0 24px", marginBottom: 24 }}>
+      {[{ init: "S", name: "Sarah", streak: 5 }, { init: "M", name: "Mike", streak: 2 }, { init: "+", name: "Add", streak: null }].map((f) => (
+        <div key={f.name} style={{
+          background: f.streak === null ? "rgba(255,255,255,.1)" : "white",
+          borderRadius: 24, padding: "20px 8px", textAlign: "center",
+          boxShadow: "0 4px 20px rgba(0,0,0,.1)", cursor: "pointer",
+          border: f.streak === null ? "2px dashed rgba(255,255,255,.4)" : "none"
+        }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%", margin: "0 auto 12px",
+            background: "linear-gradient(135deg,#FFE66D,#FF8C42)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: f.streak === null ? 28 : 22, fontWeight: 800, color: "white",
+            boxShadow: "0 4px 15px rgba(255,140,66,.3)"
+          }}>{f.init}</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: f.streak === null ? "white" : "#1a1a1a", marginBottom: 6 }}>{f.name}</div>
+          {f.streak && <div style={{ fontSize: 13, color: "#FF8C42", fontWeight: 800 }}>🔥 {f.streak}</div>}
+        </div>
+      ))}
+    </div>
+    {/* Recent */}
+    <div style={{ background: "white", margin: "0 24px", borderRadius: 28, padding: 24, boxShadow: "0 8px 32px rgba(0,0,0,.1)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a" }}>Recent Glazes</div>
+        <div style={{ fontSize: 13, color: "#666", fontWeight: 600 }}>See All →</div>
+      </div>
+      {[
+        { text: '"You\'re absolutely legendary..."', meta: "Sarah • 2m ago" },
+        { text: '"Main character energy fr fr..."', meta: "Mike • 1h ago" }
+      ].map((item) => (
+        <div key={item.meta} style={{
+          padding: 16, background: "rgba(255,230,109,.1)", borderRadius: 16,
+          display: "flex", alignItems: "center", gap: 12, marginBottom: 12,
+          cursor: "pointer", border: "1px solid transparent"
+        }}>
+          <div style={{
+            width: 44, height: 44, background: "linear-gradient(135deg,#FFE66D,#FF8C42)",
+            borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0
+          }}>💬</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, color: "#1a1a1a", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 4 }}>{item.text}</div>
+            <div style={{ fontSize: 13, color: "#666", fontWeight: 500 }}>{item.meta}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </AppGradient>
+);
 
-      const styleModifiers: Record<GlazeStyle, string> = {
-        bestie: "bestie vibes only!! 💅",
-        poetic: "like a symphony of greatness.",
-        ceo: "ceo of being absolutely iconic.",
-        chaos: "chaos ensues but make it legendary."
-      };
+// ─── Screen 3: Add Friend Modal ─────────────────────────────────────────────
 
-      const intensityGlazes = mockGlazes[intensity];
-      const baseGlaze = intensityGlazes[Math.floor(Math.random() * intensityGlazes.length)];
-      const finalGlaze = `${baseGlaze} ${styleModifiers[style]}`;
+const AddFriendScreen: React.FC<{ time: string }> = ({ time }) => (
+  <AppGradient style={{ overflow: "hidden" }}>
+    <StatusBar time={time} />
+    <div style={{ filter: "blur(3px) brightness(0.7)", padding: "70px 24px 24px" }}>
+      <div style={{ fontSize: 32, fontWeight: 900, color: "white", marginBottom: 20 }}>GlazeMe 🔥</div>
+      <div style={{ background: "rgba(255,255,255,.15)", borderRadius: 24, padding: 20, height: 80 }} />
+    </div>
+    <div style={{
+      position: "absolute", inset: 0, background: "rgba(0,0,0,.5)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "flex-end", zIndex: 1000
+    }}>
+      <div style={{
+        background: "white", borderRadius: "40px 40px 0 0", padding: 32, width: "100%",
+        animation: "modal-up .4s cubic-bezier(.34,1.56,.64,1)"
+      }}>
+        <div style={{ width: 40, height: 5, background: "rgba(0,0,0,.2)", borderRadius: 3, margin: "0 auto 28px" }} />
+        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 24, color: "#1a1a1a" }}>Add Friend</div>
+        {[{ label: "Friend's Name", placeholder: "e.g., Jessica" }, { label: "What makes them awesome?", placeholder: "e.g., Always supportive" }].map(field => (
+          <div key={field.label} style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 700, color: "#1a1a1a", fontSize: 14 }}>{field.label}</label>
+            <input readOnly placeholder={field.placeholder} style={{
+              width: "100%", padding: 16, border: "2px solid rgba(0,0,0,.08)",
+              borderRadius: 16, fontSize: 16, fontFamily: "inherit", background: "white", color: "#999"
+            }} />
+          </div>
+        ))}
+        <button style={{
+          width: "100%", padding: 20, background: "linear-gradient(135deg,#FFE66D,#FF8C42)",
+          border: "none", borderRadius: 20, color: "white", fontSize: 18, fontWeight: 900, cursor: "pointer"
+        }}>💛 Add Friend</button>
+      </div>
+    </div>
+  </AppGradient>
+);
 
-      setGeneratedGlaze({
-        text: finalGlaze,
-        intensity,
-        style
-      });
-      setDailyUsed((prev) => prev + 1);
-      setCurrentScreen('result');
-    }, 2500);
-  };
+// ─── Screen 4: Generator ─────────────────────────────────────────────────────
 
-  const handleBack = () => {
-    setCurrentScreen('home');
-    setSelectedFriend(null);
-  };
+const GeneratorScreen: React.FC<{ time: string }> = ({ time }) => {
+  const [activeIntensity, setActiveIntensity] = useState(2);
+  const [activeStyle, setActiveStyle] = useState(0);
 
-  const handleShare = () => {
-    setIsShareSheetOpen(true);
-  };
-
-  const handleShareToPlatform = (platform: string) => {
-    console.log(`Sharing to ${platform}:`, generatedGlaze?.text);
-    setIsShareSheetOpen(false);
-    // Implement actual sharing logic here
-  };
-
-  const handleSaveGlaze = () => {
-    if (generatedGlaze) {
-      console.log('Saving glaze:', generatedGlaze);
-      // Implement save logic here
-    }
-  };
+  const intensities = [
+    { emoji: "😊", name: "Nice", desc: "Subtle" },
+    { emoji: "🚀", name: "Hype", desc: "High energy" },
+    { emoji: "👑", name: "LEGENDARY", desc: "All caps" },
+    { emoji: "🤪", name: "UNHINGED", desc: "Chaos mode", wild: true },
+  ];
+  const styles = ["👯 Bestie", "📜 Poetic", "💼 CEO", "🌪️ Chaos"];
 
   return (
-    <div className="app">
-      <AmbientBackground />
+    <AppGradient>
+      <StatusBar time={time} />
+      <div style={{ display: "flex", alignItems: "center", padding: "70px 24px 24px", color: "white", gap: 16 }}>
+        <div style={{ width: 40, height: 40, background: "rgba(255,255,255,.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, cursor: "pointer" }}>←</div>
+        <div style={{ fontSize: 20, fontWeight: 800 }}>New Glaze</div>
+        <div style={{ width: 40, height: 40, background: "rgba(255,255,255,.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", marginLeft: "auto", fontSize: 18 }}>ℹ️</div>
+      </div>
+      <div style={{ padding: "0 24px 100px" }}>
+        {/* Target */}
+        <div style={{ background: "white", borderRadius: 28, padding: 30, marginBottom: 24, textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,.1)", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: "linear-gradient(90deg,#FFE66D,#FF8C42)" }} />
+          <div style={{ fontSize: 13, color: "#666", textTransform: "uppercase", letterSpacing: 2, fontWeight: 700, marginBottom: 8 }}>Glazing Target</div>
+          <div style={{ fontSize: 32, fontWeight: 900, background: "linear-gradient(135deg,#FF8C42,#FF6B35)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Sarah 💛</div>
+        </div>
+        {/* Intensity */}
+        <div style={{ background: "white", borderRadius: 28, padding: 24, marginBottom: 20, boxShadow: "0 4px 20px rgba(0,0,0,.08)" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#666", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 16 }}>🔥 How "over the top"?</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {intensities.map((btn, i) => (
+              <div key={btn.name} onClick={() => setActiveIntensity(i)} style={{
+                padding: "20px 12px", border: `2px solid ${activeIntensity === i ? "transparent" : btn.wild ? "#FF2D55" : "rgba(0,0,0,.08)"}`,
+                borderRadius: 20, textAlign: "center", cursor: "pointer",
+                background: activeIntensity === i ? (btn.wild ? "linear-gradient(135deg,#FF2D55,#ff1a1a)" : "linear-gradient(135deg,#FFE66D,#FF8C42)") : "white",
+                color: activeIntensity === i ? "white" : btn.wild ? "#FF2D55" : "inherit",
+                transform: activeIntensity === i ? "scale(1.05)" : "none",
+                boxShadow: activeIntensity === i ? `0 8px 25px ${btn.wild ? "rgba(255,45,85,.4)" : "rgba(255,140,66,.4)"}` : "none",
+                transition: "all .3s cubic-bezier(.34,1.56,.64,1)"
+              }}>
+                <span style={{ fontSize: 32, display: "block", marginBottom: 8 }}>{btn.emoji}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, display: "block", marginBottom: 4 }}>{btn.name}</span>
+                <span style={{ fontSize: 11, opacity: .8 }}>{btn.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Style */}
+        <div style={{ background: "white", borderRadius: 28, padding: 24, marginBottom: 20, boxShadow: "0 4px 20px rgba(0,0,0,.08)" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#666", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 16 }}>🎨 Meme Vibe</div>
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 5, scrollbarWidth: "none" }}>
+            {styles.map((s, i) => (
+              <div key={s} onClick={() => setActiveStyle(i)} style={{
+                padding: "14px 24px", border: `2px solid ${activeStyle === i ? "#1a1a1a" : "rgba(0,0,0,.08)"}`,
+                borderRadius: 25, whiteSpace: "nowrap", fontWeight: 700, fontSize: 15, cursor: "pointer",
+                background: activeStyle === i ? "#1a1a1a" : "white",
+                color: activeStyle === i ? "white" : "inherit",
+                transform: activeStyle === i ? "scale(1.05)" : "none",
+                transition: "all .3s ease", flexShrink: 0
+              }}>{s}</div>
+            ))}
+          </div>
+        </div>
+        {/* Context */}
+        <div style={{ background: "white", borderRadius: 28, padding: 24, marginBottom: 20, boxShadow: "0 4px 20px rgba(0,0,0,.08)" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#666", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 16 }}>📝 Context</div>
+          <textarea readOnly placeholder="Why are you glazing them?" rows={2} style={{
+            width: "100%", padding: 18, border: "2px solid rgba(0,0,0,.08)", borderRadius: 20,
+            fontSize: 16, resize: "none", fontFamily: "inherit", background: "white", color: "#999"
+          }} />
+        </div>
+        <button style={{
+          width: "100%", padding: 24, background: "linear-gradient(135deg,#FFE66D,#FF8C42)",
+          border: "none", borderRadius: 24, color: "white", fontSize: 18, fontWeight: 900,
+          cursor: "pointer", boxShadow: "0 8px 30px rgba(255,140,66,.4)",
+          textTransform: "uppercase", letterSpacing: 1, position: "relative", overflow: "hidden"
+        }}>✨ GENERATE GLAZE</button>
+      </div>
+    </AppGradient>
+  );
+};
 
-      <header className="demo-header">
-        <div className="badge">
-          <div className="badge-dot"></div>
+// ─── Screen 5: Loading ───────────────────────────────────────────────────────
+
+const LoadingScreen: React.FC<{ time: string }> = ({ time }) => (
+  <AppGradient>
+    <StatusBar time={time} />
+    <div style={{
+      height: "100%", display: "flex", flexDirection: "column",
+      justifyContent: "center", alignItems: "center", color: "white", textAlign: "center", padding: 40
+    }}>
+      <div style={{ fontSize: 80, marginBottom: 40, animation: "loading-bounce 1.2s infinite", filter: "drop-shadow(0 10px 30px rgba(0,0,0,.2))" }}>✨🔥✨</div>
+      <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 12 }}>Creating your glaze...</div>
+      <div style={{ fontSize: 16, opacity: .9, marginBottom: 40 }}>AI is cooking up something legendary</div>
+      <div style={{ display: "flex", gap: 12 }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            width: 14, height: 14, background: "white", borderRadius: "50%",
+            animation: `dot-pulse 1.4s infinite ease-in-out both`,
+            animationDelay: `${[-0.32, -0.16, 0][i]}s`
+          }} />
+        ))}
+      </div>
+    </div>
+  </AppGradient>
+);
+
+// ─── Screen 6: Preview / Result ─────────────────────────────────────────────
+
+const PreviewScreen: React.FC<{ time: string }> = ({ time }) => (
+  <AppGradient>
+    <StatusBar time={time} />
+    <div style={{ display: "flex", alignItems: "center", padding: "70px 24px 24px", color: "white", gap: 16 }}>
+      <div style={{ width: 40, height: 40, background: "rgba(255,255,255,.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>←</div>
+      <div style={{ fontSize: 20, fontWeight: 800 }}>Your Glaze</div>
+      <div style={{ width: 40, height: 40, background: "rgba(255,255,255,.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", marginLeft: "auto" }}>📤</div>
+    </div>
+    <div style={{ padding: 24 }}>
+      <div style={{ background: "white", borderRadius: 32, padding: "40px 30px", boxShadow: "0 20px 60px rgba(0,0,0,.2)", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 6, background: "linear-gradient(90deg,#FFE66D,#FF8C42,#FF6B35)" }} />
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 24px", background: "linear-gradient(135deg,#FFE66D,#FF8C42)", color: "white", borderRadius: 30, fontSize: 13, fontWeight: 900, textTransform: "uppercase", letterSpacing: 2, marginBottom: 30, animation: "badge-glow 2s infinite" }}>✨ THE GLAZE ✨</div>
+        <div style={{ fontSize: 20, lineHeight: 1.6, color: "#1a1a1a", fontWeight: 800, margin: "30px 0", padding: 30, background: "linear-gradient(135deg,rgba(255,230,109,.15),rgba(255,140,66,.15))", borderRadius: 24, borderLeft: "5px solid #FF8C42", textAlign: "left", position: "relative" }}>
+          <span style={{ position: "absolute", top: 10, left: 15, fontSize: 80, color: "rgba(255,140,66,.15)", fontFamily: "Georgia,serif", lineHeight: 1 }}>"</span>
+          "SARAH YOU ABSOLUTE LEGENDARY QUEEN!! 👑✨🔥 The way you just exist is absolutely ICONIC!! MAIN CHARACTER ENERGY FR FR!! 💅"
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 30, flexWrap: "wrap" }}>
+          {["🔥 Legendary", "👯 Bestie", "🤖 AI"].map(tag => (
+            <div key={tag} style={{ padding: "8px 16px", background: "rgba(0,0,0,.05)", borderRadius: 20, fontSize: 13, fontWeight: 700, color: "#666" }}>{tag}</div>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {["🔄 New", "⭐ Save"].map(a => (
+            <button key={a} style={{ padding: 18, borderRadius: 20, border: "none", fontWeight: 800, fontSize: 15, cursor: "pointer", background: "rgba(0,0,0,.05)", color: "#1a1a1a" }}>{a}</button>
+          ))}
+          <button style={{ padding: 22, borderRadius: 20, border: "none", fontWeight: 800, fontSize: 17, cursor: "pointer", background: "linear-gradient(135deg,#34C759,#30D158)", color: "white", gridColumn: "span 2", boxShadow: "0 8px 25px rgba(52,199,89,.4)" }}>📤 SHARE TO MAKE THEM SMILE</button>
+        </div>
+      </div>
+      {/* Keyboard Preview */}
+      <div style={{ marginTop: 24, background: "#F2F2F7", borderRadius: 24, padding: 20 }}>
+        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+          {["Recent", "⭐ Fav", "⚡ Quick"].map((t, i) => (
+            <div key={t} style={{ padding: "10px 20px", borderRadius: 20, fontSize: 14, fontWeight: 700, background: i === 0 ? "linear-gradient(135deg,#FFE66D,#FF8C42)" : "white", color: i === 0 ? "white" : "#1a1a1a", boxShadow: "0 2px 8px rgba(0,0,0,.05)" }}>{t}</div>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: "#666", marginBottom: 12, fontWeight: 600 }}>🌟 8 of 9 left today</div>
+        <div style={{ background: "white", padding: 16, borderRadius: 14, borderLeft: "4px solid #FF8C42", boxShadow: "0 2px 8px rgba(0,0,0,.05)" }}>
+          <div style={{ fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>"SARAH YOU ABSOLUTE LEGENDARY..."</div>
+          <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>Available in keyboard extension</div>
+        </div>
+      </div>
+    </div>
+  </AppGradient>
+);
+
+// ─── Screen 7: Share Sheet ───────────────────────────────────────────────────
+
+const ShareSheetScreen: React.FC<{ time: string }> = ({ time }) => (
+  <AppGradient style={{ overflow: "hidden" }}>
+    <StatusBar time={time} />
+    <div style={{ filter: "blur(4px) brightness(.6)", transform: "scale(.95)", padding: "70px 24px" }}>
+      <div style={{ background: "white", borderRadius: 32, padding: 40, textAlign: "center" }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: "#1a1a1a" }}>"SARAH YOU ABSOLUTE..."</div>
+      </div>
+    </div>
+    <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.6)", backdropFilter: "blur(10px)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 20, zIndex: 1000 }}>
+      <div style={{ background: "rgba(255,255,255,.95)", borderRadius: 28, padding: 28, width: "100%", maxWidth: 360 }}>
+        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, textAlign: "center", color: "#1a1a1a" }}>Share Glaze</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
+          {[
+            { icon: "💬", bg: "#34C759", label: "iMessage" },
+            { icon: "📱", bg: "#25D366", label: "WhatsApp" },
+            { icon: "📸", bg: "#E4405F", label: "Instagram" },
+            { icon: "𝕏", bg: "#000", label: "Twitter" },
+            { icon: "💼", bg: "#0A66C2", label: "LinkedIn" },
+            { icon: "📧", bg: "#FF4500", label: "Email" },
+            { icon: "📋", bg: "#636E72", label: "Copy" },
+            { icon: "⋯", bg: "#636E72", label: "More" },
+          ].map(app => (
+            <div key={app.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 60, height: 60, borderRadius: 16, background: app.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 4px 12px rgba(0,0,0,.1)", cursor: "pointer" }}>{app.icon}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#666" }}>{app.label}</div>
+            </div>
+          ))}
+        </div>
+        <button style={{ width: "100%", padding: 16, background: "rgba(0,0,0,.05)", border: "none", borderRadius: 16, fontWeight: 700, fontSize: 17, color: "#1a1a1a", cursor: "pointer" }}>Cancel</button>
+      </div>
+    </div>
+  </AppGradient>
+);
+
+// ─── Screen 8: Keyboard Setup ────────────────────────────────────────────────
+
+const KeyboardSetupScreen: React.FC<{ time: string }> = ({ time }) => (
+  <AppGradient>
+    <StatusBar time={time} />
+    <div style={{ display: "flex", alignItems: "center", padding: "70px 24px 24px", color: "white", gap: 16 }}>
+      <div style={{ width: 40, height: 40, background: "rgba(255,255,255,.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>←</div>
+      <div style={{ fontSize: 20, fontWeight: 800 }}>Keyboard</div>
+    </div>
+    <div style={{ background: "white", borderRadius: 32, padding: 40, margin: "0 24px 24px", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,.1)" }}>
+      <span style={{ fontSize: 80, display: "block", marginBottom: 24, animation: "float-icon 3s ease-in-out infinite" }}>⌨️</span>
+      <div style={{ fontSize: 28, fontWeight: 900, color: "#1a1a1a", marginBottom: 12 }}>Glaze Anywhere</div>
+      <div style={{ fontSize: 15, color: "#666", lineHeight: 1.6 }}>Add GlazeMe to your keyboard to bring joy to any conversation.</div>
+    </div>
+    <div style={{ background: "white", borderRadius: 28, padding: 30, margin: "0 24px 24px", boxShadow: "0 4px 16px rgba(0,0,0,.08)" }}>
+      <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 24, color: "#1a1a1a" }}>📱 Installation Steps</div>
+      {[
+        { text: "Open iPhone Settings", hint: "Look for the gray gear icon" },
+        { text: "Go to General → Keyboard", hint: "Scroll down to find Keyboard settings" },
+        { text: 'Tap "Keyboards" → "Add New"', hint: "You'll see third-party keyboards" },
+        { text: 'Select "GlazeMe"', hint: "Look for our orange-yellow icon" },
+        { text: 'Enable "Allow Full Access"', hint: "Required for AI generation" },
+      ].map((step, i) => (
+        <div key={i} style={{ display: "flex", gap: 16, marginBottom: 24, position: "relative" }}>
+          {i < 4 && <div style={{ position: "absolute", left: 20, top: 48, width: 2, height: 24, background: "linear-gradient(180deg,#FF8C42,transparent)" }} />}
+          <div style={{ width: 44, height: 44, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 900, fontSize: 18, flexShrink: 0, boxShadow: "0 4px 12px rgba(255,140,66,.3)" }}>{i + 1}</div>
+          <div style={{ flex: 1, paddingTop: 10 }}>
+            <div style={{ fontWeight: 700, color: "#1a1a1a", fontSize: 16, lineHeight: 1.5 }}>{step.text}</div>
+            <div style={{ fontSize: 13, color: "#666", marginTop: 6 }}>{step.hint}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </AppGradient>
+);
+
+// ─── Screen 9: Keyboard Active ───────────────────────────────────────────────
+
+const KeyboardActiveScreen: React.FC<{ time: string }> = ({ time }) => (
+  <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "white" }}>
+    {/* iMessage header */}
+    <div style={{ padding: "60px 20px 15px", background: "#F2F2F7", borderBottom: "1px solid rgba(0,0,0,.1)", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ fontSize: 22, color: "#007AFF" }}>←</div>
+      <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "white", fontSize: 16 }}>S</div>
+      <div style={{ fontWeight: 700, flex: 1, color: "#1a1a1a" }}>Sarah</div>
+    </div>
+    {/* Chat */}
+    <div style={{ flex: 1, background: "white", padding: 20 }}>
+      <div style={{ background: "#E9E9EB", padding: "12px 16px", borderRadius: "20px 20px 20px 4px", display: "inline-block", maxWidth: "75%", marginBottom: 12, color: "#1a1a1a", fontSize: 15 }}>Hey! How's it going? 👋</div>
+      <div style={{ background: "#34C759", padding: "12px 16px", borderRadius: "20px 20px 4px 20px", display: "inline-block", maxWidth: "75%", marginLeft: "auto", color: "white", float: "right", clear: "both", fontSize: 15 }}>Good! Just wanted to say...</div>
+      <div style={{ clear: "both" }} />
+    </div>
+    {/* GlazeMe Keyboard */}
+    <div style={{ background: "#F2F2F7", padding: 12, borderTop: "1px solid rgba(0,0,0,.1)" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+        {["Recent", "⭐ Fav", "⚡ Quick"].map((t, i) => (
+          <div key={t} style={{ padding: "8px 16px", background: i === 0 ? "linear-gradient(135deg,#FFE66D,#FF8C42)" : "white", borderRadius: 18, fontSize: 13, fontWeight: 700, color: i === 0 ? "white" : "#1a1a1a", boxShadow: "0 2px 8px rgba(0,0,0,.05)" }}>{t}</div>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: "#666", marginBottom: 10, fontWeight: 600 }}>🌟 8 of 9 left today</div>
+      {['"SARAH YOU ABSOLUTE LEGENDARY QUEEN!! 👑"', '"Main character energy fr fr!! 🔥"'].map((text, i) => (
+        <div key={i} style={{ background: "white", padding: 14, borderRadius: 12, marginBottom: 10, borderLeft: "3px solid #FF8C42", boxShadow: "0 2px 8px rgba(0,0,0,.05)" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{text}</div>
+          <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>{i === 0 ? "Just now • Tap to insert" : "1h ago"}</div>
+        </div>
+      ))}
+      <button style={{ width: "100%", padding: 14, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", border: "none", borderRadius: 12, color: "white", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>✨ Generate New</button>
+    </div>
+    <div style={{ background: "#D1D5DB", padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ fontSize: 22 }}>🌍</div>
+      <div style={{ background: "white", flex: 1, margin: "0 10px", height: 40, borderRadius: 8, display: "flex", alignItems: "center", padding: "0 12px", color: "#666", fontSize: 15, fontWeight: 600 }}>GlazeMe Keyboard Active</div>
+      <div style={{ fontSize: 22, color: "#007AFF" }}>⏎</div>
+    </div>
+  </div>
+);
+
+// ─── Screen 10: History ──────────────────────────────────────────────────────
+
+const HistoryScreen: React.FC<{ time: string }> = ({ time }) => (
+  <AppGradient>
+    <StatusBar time={time} />
+    <div style={{ display: "flex", alignItems: "center", padding: "70px 24px 24px", color: "white", gap: 16 }}>
+      <div style={{ width: 40, height: 40, background: "rgba(255,255,255,.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>←</div>
+      <div style={{ fontSize: 20, fontWeight: 800 }}>History</div>
+    </div>
+    <div style={{ padding: "0 24px" }}>
+      {/* Favorites */}
+      <div style={{ background: "linear-gradient(135deg,rgba(255,230,109,.1),rgba(255,140,66,.1))", border: "2px solid rgba(255,140,66,.2)", borderRadius: 24, padding: 24, marginBottom: 16 }}>
+        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 16, color: "#1a1a1a" }}>⭐ Favorites</div>
+        <div style={{ fontSize: 16, color: "#1a1a1a", fontWeight: 700, lineHeight: 1.5, marginBottom: 12 }}>"You're absolutely legendary and I'm not even exaggerating!!"</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 14, color: "#FF8C42", fontWeight: 800 }}>Sarah • Legendary</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            {["📋", "📤"].map(b => (
+              <button key={b} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.05)", fontSize: 16, cursor: "pointer" }}>{b}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{ fontWeight: 800, fontSize: 18, margin: "24px 0 16px", color: "white" }}>🕐 All History</div>
+      {[
+        { text: '"SARAH YOU ABSOLUTE LEGENDARY QUEEN!! 👑✨🔥"', meta: "Sarah • Today" },
+        { text: '"Main character energy fr fr no cap!! 🔥"', meta: "Mike • Yesterday" },
+        { text: '"Built different, absolutely iconic!! 💅"', meta: "Emma • 2 days ago" },
+      ].map(item => (
+        <div key={item.meta} style={{ background: "white", borderRadius: 24, padding: 24, marginBottom: 16, boxShadow: "0 4px 16px rgba(0,0,0,.08)" }}>
+          <div style={{ fontSize: 16, color: "#1a1a1a", fontWeight: 700, lineHeight: 1.5, marginBottom: 12 }}>{item.text}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 14, color: "#FF8C42", fontWeight: 800 }}>{item.meta}</span>
+            <div style={{ display: "flex", gap: 8 }}>
+              {["⭐", "📤"].map(b => (
+                <button key={b} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.05)", fontSize: 16, cursor: "pointer" }}>{b}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </AppGradient>
+);
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+export default function GlazeMeDemo() {
+  const [time, setTime] = useState("");
+
+  useEffect(() => {
+    const update = () => setTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }));
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const screens: Array<Omit<ScreenProps, "children"> & { Screen: React.FC<{ time: string }> }> = [
+    { number: 1, name: "Splash Screen", desc: "3-second branded entry with physics-based loader", tags: ["Animation", "Branding"], Screen: SplashScreen },
+    { number: 2, name: "Home Dashboard", desc: "Glass-morphism UI with friend management", tags: ["Glass UI", "Streaks", "Limit System"], Screen: HomeScreen },
+    { number: 3, name: "Add Friend Modal", desc: "Context-aware friend onboarding", tags: ["Modal UI", "Context AI"], Screen: AddFriendScreen },
+    { number: 4, name: "AI Generator", desc: "4 intensity levels + meme styles", tags: ["AI Engine", "4 Levels", "Meme Styles"], Screen: GeneratorScreen },
+    { number: 5, name: "AI Processing", desc: "2-3 second generation with haptics", tags: ["Loading UI", "Haptics"], Screen: LoadingScreen },
+    { number: 6, name: "Result Preview", desc: "Share, save, or regenerate with one tap", tags: ["Share Sheet", "Favorites", "Keyboard"], Screen: PreviewScreen },
+    { number: 7, name: "iOS Share Sheet", desc: "Native sharing to all platforms", tags: ["Native Share", "8 Apps"], Screen: ShareSheetScreen },
+    { number: 8, name: "Keyboard Setup", desc: "5-step guided installation", tags: ["Onboarding", "iOS Keyboard"], Screen: KeyboardSetupScreen },
+    { number: 9, name: "Keyboard Active", desc: "In Messages app with quick access", tags: ["iMessage", "Quick Gen", "Favorites"], Screen: KeyboardActiveScreen },
+    { number: 10, name: "History & Favorites", desc: "Manage and reuse past glazes", tags: ["History", "Favorites", "Quick Share"], Screen: HistoryScreen },
+  ];
+
+  const features = [
+    { icon: "🎨", title: "Titanium Glass UI", desc: "Premium glass-morphism design with iPhone 17 Pro titanium finish. Dynamic Island integration and fluid animations throughout." },
+    { icon: "🤖", title: "GPT-4 AI Engine", desc: "Advanced AI generates personalized compliments based on intensity, style, and context. From subtle to absolutely unhinged." },
+    { icon: "⌨️", title: "Universal Keyboard", desc: "iOS keyboard extension works in Messages, WhatsApp, Instagram, Twitter, and any app with a text field." },
+    { icon: "🔥", title: "4-Tier Intensity", desc: "Nice, Hype, Legendary, and Unhinged modes. Each with distinct personality from gentle encouragement to chaotic energy." },
+    { icon: "💎", title: "Daily Limit System", desc: "9 free generations per day with beautiful progress tracking. Resets at midnight. Premium upgrade for unlimited access." },
+    { icon: "⚡", title: "Zero Sign-In", desc: "No authentication barriers. Open app and start glazing immediately. Local storage with optional iCloud sync." },
+    { icon: "📤", title: "Native iOS Share", desc: "Full iOS share sheet integration. Send to Messages, WhatsApp, Instagram, Twitter, LinkedIn, Email, or copy to clipboard." },
+    { icon: "👥", title: "Friend Context AI", desc: "Add friends with custom context. AI remembers what makes them special and personalizes every compliment." },
+    { icon: "💾", title: "Smart History", desc: "Automatic history tracking with favorites. Reuse your best glazes with one tap from keyboard or app." },
+  ];
+
+  const specs = [
+    ["Platform", "iOS 17+"], ["Device", "iPhone 17 Pro"], ["AI Model", "GPT-4 Turbo"],
+    ["Storage", "iCloud Sync"], ["Security", "End-to-End"], ["Languages", "English"],
+  ];
+
+  return (
+    <div style={{
+      fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+      background: "linear-gradient(135deg,#0f0f23 0%,#1a1a2e 50%,#16213e 100%)",
+      minHeight: "100vh", color: "white", overflowX: "hidden"
+    }}>
+      {/* Animations */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes glow-pulse { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.2);opacity:.8} }
+        @keyframes sparkle-float { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-10px) rotate(10deg)} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        @keyframes core-pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.2)} }
+        @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+        @keyframes badge-glow { 0%,100%{box-shadow:0 4px 15px rgba(255,140,66,.3)} 50%{box-shadow:0 4px 30px rgba(255,140,66,.6)} }
+        @keyframes bounce-right { 0%,100%{transform:translateX(0)} 50%{transform:translateX(5px)} }
+        @keyframes dot-pulse { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
+        @keyframes float-icon { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        @keyframes loading-bounce { 0%,100%{transform:translateY(0) rotate(0deg) scale(1)} 25%{transform:translateY(-30px) rotate(10deg) scale(1.1)} 50%{transform:translateY(0) rotate(0deg) scale(1)} 75%{transform:translateY(-15px) rotate(-5deg) scale(1.05)} }
+        @keyframes float-ambient { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(50px,-50px) scale(1.1)} 66%{transform:translate(-30px,30px) scale(.9)} }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.5} }
+        @keyframes modal-up { from{transform:translateY(100%)} to{transform:translateY(0)} }
+        ::-webkit-scrollbar { display: none; }
+      `}</style>
+
+      {/* Ambient BG Orbs */}
+      {[
+        { w: 600, h: 600, color: "#FF8C42", top: -200, left: -200, delay: 0 },
+        { w: 500, h: 500, color: "#FFE66D", bottom: -150, right: -150, delay: -5 },
+        { w: 400, h: 400, color: "#FF2D55", top: "50%", left: "50%", delay: -10 },
+      ].map((orb, i) => (
+        <div key={i} style={{
+          position: "fixed", width: orb.w, height: orb.h, borderRadius: "50%",
+          filter: "blur(80px)", opacity: .4, pointerEvents: "none", zIndex: 0,
+          background: `radial-gradient(circle,${orb.color},transparent 70%)`,
+          animation: `float-ambient 20s ${orb.delay}s infinite ease-in-out`,
+          top: (orb as any).top ?? "auto", left: (orb as any).left ?? "auto",
+          bottom: (orb as any).bottom ?? "auto", right: (orb as any).right ?? "auto",
+          transform: i === 2 ? "translate(-50%,-50%)" : undefined
+        }} />
+      ))}
+
+      {/* Header */}
+      <header style={{ position: "relative", zIndex: 10, textAlign: "center", padding: "60px 20px 40px", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.1)", backdropFilter: "blur(20px)", padding: "10px 24px", borderRadius: 50, fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: 2, marginBottom: 30, border: "1px solid rgba(255,255,255,.1)" }}>
+          <div style={{ width: 8, height: 8, background: "#34C759", borderRadius: "50%", animation: "pulse-dot 2s infinite" }} />
           <span>Client Preview Ready</span>
         </div>
-        <h1 className="demo-title">GlazeMe Premium</h1>
-        <p className="demo-subtitle">
-          The ultimate "over the top" compliment experience. Designed for iPhone 17 Pro with
-          titanium finish, Dynamic Island integration, and pro-grade animations.
+        <h1 style={{ fontSize: "clamp(42px,8vw,72px)", fontWeight: 900, marginBottom: 20, background: "linear-gradient(135deg,#fff 0%,#FFE66D 50%,#FF8C42 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: -3, lineHeight: 1.1 }}>
+          GlazeMe Premium
+        </h1>
+        <p style={{ fontSize: 22, opacity: .8, maxWidth: 600, margin: "0 auto 40px", lineHeight: 1.6, fontWeight: 400 }}>
+          The ultimate "over the top" compliment experience. Designed for iPhone 17 Pro with titanium finish, Dynamic Island integration, and pro-grade animations.
         </p>
-
-        <div className="demo-stats">
-          <div className="stat-item">
-            <span className="stat-number">10</span>
-            <div className="stat-label">Screens</div>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">50+</span>
-            <div className="stat-label">Features</div>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">4</span>
-            <div className="stat-label">Intensity Levels</div>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">0s</span>
-            <div className="stat-label">Load Time</div>
-          </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: "clamp(20px,5vw,60px)", marginTop: 40, flexWrap: "wrap" }}>
+          {[["10", "Screens"], ["50+", "Features"], ["4", "Intensity Levels"], ["0s", "Load Time"]].map(([num, label]) => (
+            <div key={label} style={{ textAlign: "center" }}>
+              <span style={{ fontSize: 48, fontWeight: 900, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "block" }}>{num}</span>
+              <div style={{ fontSize: 14, opacity: .6, textTransform: "uppercase", letterSpacing: 1, marginTop: 5 }}>{label}</div>
+            </div>
+          ))}
         </div>
       </header>
 
-      <div className="showcase-container">
-        <div className="iphone-grid">
-          <div className="iphone-wrapper">
-            <div className="screen-number">
-              {currentScreen === 'splash'
-                ? 1
-                : currentScreen === 'home'
-                ? 2
-                : currentScreen === 'generator'
-                ? 4
-                : currentScreen === 'loading'
-                ? 5
-                : 6}
-            </div>
-           <IPhoneFrame>
-  
-              {currentScreen === 'splash' && <SplashScreen />}
-              {currentScreen === 'home' && (
-                <HomeScreen
-                  friends={friends}
-                  dailyLimit={DAILY_LIMIT}
-                  usedToday={dailyUsed}
-                  onAddFriend={() => setIsAddFriendModalOpen(true)}
-                  onSelectFriend={handleSelectFriend}
-                />
-              )}
-              {currentScreen === 'generator' && selectedFriend && (
-                <GeneratorScreen
-                  friend={selectedFriend}
-                  onBack={handleBack}
-                  onGenerate={handleGenerate}
-                />
-              )}
-              {currentScreen === 'loading' && <LoadingScreen />}
-              {currentScreen === 'result' && generatedGlaze && (
-                <ResultScreen
-                  glaze={generatedGlaze.text}
-                  intensity={generatedGlaze.intensity}
-                  style={generatedGlaze.style}
-                  onBack={handleBack}
-                  onShare={handleShare}
-                  onNew={() => setCurrentScreen('generator')}
-                  onSave={handleSaveGlaze}
-                />
-              )}
-           </IPhoneFrame>
-
-            <div className="screen-info">
-              <div className="screen-name">
-                {currentScreen === 'splash' && 'Splash Screen'}
-                {currentScreen === 'home' && 'Home Dashboard'}
-                {currentScreen === 'generator' && 'AI Generator'}
-                {currentScreen === 'loading' && 'AI Processing'}
-                {currentScreen === 'result' && 'Result Preview'}
-              </div>
-              <div className="screen-desc">
-                {currentScreen === 'splash' && '3-second branded entry with physics-based loader'}
-                {currentScreen === 'home' && 'Glass-morphism UI with friend management'}
-                {currentScreen === 'generator' && '4 intensity levels + meme styles'}
-                {currentScreen === 'loading' && '2-3 second generation with haptics'}
-                {currentScreen === 'result' && 'Share, save, or regenerate with one tap'}
-              </div>
-              <div className="feature-tags">
-                {currentScreen === 'splash' && (
-                  <>
-                    <span className="feature-tag">Animation</span>
-                    <span className="feature-tag">Branding</span>
-                  </>
-                )}
-                {currentScreen === 'home' && (
-                  <>
-                    <span className="feature-tag">Glass UI</span>
-                    <span className="feature-tag">Streaks</span>
-                    <span className="feature-tag">Limit System</span>
-                  </>
-                )}
-                {currentScreen === 'generator' && (
-                  <>
-                    <span className="feature-tag">AI Engine</span>
-                    <span className="feature-tag">4 Levels</span>
-                    <span className="feature-tag">Meme Styles</span>
-                  </>
-                )}
-                {currentScreen === 'loading' && (
-                  <>
-                    <span className="feature-tag">Loading UI</span>
-                    <span className="feature-tag">Haptics</span>
-                  </>
-                )}
-                {currentScreen === 'result' && (
-                  <>
-                    <span className="feature-tag">Share Sheet</span>
-                    <span className="feature-tag">Favorites</span>
-                    <span className="feature-tag">Keyboard</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+      {/* Phones Grid */}
+      <div style={{ position: "relative", zIndex: 10, padding: "60px 40px 160px", maxWidth: 1700, margin: "0 auto" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 100, justifyContent: "center" }}>
+          {screens.map(({ Screen, ...meta }) => (
+            <ScreenCard key={meta.number} {...meta}>
+              <Screen time={time} />
+            </ScreenCard>
+          ))}
         </div>
       </div>
 
-      <AddFriendModal
-        isOpen={isAddFriendModalOpen}
-        onClose={() => setIsAddFriendModalOpen(false)}
-        onAdd={handleAddFriend}
-      />
+      {/* Features Section */}
+      <section style={{ position: "relative", zIndex: 10, maxWidth: 1400, margin: "0 auto 80px", padding: "0 40px" }}>
+        <div style={{ textAlign: "center", marginBottom: 60 }}>
+          <h2 style={{ fontSize: "clamp(32px,5vw,48px)", fontWeight: 900, marginBottom: 20, background: "linear-gradient(135deg,#fff,#FFE66D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Premium Features</h2>
+          <p style={{ fontSize: 20, opacity: .8, maxWidth: 600, margin: "0 auto", lineHeight: 1.6 }}>Every detail crafted for the ultimate compliment experience. From AI generation to keyboard integration.</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 24 }}>
+          {features.map(f => (
+            <div key={f.title} style={{
+              background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)",
+              borderRadius: 24, padding: 32, backdropFilter: "blur(20px)",
+              transition: "all .4s ease", cursor: "default",
+              position: "relative", overflow: "hidden"
+            }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.transform = "translateY(-8px)";
+                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.05)";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.transform = "none";
+                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.03)";
+              }}>
+              <div style={{ width: 60, height: 60, background: "linear-gradient(135deg,#FFE66D,#FF8C42)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 20, boxShadow: "0 8px 20px rgba(255,140,66,.3)" }}>{f.icon}</div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12, color: "white" }}>{f.title}</h3>
+              <p style={{ fontSize: 15, lineHeight: 1.6, opacity: .7, color: "rgba(255,255,255,.8)" }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
 
-      <ShareSheet
-        isOpen={isShareSheetOpen}
-        onClose={() => setIsShareSheetOpen(false)}
-        onShare={handleShareToPlatform}
-      />
+        {/* Tech Specs */}
+        <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 32, padding: 40, marginTop: 60, border: "1px solid rgba(255,255,255,.1)" }}>
+          <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24, textAlign: "center" }}>Technical Specifications</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 20 }}>
+            {specs.map(([label, val]) => (
+              <div key={label} style={{ textAlign: "center", padding: 20, background: "rgba(255,255,255,.05)", borderRadius: 16 }}>
+                <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 1, opacity: .6, marginBottom: 8 }}>{label}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#FFE66D" }}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      <FeaturesSection />
-      <CTASection />
+      {/* CTA */}
+      <section style={{ textAlign: "center", padding: "60px 20px 100px", position: "relative", zIndex: 10 }}>
+        <h2 style={{ fontSize: "clamp(32px,5vw,48px)", fontWeight: 900, marginBottom: 30 }}>Ready to Glaze?</h2>
+        <button
+          style={{ display: "inline-flex", alignItems: "center", gap: 12, padding: "20px 40px", background: "linear-gradient(135deg,#FFE66D,#FF8C42)", color: "white", fontSize: 18, fontWeight: 800, borderRadius: 30, border: "none", boxShadow: "0 10px 30px rgba(255,140,66,.4)", cursor: "pointer", transition: "all .4s" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-4px) scale(1.05)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 20px 40px rgba(255,140,66,.5)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "0 10px 30px rgba(255,140,66,.4)"; }}
+        >
+          <span>🚀</span><span>Start Development</span>
+        </button>
+      </section>
     </div>
   );
-};
-
-const FeaturesSection: React.FC = () => {
-  const features = [
-    {
-      icon: '🎨',
-      title: 'Titanium Glass UI',
-      description:
-        'Premium glass-morphism design with iPhone 17 Pro titanium finish. Dynamic Island integration and fluid animations throughout.'
-    },
-    {
-      icon: '🤖',
-      title: 'GPT-4 AI Engine',
-      description:
-        'Advanced AI generates personalized compliments based on intensity, style, and context. From subtle to absolutely unhinged.'
-    },
-    {
-      icon: '⌨️',
-      title: 'Universal Keyboard',
-      description:
-        'iOS keyboard extension works in Messages, WhatsApp, Instagram, Twitter, and any app with a text field. Full access anywhere.'
-    },
-    {
-      icon: '🔥',
-      title: '4-Tier Intensity',
-      description:
-        'Nice, Hype, Legendary, and Unhinged modes. Each with distinct personality from gentle encouragement to chaotic energy.'
-    },
-    {
-      icon: '💎',
-      title: 'Daily Limit System',
-      description:
-        '9 free generations per day with beautiful progress tracking. Resets at midnight. Premium upgrade for unlimited access.'
-    },
-    {
-      icon: '⚡',
-      title: 'Zero Sign-In',
-      description:
-        'No authentication barriers. Open app and start glazing immediately. Local storage with optional iCloud sync.'
-    },
-    {
-      icon: '📤',
-      title: 'Native iOS Share',
-      description:
-        'Full iOS share sheet integration. Send to Messages, WhatsApp, Instagram, Twitter, LinkedIn, Email, or copy to clipboard.'
-    },
-    {
-      icon: '👥',
-      title: 'Friend Context AI',
-      description:
-        'Add friends with custom context. AI remembers what makes them special and personalizes every compliment.'
-    },
-    {
-      icon: '💾',
-      title: 'Smart History',
-      description:
-        'Automatic history tracking with favorites. Reuse your best glazes with one tap from keyboard or app.'
-    }
-  ];
-
-  return (
-    <section className="features-section">
-      <div className="features-header">
-        <h2 className="features-title">Premium Features</h2>
-        <p className="features-subtitle">
-          Every detail crafted for the ultimate compliment experience. From AI generation to keyboard
-          integration.
-        </p>
-      </div>
-
-      <div className="features-grid">
-        {features.map((feature, index) => (
-          <div key={index} className="feature-card">
-            <div className="feature-icon">{feature.icon}</div>
-            <h3 className="feature-title">{feature.title}</h3>
-            <p className="feature-desc">{feature.description}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="tech-specs">
-        <h3 className="tech-title">Technical Specifications</h3>
-        <div className="specs-grid">
-          <div className="spec-item">
-            <div className="spec-label">Platform</div>
-            <div className="spec-value">iOS 17+</div>
-          </div>
-          <div className="spec-item">
-            <div className="spec-label">Device</div>
-            <div className="spec-value">iPhone 17 Pro</div>
-          </div>
-          <div className="spec-item">
-            <div className="spec-label">AI Model</div>
-            <div className="spec-value">GPT-4 Turbo</div>
-          </div>
-          <div className="spec-item">
-            <div className="spec-label">Storage</div>
-            <div className="spec-value">iCloud Sync</div>
-          </div>
-          <div className="spec-item">
-            <div className="spec-label">Security</div>
-            <div className="spec-value">End-to-End</div>
-          </div>
-          <div className="spec-item">
-            <div className="spec-label">Languages</div>
-            <div className="spec-value">English</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const CTASection: React.FC = () => (
-  <section className="cta-section">
-    <h2 className="cta-title">Ready to Glaze?</h2>
-    <button className="cta-button">
-      <span>🚀</span>
-      <span>Start Development</span>
-    </button>
-  </section>
-);
-
-export default App;
+}
